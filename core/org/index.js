@@ -14,7 +14,6 @@ import * as claims from '../claims/index.js';
 import { createRouter } from '../router/router.js';
 import { createRunner, runnerExtraSteps } from '../runner/index.js';
 import { createGithubVcs } from '../runner/vcs-github.js';
-import { createVault } from '../vault/index.js';
 import { createGithubApp, createInstallationTokenProvider, hasAppCredentials } from '../githubapp/index.js';
 import { describeExtraSteps, handle as describeHandle } from '../describe/index.js';
 import { createPacks } from '../packs/index.js';
@@ -51,14 +50,14 @@ export function createOrg({
   db, env = {}, config = {}, fetch, now = () => Date.now(), readFile,
   vcs, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
 } = {}) {
-  const vault = createVault({ db });
+  const vaultStore = vault || createVault({ db });
   // The env the modules see: real env values win, a vault secret fills a missing name. Never logged or stored.
-  const mergedEnv = async () => { try { return await vault.withVault(env); } catch { return env; } };
+  const mergedEnv = async () => { try { return await vaultStore.withVault(env); } catch { return env; } };
   const clock = typeof now === 'function' ? now : () => now;
   const doFetch = fetch || ((...a) => globalThis.fetch(...a));
   const packs = createPacks({ db, now: clock, config: config.packs || {}, channels, ...(importer ? { importer } : {}) });
   const dcfg = config.describe || {};
-  const secrets = vault || (db ? createVault({ db }) : null);
+  const secrets = vaultStore;
   let appReady = false; // refreshed at the start of each tick: do the vault's GitHub App credentials exist
   const tokenProvider = secrets ? createInstallationTokenProvider({ vault: secrets, fetch: doFetch, now: clock }) : null;
   const githubApp = secrets ? (request, origin) => createGithubApp({ vault: secrets, fetch: doFetch, now: clock, consoleToken: env.CONSOLE_TOKEN, config: { org: config.vcs?.repo?.split('/')[0], ...(config.githubapp || {}), baseUrl: config.githubapp?.baseUrl || origin } })(request) : null;
@@ -132,7 +131,7 @@ export function createOrg({
     if (githubApp && p.startsWith('/console/github/')) return githubApp(request, url.origin);
     if (p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console')) {
       const e = await mergedEnv();
-      return handleConsole(request, { DB: db, CONSOLE_TOKEN: e.CONSOLE_TOKEN }, { org: config.org_slug, vault, doors: config.doors, fetch: doFetch, now: clock, envNames: presence(e) });
+      return handleConsole(request, { DB: db, CONSOLE_TOKEN: e.CONSOLE_TOKEN }, { org: config.org_slug, vault: vaultStore, doors: config.doors, fetch: doFetch, now: clock, envNames: presence(e) });
     }
     if (ROUTES.has(p.replace(/\/+$/, '') || '/')) {
       return describeHandle(request, { db, now: clock(), specStatus: describeSpec, packs: await describePacks(), scope: describeScope, compose, voiceRules: describeVoice });
