@@ -1,4 +1,5 @@
 name: self-start
+# allow-schedule: the start must retry itself until the owner has set the secrets and there is no Cloudflare tick before it exists; about 1 minute per run, 4 runs a day is about 120 of the 2000 free minutes a month. Remove the schedule once started (org/started.json exists): the job exits at once.
 # Starts Ultrastable on Ultrastable and keeps trying until it has started (tools/self_start.py).
 # Dry run until the owner has set the repository secrets; after that the next run applies, deploys, puts the Worker's
 # secrets (values on stdin, never printed) and records org/started.json, which closes the gate issue by its probe.

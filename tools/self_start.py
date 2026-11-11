@@ -99,6 +99,8 @@ def put_worker_secrets(run, root: Path, env: dict, worker_dir: str) -> list[str]
 
 
 def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare") -> dict:
+    if (root / STARTED).exists():  # already started: nothing to do, nothing spent
+        return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "already": True}
     missing = [n for n in REQUIRED_TO_APPLY if not env.get(n)]
     apply = not missing
     rc = run_bootstrap(run, root, apply)

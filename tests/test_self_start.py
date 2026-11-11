@@ -90,6 +90,13 @@ class SelfStart(unittest.TestCase):
             self.assertFalse((root / "org" / "started.json").exists())
             self.assertTrue((root / "org" / "start-attempt.json").exists())
 
+    def test_once_started_a_run_does_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls, gh = make_root(d), [], FakeGh()
+            (root / "org" / "started.json").write_text("{}")
+            r = ss.start(self.runner(calls), lambda *a, **k: {}, gh, {}, root, "o/r", NOW)
+            self.assertTrue(r["started"]); self.assertEqual(calls, []); self.assertEqual(gh.log, [])
+
 
 if __name__ == "__main__":
     unittest.main()
