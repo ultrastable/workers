@@ -13,7 +13,7 @@ jobs:
         with: { node-version: 22 }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: node --test --no-warnings "core/**/*.test.js"
+      - run: node --test --no-warnings "core/**/*.test.js" "packs/**/*.test.js"
       - run: python -m unittest discover tests
       - run: node --test --no-warnings adapters/gcp/test/*.js
       - run: cd runtimes/python && python -m unittest discover tests

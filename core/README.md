@@ -26,5 +26,6 @@ Each directory here is one module of the Ultrastable core, written to the specif
 | `runner` | doer/reviewer runner: draft pull requests, US-SPEC-11 | BUILT (see its README) |
 | `describe` | self-description and the claims registry, US-SPEC-22 | BUILT (see its README) |
 | `packs` | capability packs and the outbound guard, US-SPEC-21 | BUILT (see its README) |
+| `packs/email` | email list pack, class B, US-SPEC-21 | BUILT (see its README) |
 | rest | see [extraction/INVENTORY.md](../extraction/INVENTORY.md) | PLANNED |
 | `principles/` | Principles register: tagline, glossary, owner directives with their enforcers; renders `docs/GLOSSARY.md` | US-SPEC-23, BUILT |
