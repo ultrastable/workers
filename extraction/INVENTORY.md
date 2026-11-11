@@ -25,12 +25,12 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | observability (trace ingest, scorers) | 162k | 231 | `core/observe` | BUILT (ingest, error ratio, p95, degraded-source items, secret scrubbing); QNFO scorer chains stay QNFO |
 | memory-mcp (code topology graph, blast radius) | 224k | 91 | `core/graph` | BUILT (imports, declared edges, blast radius) |
 | cloud-ops (task runner, owner-step watch) | 985k | 615 | `core/tasks` | BUILT (queue, multi-route handlers, owner-step watch) |
-| github-steward (issue ledger mirror) | 414k | 361 | `adapters/github` | PLANNED, order 10 |
+| github-steward (issue ledger mirror) | 414k | 361 | `adapters/github` | BUILT (multi-sink mirror, hygiene, merge host) |
 | intent-orchestrator (request to issue) | 92k | 76 | `core/intent` | BUILT (submit: filed, duplicate, rejected, gated) |
-| tools-mcp (MCP server for agent clients) | 107k | 101 | `adapters/mcp` | PLANNED, order 12 |
-| agents (Agents SDK runtime) | 2.9M | 180 | `adapters/cloudflare/agents` | PLANNED, order 13 (mostly vendored SDK; do not copy vendor code) |
-| containers-pilot (container executor) | 49k | 49 | `adapters/cloudflare/containers` | PLANNED, order 14 |
-| infra (shared routes) | 338k | 224 | folded into adapters | PLANNED, order 15 |
+| tools-mcp (MCP server for agent clients) | 107k | 101 | `adapters/mcp` | BUILT (two transports, read tools) |
+| agents (Agents SDK runtime) | 2.9M | 180 | `adapters/cloudflare/agents` | BUILT as an SDK-free runtime; Durable Object wrapper NOT COVERED (needs a live account) |
+| containers-pilot (container executor) | 49k | 49 | `adapters/cloudflare/containers` | BUILT (executor); image and binding NOT COVERED |
+| infra (shared routes) | 338k | 224 | folded into `adapters/shared/routes.js` | BUILT |
 | fleet-dashboard (operator console) | 2.8M | 1995 | `apps/console` (the guided console already serves the generic path) | PLANNED, order 16; the QNFO dashboard repo is demo-instance only |
 
 ## Other units
@@ -50,7 +50,7 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 
 ## Disposition of what remains (no silent drops)
 
-Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining: github-steward, tools-mcp, agents, containers-pilot, infra, fleet-dashboard, 10 core scripts, 7 core workflows. These are the largest units (1 to 3 MB each) and are rewritten module by module, not copied.
+Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining: fleet-dashboard, 10 core scripts, 7 core workflows. These are the largest units (1 to 3 MB each) and are rewritten module by module, not copied.
 
 Rewrites are clean-room from each unit's role in boundary.json and the specs: the QNFO sources are not in this repository's reach, so nothing is copied and each README says what is NOT COVERED.
 
