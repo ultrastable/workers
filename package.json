@@ -4,6 +4,6 @@
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
-    "test": "npm --prefix worker test && node --test --no-warnings adapters/gcp/test/gcp.test.js && python -m unittest discover tests && cd reference-python && python -m unittest discover tests"
+    "test": "npm --prefix worker test && node --test --no-warnings core/ && node --test --no-warnings adapters/gcp/test/gcp.test.js && python -m unittest discover tests && cd reference-python && python -m unittest discover tests"
   }
 }
