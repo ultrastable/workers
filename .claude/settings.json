@@ -1,0 +1,38 @@
+{
+  "$comment": "Maximum permissions inside the interrupt gate (autonomy/policy.json). Allow is broad so reversible work never waits; deny holds the gated and history-destroying actions. Server-side runners in an isolated container may also set defaultMode to bypassPermissions; deny rules stay the backstop. tests/test_policy.py checks that every gated runtime and repo action has a deny rule.",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Bash",
+      "mcp__github",
+      "mcp__cloudflare"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.dev.vars)",
+      "Read(**/secrets/**)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease origin main:*)",
+      "Bash(git reset --hard origin/main:*)",
+      "Bash(gh repo delete:*)",
+      "Bash(wrangler delete:*)",
+      "Bash(wrangler d1 delete:*)",
+      "Bash(wrangler r2 bucket delete:*)",
+      "Bash(wrangler kv namespace delete:*)",
+      "Bash(wrangler secret put:*)",
+      "Bash(wrangler secret delete:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(dd if=:*)",
+      "Bash(mkfs:*)"
+    ]
+  }
+}

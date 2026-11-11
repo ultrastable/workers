@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Ultrastable: a self-governing development platform on Cloudflare Workers"
+type: software
+authors:
+  - family-names: Quni-Gudzinas
+    given-names: Rowan Brad
+    orcid: "https://orcid.org/0009-0002-4317-5604"
+repository-code: "https://github.com/ultrastable/workers"
+license: "LicenseRef-Ultrastable-USL-1.0"
+date-released: "2026-11-11"

@@ -1,0 +1,35 @@
+name: ci
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: cd worker && npm test
+      - run: python -m unittest discover tests
+      - run: node --test --no-warnings adapters/gcp/test/*.js
+      - run: cd reference-python && python -m unittest discover tests
+      - name: License files match the canonical text
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/ultrastable/license/main/LICENSE -o /tmp/LICENSE || { echo "canonical license not reachable yet; skipping"; exit 0; }
+          diff -u /tmp/LICENSE LICENSE
+  bootstrap-apply:
+    # Manual only. Provisions Cloudflare resources from IDEA.md; needs the two secrets below.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: python3 bootstrap/bootstrap.py --apply

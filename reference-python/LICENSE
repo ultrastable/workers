@@ -1,0 +1,586 @@
+ULTRASTABLE LICENSE v1.0 (USL-1.0)
+SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+Effective: 2026-11-11
+Licensor: Rowan Brad Quni-Gudzinas (ORCID 0009-0002-4317-5604), and any successor or assignee under Section 19.
+Canonical text: https://github.com/ultrastable/license
+
+================================================================================
+PLAIN-LANGUAGE SUMMARY (not a legal term; Sections 1 to 22 control)
+================================================================================
+
+  FREE for non-commercial use.  Read it, run it, study it, change it, share it,
+  teach with it, use it for personal projects and for published academic
+  research, use it inside a registered non-profit, school or public body.
+
+  NOT FREE if it makes or saves money.  If You use the Materials in a business,
+  a product, a service, a client job, or any activity where someone gets paid or
+  a for-profit organization benefits, You need a Commercial License, and the
+  Licensor takes a share.  The published price list is COMMERCIAL-TERMS.md. You
+  can accept it without negotiating.
+
+  Share-alike.  If You pass the Software on, or let others use Your modified
+  version over a network, You keep this License on it and publish the source.
+
+  No patents are being asserted on the ideas in the Specification.  They are
+  published openly so that nobody else can patent them.  What the Licensor
+  protects is the copyright, the name, and the right to be paid for commercial
+  use, through this License.
+
+  Not open source.  This is source-available. Do not call it "open source".
+
+  This License covers the whole project: the Software (code), the Specification
+  (architecture documents), and the Documentation.
+
+================================================================================
+1. DEFINITIONS
+================================================================================
+
+1.1  "Materials" means, collectively, the Software, the Specification and the
+     Documentation, in every version and release, in every medium, and every
+     Modification of them.
+
+1.2  "Software" means all computer code in any form: source code, object code,
+     executables, libraries, packages, scripts, notebooks, build and
+     configuration files, infrastructure-as-code, database schemas and
+     migrations, templates, agent instructions and policy files, and the tests,
+     examples and data files distributed with them.
+
+1.3  "Specification" means the architectural specifications, interface
+     definitions, schemas, state machines, conformance tests and diagrams that
+     the Licensor publishes under this License, including every document in the
+     repository "ultrastable/spec".
+
+1.4  "Documentation" means all other written or visual material the Licensor
+     publishes under this License, including guides, concept documents, case
+     studies and README files.
+
+1.5  "Source Code" means the preferred form of the Software for making
+     modifications, including the build scripts and configuration needed to
+     build, install and run it. "Object Code" means any other form.
+
+1.6  "Modification" means any change to a file of the Materials, and any new
+     file that contains a substantial portion of a file of the Materials. A
+     separate file that You write and that does not copy from the Materials is
+     not a Modification merely because it calls, imports, links to or
+     communicates with the Software.
+
+1.7  "Covered Files" means the files of the Materials and all Modifications.
+     "Larger Work" means a work that combines Covered Files with files that are
+     not Covered Files.
+
+1.8  "Distribute" means to make a copy of the Materials, a Modification or a
+     Larger Work available to anyone other than You, by any means, including
+     publishing a repository, package, container image or download.
+
+1.9  "Network Use" means letting anyone other than You interact with the
+     Software, a Modification or a Larger Work remotely through a computer
+     network.
+
+1.10 "Commercial Use" has the meaning in Section 3.
+
+1.11 "Implementation" means any software, service, system or product, written by
+     anyone, that implements, in whole or in substantial part, the architecture,
+     interfaces, schemas, state machines or behaviors described in the
+     Specification.
+
+1.12 "Commercial Terms" means the Licensor's then-current published price list
+     and terms for Commercial Licenses, currently the file COMMERCIAL-TERMS.md in
+     the repository "ultrastable/license".
+
+1.13 "Commercial License" means a license for Commercial Use granted by the
+     Licensor under Section 4, either by acceptance of the Commercial Terms or by
+     a separate written agreement signed by the Licensor.
+
+1.14 "Covered Revenue" has the meaning given in the Commercial Terms. In
+     general it means money and the market value of other consideration received
+     by You or Your Affiliates from any product, service, deliverable or
+     organization that is operated, managed, produced or run with material use
+     of the Materials or of an Implementation.
+
+1.15 "Affiliate" means any entity that controls, is controlled by, or is under
+     common control with You. "You" means the individual or entity exercising
+     rights under this License, together with its Affiliates.
+
+================================================================================
+2. GRANT FOR NON-COMMERCIAL USE
+================================================================================
+
+2.1  Subject to this License, the Licensor grants You a worldwide, royalty-free,
+     non-exclusive, non-sublicensable license to use, run, copy, study, modify
+     and Distribute the Materials, in Source Code or Object Code form, and to
+     build and run Implementations, solely for Non-Commercial Use. Each person
+     who receives the Materials from You receives this license directly from the
+     Licensor.
+
+2.2  "Non-Commercial Use" means any use that is not Commercial Use. The
+     following are Non-Commercial Use:
+     (a) personal use by an individual that earns no money and does not support
+         any business;
+     (b) teaching, learning and study;
+     (c) academic and scientific research whose results are published or made
+         publicly available;
+     (d) use by a registered non-profit organization, an educational institution
+         or a government body for its public mission;
+     (e) evaluation by anyone, including a for-profit entity, for up to sixty
+         (60) days per organization per release line, provided that the
+         evaluation is not used in production, does not serve customers, and
+         generates no revenue; and
+     (f) contributing to the Materials under Section 11.
+     Grants, donations and tuition that fund an activity in (c) or (d) are not
+     revenue from the Materials, provided the Materials are not themselves sold,
+     licensed, hosted for a fee or made the paid component of any product,
+     service or deliverable.
+
+2.3  Rights not expressly granted are reserved. The Licensor claims no ownership
+     of the data You put into the Software or of the results it produces for
+     You. The restrictions in this License apply to how the Materials are used,
+     not to who owns Your outputs.
+
+================================================================================
+3. COMMERCIAL USE REQUIRES A COMMERCIAL LICENSE
+================================================================================
+
+3.1  Any use of the Materials or of an Implementation that generates money is
+     Commercial Use and requires a Commercial License. This includes any use
+     that earns revenue for, saves money for, or forms part of the operations of
+     a for-profit person or organization. Without limitation, Commercial Use
+     includes:
+     (a) selling, renting, licensing or sublicensing the Materials, or charging
+         for access to, hosting of, installation of or support for them;
+     (b) offering the Software, or functionality substantially provided by it or
+         by an Implementation, as or within a paid product, hosted service
+         (software-as-a-service), API, application or platform, including a free
+         product or service that is monetized through advertising, data
+         collection, subscriptions, upselling or investment;
+     (c) using the Materials to run, manage, staff, direct or improve a business
+         or any other organization that earns revenue, including an
+         organization operated autonomously or by AI agents, and including a
+         business started, grown or operated with the Software from an idea;
+     (d) using the Materials to produce deliverables, results, analyses or
+         services for which You or anyone else is paid, including consulting,
+         contracting and freelance work;
+     (e) any use by or for a for-profit entity, including internal operations,
+         research and development, testing, training of employees and
+         production use, subject only to the evaluation allowance in Section
+         2.2(e);
+     (f) embedding the Materials or an Implementation in, or bundling them with,
+         hardware, devices or other products that are sold or leased;
+     (g) using the Materials or their outputs to train, fine-tune or evaluate a
+         commercial artificial-intelligence or code-generation model, system or
+         service (Section 9 applies); and
+     (h) any other use in which the Materials or an Implementation contribute to
+         revenue, investment value, market position or cost savings for any
+         person or organization.
+
+3.2  A person who is paid to use the Materials for someone else's benefit is
+     engaged in Commercial Use even if that person owns no business.
+
+3.3  Where a use is partly commercial, the whole use is Commercial Use.
+
+================================================================================
+4. HOW TO GET A COMMERCIAL LICENSE
+================================================================================
+
+4.1  Standard Commercial Terms. Any person may obtain a Commercial License by
+     accepting the Commercial Terms: by registering as the Commercial Terms
+     describe, and paying the amounts due when they fall due. The Licensor will
+     make the Commercial Terms available to every applicant, except that the
+     Licensor may decline, or require a separate agreement, where (a) the
+     intended use is prohibited by Section 8, (b) the applicant has an
+     uncured breach of this License, (c) the intended use is a Competing
+     Offering, meaning a product or service that offers the Software, or a
+     substantial part of its functionality, to third parties as a platform in
+     competition with the Licensor's own offerings, or (d) applicable law,
+     sanctions or export control rules prohibit the dealing.
+
+4.2  Separate agreements. The Licensor may grant custom commercial licenses,
+     including perpetual, revenue-share, field-limited, territory-limited,
+     time-limited and public-benefit-conditional licenses, by a written
+     agreement signed by the Licensor. The Licensor is not obliged to grant any
+     particular custom license.
+
+4.3  Changes to Commercial Terms. The Licensor may change the Commercial Terms
+     for new Commercial Licenses at any time. A change does not increase the
+     price or reduce the rights of a Commercial License already in force until
+     its renewal date, if it has one, or twelve (12) months after notice,
+     whichever is later.
+
+4.4  No implied license. Nothing in this License, no course of dealing, and no
+     silence or failure to respond by the Licensor grants an implied Commercial
+     License, a waiver or an estoppel. Commercial Use is licensed only under
+     Section 4.1 or 4.2.
+
+4.5  A Commercial License covers use of Modifications and Larger Works to the
+     extent it says so. It does not remove the duties in Sections 6, 8, 9 and
+     10.
+
+================================================================================
+5. UNLICENSED COMMERCIAL USE
+================================================================================
+
+5.1  If You engage in Commercial Use without a Commercial License, every license
+     granted to You by this License terminates automatically on the first day of
+     that use, and You owe the Licensor the Unlicensed Use Fee.
+
+5.2  The Unlicensed Use Fee is the greater of:
+     (a) three (3) times the amount that would have been payable under the
+         Commercial Terms for the period of unlicensed use, without any free
+         tier, discount or waiver, and
+     (b) a reasonable royalty for that use, as determined under Section 5.4.
+     You also owe the Licensor's costs of investigating and enforcing, including
+     reasonable attorneys' fees and expert costs. The Licensor may instead elect
+     to recover Your profits attributable to the unlicensed use, or actual and
+     statutory damages where the law provides them.
+
+5.3  The parties agree that actual damages from unlicensed Commercial Use are
+     difficult to measure, that the Unlicensed Use Fee is a reasonable
+     pre-estimate of them and an incentive to use the published Commercial Terms
+     instead of unlicensed use, and that it is not a penalty. The Licensor may
+     also obtain injunctive relief to stop unlicensed Commercial Use, and the
+     parties agree that such use causes harm for which money alone is not an
+     adequate remedy.
+
+5.4  If a court or arbitral tribunal finds any part of this Section
+     unenforceable, that part is reduced to the largest amount or measure the
+     tribunal finds enforceable, and the Licensor may elect the remedies in the
+     last sentence of Section 5.2 instead. A reasonable royalty is measured by
+     the Commercial Terms as a minimum benchmark, because they are the price at
+     which the Licensor offers the same rights to everyone.
+
+5.5  Regularizing. If You stop the unlicensed use and promptly disclose it, the
+     Licensor may, at its sole discretion, reinstate Your license on payment of
+     the amounts that would have been due under the Commercial Terms plus
+     interest. Nothing obliges the Licensor to do so.
+
+================================================================================
+6. SHARE-ALIKE: IF YOU DISTRIBUTE OR OFFER NETWORK ACCESS
+================================================================================
+
+If You Distribute the Materials, a Modification or a Larger Work:
+
+6.1  Same License. You must Distribute the Covered Files only under this License
+     (this version or a later version issued by the Licensor).
+
+6.2  Source Code. You must make the complete Source Code of the Covered Files
+     You Distribute available to every recipient, free of charge, for as long as
+     You Distribute them, either with the distribution or by a written notice
+     with a working link.
+
+6.3  Notices. You must keep intact every copyright notice, SPDX header, the
+     LICENSE file and any NOTICE file, and state in each changed file, with the
+     date, that You modified it.
+
+6.4  Larger Works. Files in a Larger Work that are not Covered Files may be
+     licensed on terms of Your choosing, but those terms may not purport to grant
+     rights in the Covered Files. This License continues to apply to every use
+     of the Larger Work in which the Covered Files are used.
+
+6.5  Network Use. If You modify the Software and make it available for Network
+     Use, You must offer every user the Source Code of Your Modification under
+     this License through a prominent link in the user interface or in the API
+     documentation.
+
+6.6  No additional restrictions. You may not impose further restrictions on any
+     recipient's exercise of the rights this License grants, and You may not use
+     technical measures to prevent recipients from modifying or rebuilding the
+     Covered Files.
+
+6.7  Section 6 does not give any recipient the right to Commercial Use. A
+     recipient needs a Commercial License of their own.
+
+================================================================================
+7. THE SPECIFICATION AND IMPLEMENTATIONS
+================================================================================
+
+7.1  The Licensor grants You, for Non-Commercial Use, the right to copy,
+     translate, quote and Distribute the Specification, and to write and run
+     Implementations of it.
+
+7.2  Commercial Implementations. As a condition of Your use of the Specification,
+     You agree that building, offering, selling or using an Implementation for
+     Commercial Use requires a Commercial License, whether or not the
+     Implementation copies any code from the Software. This Section applies to
+     the extent the applicable law allows a condition of this kind. It does not
+     bind a person who writes an independent implementation without having
+     accessed or used the Specification, and it does not limit any right the law
+     gives You to use ideas, procedures, methods or functional elements
+     described in the Specification.
+
+7.3  Conformance. You may state that an Implementation "conforms to Ultrastable
+     Specification US-SPEC-NN" only if it passes the conformance tests in that
+     specification, and only for Non-Commercial Use or under a Commercial
+     License. You may not state or imply that the Licensor certifies,
+     endorses or is affiliated with an Implementation without written
+     permission.
+
+7.4  The Licensor publishes the Specification openly and intends it to be prior
+     art. Section 10 applies.
+
+================================================================================
+8. PROHIBITED USES (FREE OR PAID)
+================================================================================
+
+These uses are prohibited whether the use is Non-Commercial or commercial, and
+no Commercial License under Section 4.1 covers them:
+
+8.1  Surveillance and profiling: developing or operating systems for mass
+     surveillance, predictive policing, criminal-justice profiling, or
+     automated decisions that affect individuals' legal rights, access to
+     services or fundamental freedoms, except academic research with ethics
+     approval that is not deployed.
+
+8.2  Disinformation and manipulation: generating or spreading disinformation at
+     scale, operating coordinated inauthentic networks, or deceiving or
+     exploiting vulnerable people.
+
+8.3  Weapons and war: use in autonomous weapons, in systems designed to cause
+     physical harm to people, or in military applications that violate
+     international humanitarian law.
+
+8.4  Exploitative behavioral engineering: designing systems to exploit
+     psychological vulnerabilities or promote addiction for commercial gain.
+
+8.5  Removing human oversight from decisions that are legally or physically
+     irreversible and bound to a person's identity (for example moving money,
+     signing legal documents, or deleting data without a backup) by disabling or
+     bypassing the interrupt gates the Specification requires.
+
+8.6  Unlawful activity under the laws that apply to You.
+
+================================================================================
+9. ARTIFICIAL-INTELLIGENCE TRAINING
+================================================================================
+
+9.1  You may not use the Materials, or scrape, crawl or systematically extract
+     them, to train, fine-tune, evaluate or develop an artificial-intelligence or
+     machine-learning model, system or service whose primary purpose or effect is
+     commercial gain, unless You have a separate written agreement with the
+     Licensor that says so expressly.
+
+9.2  Running AI agents or models as part of operating the Software for a
+     permitted use is not "training" and is not restricted by this Section.
+
+================================================================================
+10. PATENTS AND PRIOR ART
+================================================================================
+
+10.1 Non-commercial patent license. The Licensor grants You a worldwide,
+     royalty-free, non-exclusive license under every patent claim the Licensor
+     owns or controls, now or later, that is necessarily infringed by the
+     Materials as the Licensor distributes them, for making, using, running and
+     Distributing them for Non-Commercial Use. It does not extend to Commercial
+     Use, which requires a Commercial License.
+
+10.2 Patent retaliation. If You, or anyone acting for You, begin a lawsuit,
+     arbitration or other proceeding alleging that the Materials infringe a
+     patent, every license this License grants You ends on the date of filing.
+
+10.3 Prior-art citation. If You file or prosecute a patent application that
+     describes or claims anything disclosed in the Materials, You must cite the
+     Materials, with their publication dates, as prior art to the examining
+     authority. Failure to do so is a breach of this License.
+
+10.4 Defensive publication. Nothing in this License is an admission that any
+     idea in the Specification is patentable, or that the Licensor holds or
+     will hold any patent. The Licensor's protection of the Materials rests on
+     copyright, contract, trademark and trade-secret law, and on this License.
+
+================================================================================
+11. CONTRIBUTIONS
+================================================================================
+
+By submitting a contribution (code, documentation or other material) to the
+Licensor for inclusion in the Materials, You:
+(a) certify that You have the right to submit it, substantially as in the
+    Developer Certificate of Origin 1.1 (https://developercertificate.org/);
+(b) license it to everyone under this License;
+(c) grant the Licensor a perpetual, worldwide, non-exclusive, royalty-free,
+    irrevocable license, including under any patent claim You own or control
+    that reads on the contribution, to use, modify, Distribute and sublicense it
+    on any terms, including in Commercial Licenses; and
+(d) keep the copyright in Your contribution.
+The Licensor need not accept any contribution. This Section lets the Licensor
+offer one Commercial License for Materials that include contributions from
+others.
+
+================================================================================
+12. TRADEMARKS AND ATTRIBUTION
+================================================================================
+
+12.1 "Ultrastable", the Ultrastable logos and related marks are not licensed
+     under this License. You may use the name to say truthfully what the
+     Materials are and where they come from, including "Built with Ultrastable"
+     and "Based on Ultrastable", and as Section 7.3 allows. You may not use a
+     mark in a way that suggests endorsement, or in the name of a product,
+     company or domain, without written permission.
+
+12.2 Every Distribution and every public Network Use must keep reasonable credit
+     to the Licensor and a link to https://github.com/ultrastable. A
+     Modification must say that it has been changed.
+
+================================================================================
+13. THIRD-PARTY COMPONENTS
+================================================================================
+
+Some Materials include or depend on components that the Licensor did not write.
+Those components stay under their own licenses, which You must follow. If a
+third-party license conflicts with this License, it governs that component only.
+Because this License restricts commercial use, Covered Files may not be combined
+with software under the GNU GPL, LGPL or AGPL in any way that would require the
+combination to be Distributed under those licenses.
+
+================================================================================
+14. SOURCE-AVAILABLE, NOT OPEN SOURCE
+================================================================================
+
+Because this License restricts commercial use, it does not meet the Open Source
+Definition and is not an OSI-approved license. Describe the Materials as
+"source-available under the Ultrastable License (non-commercial; commercial use
+requires a license)", never as "open source" or "free software".
+
+================================================================================
+15. DISCLAIMER OF WARRANTY AND LIMIT OF LIABILITY
+================================================================================
+
+15.1 THE MATERIALS ARE PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF
+     ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, TITLE AND NON-INFRINGEMENT.
+
+15.2 TO THE MAXIMUM EXTENT THE LAW ALLOWS, THE LICENSOR IS NOT LIABLE FOR ANY
+     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY OR PUNITIVE
+     DAMAGES, OR FOR LOSS OF PROFITS, GOODWILL, USE OR DATA, ARISING FROM THE
+     MATERIALS, UNDER ANY THEORY OF LIABILITY. WHERE LIABILITY CANNOT BE
+     EXCLUDED, THE LICENSOR'S TOTAL LIABILITY UNDER THIS LICENSE FOR THE
+     NON-COMMERCIAL GRANT IS LIMITED TO ONE U.S. DOLLAR (USD 1). A COMMERCIAL
+     LICENSE MAY STATE A DIFFERENT LIMIT.
+
+15.3 The Software is autonomous-systems software that acts on its own through
+     AI models and may contain defects and produce incorrect results or take
+     incorrect actions. It is not designed, tested or certified for
+     safety-critical, medical, legal, financial or other high-risk decisions. You
+     are responsible for verifying results and for the limits, budgets and
+     approval gates You configure.
+
+15.4 You will indemnify the Licensor against third-party claims arising from Your
+     use of the Materials in breach of this License, to the extent the law
+     allows.
+
+15.5 Nothing in this License excludes liability that cannot be excluded by law,
+     including liability for intent or gross negligence where the applicable
+     law so provides.
+
+================================================================================
+16. TERMINATION
+================================================================================
+
+16.1 This License ends automatically if You breach it, subject to Section 16.2
+     and Section 5.
+
+16.2 If Your only breach is of Section 6, 10.3 or 12 (notices, attribution,
+     source availability, prior-art citation, trademark use), Your license is
+     reinstated if You cure the breach within thirty (30) days after You first
+     become aware of it. Reinstatement under this Section is available once.
+     Unlicensed Commercial Use has no cure period (Section 5).
+
+16.3 Copies You have already passed to others in compliance with this License
+     keep their license, directly from the Licensor, for as long as they comply.
+
+16.4 Sections 3, 5, 6.7, 10, 15, 17, 18 and 20 survive termination.
+
+================================================================================
+17. GOVERNING LAW AND DISPUTES
+================================================================================
+
+17.1 This License is governed by the substantive laws of Switzerland, without
+     regard to its conflict-of-law rules and excluding the UN Convention on
+     Contracts for the International Sale of Goods.
+
+17.2 Any dispute arising out of or relating to this License will be finally
+     resolved by arbitration in Geneva, Switzerland, in English, under the Rules
+     of Arbitration of the International Chamber of Commerce, before one
+     arbitrator. An award may be enforced in any court with jurisdiction under
+     the New York Convention of 1958.
+
+17.3 Despite Section 17.2, the Licensor may seek injunctive or other provisional
+     relief against unlicensed Commercial Use, infringement or breach in any
+     court that has jurisdiction over You or Your assets, and may enforce its
+     copyright and trademark rights in any country.
+
+17.4 Local law. You must comply with the laws that apply to You. Where local law
+     gives the Licensor stronger protection than this License, the stronger
+     protection applies. Where local law prevents a provision from applying, that
+     provision applies to the nearest permitted extent and the rest of this
+     License is unaffected.
+
+================================================================================
+18. GENERAL
+================================================================================
+
+18.1 Severability. If any provision is held invalid or unenforceable, it is
+     limited or reformed to the minimum extent necessary, to carry out its
+     purpose as closely as the law allows, and the remaining provisions stay in
+     force.
+
+18.2 No waiver. A failure or delay in enforcing a right is not a waiver of it.
+
+18.3 Entire agreement. This License, together with any Commercial License You
+     hold, is the entire agreement between You and the Licensor about the
+     Materials. If a Commercial License conflicts with this License, the
+     Commercial License governs the uses it expressly covers.
+
+18.4 Language. The English text controls. A translation is for information
+     only.
+
+18.5 Acceptance. You accept this License by using, copying, modifying,
+     Distributing or implementing the Materials. If You do not accept it, You may
+     not do any of those things. Receiving the Materials gives You no right
+     under any other license, including the QNFO Unified License Agreement,
+     except that Materials that the Licensor distributed under the QNFO Unified
+     License Agreement before 2026-11-11 stay available under it for the
+     versions and files so distributed.
+
+================================================================================
+19. ASSIGNMENT AND SUCCESSORS
+================================================================================
+
+The Licensor may assign this License, the copyright and trademarks in the
+Materials, and the right to grant Commercial Licenses, in whole or in part, to
+any person or entity, including a company that the Licensor forms to carry on
+the Ultrastable project. On assignment, "Licensor" means the assignee, and the
+notice at https://github.com/ultrastable/license will say so. You may not
+assign this License.
+
+================================================================================
+20. VERSIONS
+================================================================================
+
+20.1 The Licensor may publish new versions of this License. A new version
+     applies to releases of the Materials that the Licensor publishes under it.
+     A release You have already received stays available to You under the
+     version it was published under, except that a later version may be applied
+     to it to correct a drafting error or to comply with law.
+
+20.2 The canonical text of each version is kept at
+     https://github.com/ultrastable/license.
+
+================================================================================
+21. APPLYING THIS LICENSE TO A FILE
+================================================================================
+
+Each source file should carry this header:
+
+    SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+    Copyright (c) 2026 Rowan Brad Quni-Gudzinas
+    Non-commercial use free; commercial use requires a license.
+    See LICENSE and COMMERCIAL-TERMS.md.
+
+Package manifests use the identifier LicenseRef-Ultrastable-USL-1.0 and the
+SPDX expression "SEE LICENSE IN LICENSE" where the ecosystem requires it.
+
+================================================================================
+22. CONTACT
+================================================================================
+
+Commercial licenses, permissions, takedown and compliance questions:
+Rowan Brad Quni-Gudzinas, rowan.quni@qnfo.org
+Repository: https://github.com/ultrastable/license

@@ -1,0 +1,139 @@
+{
+  "$schema_version": "0.1.0",
+  "runtime": {
+    "provider": "cloudflare",
+    "worker_name": "{slug}-ultrastable",
+    "d1_database": "{slug}-ultrastable",
+    "tick_cron": "*/10 * * * *",
+    "other_runtimes_supported_later": [
+      "gcp-cloud-run",
+      "aws-lambda",
+      "self-hosted"
+    ]
+  },
+  "roles": [
+    {
+      "id": "portfolio-manager",
+      "count": 1,
+      "instructions": "agents/roles/portfolio-manager.md",
+      "tick_every": 6
+    },
+    {
+      "id": "project-manager",
+      "count": "per_outcome",
+      "instructions": "agents/roles/project-manager.md",
+      "tick_every": 1
+    },
+    {
+      "id": "product-manager",
+      "count": "per_outcome",
+      "instructions": "agents/roles/product-manager.md",
+      "tick_every": 3
+    },
+    {
+      "id": "staff",
+      "count": "pool",
+      "instructions": "agents/roles/staff.md",
+      "tick_every": 1
+    },
+    {
+      "id": "reviewer",
+      "count": "pool",
+      "instructions": "agents/roles/reviewer.md",
+      "tick_every": 1
+    },
+    {
+      "id": "operations",
+      "count": 1,
+      "instructions": "agents/roles/operations.md",
+      "tick_every": 1
+    }
+  ],
+  "model_ladder": {
+    "note": "Picked by budget the way AIOS picked its model by RAM. Higher rungs only when the budget tier allows; the reviewer is always a different model from the doer when two exist.",
+    "tiers": [
+      {
+        "budget_usd_per_month_min": 0,
+        "doer": "small",
+        "reviewer": "small",
+        "manager": "small"
+      },
+      {
+        "budget_usd_per_month_min": 50,
+        "doer": "medium",
+        "reviewer": "small",
+        "manager": "medium"
+      },
+      {
+        "budget_usd_per_month_min": 500,
+        "doer": "large",
+        "reviewer": "medium",
+        "manager": "large"
+      }
+    ],
+    "aliases": {
+      "small": "claude-haiku-5-5",
+      "medium": "claude-sonnet-5-5",
+      "large": "claude-opus-5-5"
+    }
+  },
+  "connectors": {
+    "github": {
+      "env": "GITHUB_TOKEN",
+      "required_for": [
+        "repo"
+      ]
+    },
+    "cloudflare": {
+      "env": "CLOUDFLARE_API_TOKEN",
+      "required_for": [
+        "runtime",
+        "dns"
+      ]
+    },
+    "cloudflare_account": {
+      "env": "CLOUDFLARE_ACCOUNT_ID",
+      "required_for": [
+        "runtime"
+      ]
+    },
+    "model_api": {
+      "env": "ANTHROPIC_API_KEY",
+      "required_for": [
+        "agents"
+      ]
+    },
+    "chat": {
+      "env": "CHAT_WEBHOOK_URL",
+      "required_for": [
+        "reports"
+      ],
+      "optional": true
+    }
+  },
+  "capacity": {
+    "plus_share": 0.2,
+    "max_wip_per_role": 3,
+    "fix_only_cycles_before_rebalance": 3
+  },
+  "reporting": {
+    "format": "four-lines",
+    "lines": [
+      "what happened",
+      "what I decided",
+      "what is next",
+      "what is open"
+    ]
+  },
+  "org": {
+    "repos": [
+      "site",
+      "docs",
+      "ip",
+      "platform",
+      "seed",
+      "business",
+      ".github"
+    ]
+  }
+}

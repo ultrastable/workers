@@ -1,0 +1,429 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+"""Ultrastable bootstrapper: idea in, running organization out.
+
+Stages (the AIOS boot chain, moved from a laptop to a server):
+
+  read      IDEA.md + ultrastable.json + autonomy/policy.json   (AIOS: GRUB -> kernel)
+  detect    which connectors have credentials, which tools exist (AIOS: RAM, CPU, disk)
+  select    model tier from budget                             (AIOS: model by RAM)
+  plan      charter, role instances, kit backlog, gate cards   (AIOS: partition plan)
+  write     org/ files, worker config, D1 seed SQL             (AIOS: extract tarball)
+  provision D1 create, migrations, seed rows, deploy           (AIOS: switch_root)
+  start     first tick observed via /health                    (AIOS: orchestrator up)
+  report    boot log + four-line report                        (AIOS: [AIOS] > prompt)
+
+Rules carried over from AIOS:
+  - The boot never dies (AIOS: PID 1 must never exit). A failed stage is logged, becomes a
+    backlog item with its blocker and closing probe, and the next stage runs degraded.
+  - No silent error swallowing (AIOS commit 8cfba48). Every command's exit code is checked
+    and its stderr tail is logged.
+  - Verify before depending (AIOS: phantom package, filename gotcha). Tools and inputs are
+    checked to exist before a stage uses them.
+  - Idempotent. Running it twice changes nothing that is already in place.
+
+Stdlib only. Never reads, prints or writes a secret value; it checks only whether an
+environment variable is set.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+VERSION = "0.1.0"
+ROOT = Path(__file__).resolve().parent.parent
+
+
+# ---------------------------------------------------------------- helpers
+
+def now_iso() -> str:
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def sql_str(v) -> str:
+    if v is None:
+        return "NULL"
+    if isinstance(v, (int, float)):
+        return repr(v)
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def slugify(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40] or "org"
+
+
+def parse_idea(text: str) -> dict:
+    """Front matter (key: value) plus '# Section' bodies; bullet lists become lists."""
+    idea: dict = {"front": {}, "sections": {}}
+    body = text
+    m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
+    if m:
+        for line in m.group(1).splitlines():
+            line = line.split("#", 1)[0].strip()
+            if ":" in line:
+                k, _, v = line.partition(":")
+                idea["front"][k.strip()] = v.strip()
+        body = m.group(2)
+    current = None
+    for line in body.splitlines():
+        h = re.match(r"^#\s+(.+?)\s*$", line)
+        if h:
+            current = h.group(1).strip().lower()
+            idea["sections"][current] = []
+            continue
+        if current is not None:
+            idea["sections"][current].append(line)
+    out = {}
+    for name, lines in idea["sections"].items():
+        bullets = [l.strip()[2:].strip() for l in lines if l.strip().startswith("- ")]
+        prose = "\n".join(l for l in lines if l.strip() and not l.strip().startswith("- ")
+                          and not l.strip().startswith("Example:") and not l.strip().startswith("Each line"))
+        out[name] = {"bullets": bullets, "prose": prose.strip()}
+    idea["sections"] = out
+    return idea
+
+
+def budget_from(idea: dict) -> float:
+    for line in idea["sections"].get("constraints", {}).get("bullets", []):
+        m = re.search(r"budget[^0-9]*([0-9]+(?:\.[0-9]+)?)", line, re.I)
+        if m:
+            return float(m.group(1))
+    return 0.0
+
+
+def fill(template: str, values: dict) -> str:
+    return re.sub(r"\{(\w+)\}", lambda m: str(values.get(m.group(1), m.group(0))), template)
+
+
+class Boot:
+    def __init__(self, root: Path, out: Path, apply: bool):
+        self.root, self.out, self.apply = root, out, apply
+        self.log: list[dict] = []
+        self.state: dict = {"blocked_items": [], "gate_cards": []}
+
+    # Each stage runs inside guard(); a failure never stops the boot.
+    def guard(self, name, fn):
+        started = now_iso()
+        try:
+            status, detail = fn()
+        except Exception as e:  # recorded, not swallowed: it becomes a backlog item below
+            status, detail = "blocked", f"{type(e).__name__}: {e}"
+        self.log.append({"stage": name, "status": status, "detail": detail, "started": started, "finished": now_iso()})
+        if status == "blocked":
+            self.state["blocked_items"].append({
+                "id": f"BOOT-{name.upper()}",
+                "title": f"Boot stage '{name}' blocked: {detail}"[:300],
+                "owner_role": "operations",
+                "done_check": f"bootstrap.py --apply reports stage '{name}' ok",
+                "closing_probe": f"org/boot-log.json stage {name} status ok",
+                "priority": 0,
+            })
+        return status
+
+    # -------------------------------------------------------------- stages
+
+    def read(self):
+        idea_path = self.root / "IDEA.md"
+        self.config = json.loads((self.root / "ultrastable.json").read_text())
+        self.policy = json.loads((self.root / "autonomy" / "policy.json").read_text())
+        if not idea_path.exists():
+            self.idea = parse_idea("---\norg_name: Unnamed\n---\n# Idea\n\n# First outcomes\n")
+            self.org_name, self.slug, self.outcomes, self.budget = "Unnamed org", "unnamed", [], 0.0
+            self.state["gate_cards"].append(self.card("GATE-IDEA", "Write the idea in IDEA.md",
+                "Only the owner knows the idea", "the org boots with no outcomes and waits",
+                "IDEA.md template", "item_done:KIT-0"))
+            return "degraded", "IDEA.md missing; booting with an empty charter"
+        self.idea = parse_idea(idea_path.read_text())
+        f = self.idea["front"]
+        self.org_name = f.get("org_name") or "Unnamed org"
+        self.slug = slugify(f.get("slug") or self.org_name)
+        self.outcomes = self.idea["sections"].get("first outcomes", {}).get("bullets", [])
+        self.budget = budget_from(self.idea)
+        problems = validate_policy(self.policy)
+        if problems:
+            return "blocked", "policy invalid: " + "; ".join(problems)
+        return "ok", f"org '{self.org_name}', {len(self.outcomes)} outcome(s), budget {self.budget:g} USD/month"
+
+    def detect(self):
+        found, missing = [], []
+        for name, c in self.config["connectors"].items():
+            (found if os.environ.get(c["env"]) else missing).append((name, c))
+        self.connectors_present = {n for n, _ in found}
+        self.tools = {t: bool(shutil.which(t)) for t in ("git", "node", "npx", "wrangler")}
+        for name, c in missing:
+            if c.get("optional"):
+                continue
+            self.state["gate_cards"].append(self.card(
+                f"GATE-SECRET-{c['env']}",
+                f"Set the {c['env']} secret (connector '{name}', needed for {', '.join(c['required_for'])})",
+                "a credential only the owner can mint", f"{', '.join(c['required_for'])} stay in dry-run",
+                "the binding name is already in config; only the value is missing", f"env:{c['env']}"))
+        detail = f"connectors present: {sorted(self.connectors_present) or 'none'}; tools: " + \
+                 ", ".join(f"{t}={'yes' if ok else 'no'}" for t, ok in self.tools.items())
+        return ("ok" if not missing else "degraded"), detail
+
+    def select(self):
+        tiers = sorted(self.config["model_ladder"]["tiers"], key=lambda t: t["budget_usd_per_month_min"])
+        tier = [t for t in tiers if self.budget >= t["budget_usd_per_month_min"]][-1]
+        aliases = self.config["model_ladder"]["aliases"]
+        self.models = {k: aliases[tier[k]] for k in ("doer", "reviewer", "manager")}
+        if self.budget > 0:
+            self.state["gate_cards"].append(self.card(
+                "GATE-BUDGET", f"Approve spending up to {self.budget:g} USD/month on model and runtime usage",
+                "spending money is identity-bound", "free tiers only; the fleet logs cost estimates",
+                "cost estimate per role in org/charter.md", "manual"))
+        return "ok", f"tier for {self.budget:g} USD: " + ", ".join(f"{k}={v}" for k, v in self.models.items())
+
+    def plan(self):
+        roles = []
+        for r in self.config["roles"]:
+            model = self.models["manager"] if r["id"].endswith("manager") else \
+                self.models["reviewer"] if r["id"] == "reviewer" else self.models["doer"]
+            if r["count"] == "per_outcome":
+                for i, _ in enumerate(self.outcomes, 1):
+                    roles.append({"id": f"{r['id']}-{i}", "role": r["id"], "project": f"OUT-{i}",
+                                  "tick_every": r["tick_every"], "model": model})
+            else:
+                n = 1 if r["count"] in (1, "pool") and self.budget < 50 else 2 if r["count"] == "pool" else int(r["count"])
+                for i in range(1, n + 1):
+                    roles.append({"id": f"{r['id']}-{i}", "role": r["id"], "project": None,
+                                  "tick_every": r["tick_every"], "model": model})
+        self.roles = roles
+
+        kit = [
+            ("KIT-0", "Charter recorded: idea, users, outcomes, constraints in org/charter.md", "portfolio-manager", None,
+             "org/charter.md committed", "git log -- org/charter.md"),
+            ("KIT-1", "Repos exist, default branch protected, AGENTS.md in place", "operations", "KIT-0",
+             "every repo has agents/AGENTS.md on main and branch protection on", "GitHub API: protection on main"),
+            ("KIT-2", "Runtime provisioned: D1 migrated and seeded, Worker deployed with the cron", "operations", "KIT-0",
+             "wrangler deployments list shows the Worker; D1 has roles rows", "GET /health returns JSON"),
+            ("KIT-3", "Heartbeat observed: six complete ticks in one hour", "operations", "KIT-2",
+             "tick_runs_completed_1h >= 6", "GET /health ok=true"),
+            ("KIT-4", "Reports reach the owner's channel in four lines", "operations", "KIT-3",
+             "a tick report is visible in the channel", "channel shows last tick id"),
+            ("KIT-5", "First plus accepted into the reserved share", "product-manager", "KIT-3",
+             "one item of kind plus is done", "SELECT COUNT(*) FROM items WHERE kind='plus' AND status='done'"),
+        ]
+        items = [{"id": i, "title": t, "kind": "work", "project": None, "owner_role": o, "trigger_on": trig,
+                  "done_check": d, "closing_probe": p, "priority": 10 + n}
+                 for n, (i, t, o, trig, d, p) in enumerate(kit)]
+        constraints = " ".join(self.idea["sections"].get("constraints", {}).get("bullets", [])).lower()
+        if "nothing public" in constraints or "not public" in constraints:
+            items.append({"id": "KIT-6", "title": "Hold the disclosure gate: repos private, sites behind access, no public posts",
+                          "kind": "work", "project": None, "owner_role": "portfolio-manager", "trigger_on": None,
+                          "done_check": "standing rule; audited each portfolio tick", "closing_probe": "owner lifts the gate",
+                          "priority": 5})
+        for i, outcome in enumerate(self.outcomes, 1):
+            items.append({"id": f"OUT-{i}", "title": f"Outcome: {outcome}", "kind": "work", "project": f"OUT-{i}",
+                          "owner_role": "product-manager", "trigger_on": "KIT-0",
+                          "done_check": "roadmap of at most five items, each with goal, user and success metric",
+                          "closing_probe": f"items with project OUT-{i} exist with metrics", "priority": 30 + i})
+        items += self.state["blocked_items"]
+        self.items = items
+        self.predictions = [{"id": "P-KIT-3", "item_id": "KIT-3", "metric": "tick_runs_completed_1h", "op": ">=",
+                             "target": 6, "due_hours": 2}]
+        return "ok", f"{len(roles)} role instance(s), {len(items)} item(s), {len(self.state['gate_cards'])} gate card(s)"
+
+    def write(self):
+        self.out.mkdir(parents=True, exist_ok=True)
+        f = self.idea["front"]
+        s = self.idea["sections"]
+        charter = [f"# {self.org_name}: charter", "",
+                   f"Bootstrapped by ultrastable/workers {VERSION} on {now_iso()[:10]}. Source: IDEA.md.", "",
+                   "## Idea", "", s.get("idea", {}).get("prose", "") or "(not written yet)", "",
+                   "## Who it is for", ""] + [f"- {b}" for b in s.get("who it is for", {}).get("bullets", [])] + \
+                  ["", "## Objectives (first outcomes)", ""] + [f"- OUT-{i}: {o}" for i, o in enumerate(self.outcomes, 1)] + \
+                  ["", "## Constraints", ""] + [f"- {b}" for b in s.get("constraints", {}).get("bullets", [])] + \
+                  ["", "## Owner", "", f"{f.get('owner', 'unknown')}. The owner sets direction and answers gate cards; "
+                   "the fleet carries every other step.", "",
+                   "## Models", ""] + [f"- {k}: {v}" for k, v in self.models.items()] + [""]
+        (self.out / "charter.md").write_text("\n".join(charter))
+        (self.out / "roles.json").write_text(json.dumps(self.roles, indent=2) + "\n")
+        (self.out / "backlog.json").write_text(json.dumps(self.items, indent=2) + "\n")
+        (self.out / "gate-cards.json").write_text(json.dumps(self.state["gate_cards"], indent=2) + "\n")
+        (self.out / "seed.sql").write_text(self.seed_sql())
+        values = {**self.config["runtime"], "slug": self.slug}
+        values = {k: fill(v, {"slug": self.slug}) if isinstance(v, str) else v for k, v in values.items()}
+        values.setdefault("d1_database_id", "{d1_database_id}")
+        self.runtime = values
+        worker = self.root / "worker"
+        (worker / "wrangler.jsonc").write_text(fill((worker / "wrangler.template.jsonc").read_text(), values))
+        cfg = {
+            "org_slug": self.slug,
+            "claim_ttl_minutes": 120,
+            "max_wip_per_role": self.config["capacity"]["max_wip_per_role"],
+            "plus_share": self.config["capacity"]["plus_share"],
+            "policy": {k: self.policy[k] for k in ("trust", "ladder", "surfaces")},
+        }
+        (worker / "src" / "config.js").write_text(
+            "// Generated by bootstrap/bootstrap.py from ultrastable.json and autonomy/policy.json. Do not edit.\n"
+            f"export default {json.dumps(cfg, indent=2)};\n")
+        return "ok", f"wrote {self.out.relative_to(self.root) if self.out.is_relative_to(self.root) else self.out}/ and worker config"
+
+    def seed_sql(self) -> str:
+        lines = ["-- Generated by bootstrap/bootstrap.py. Idempotent (INSERT OR IGNORE).", ""]
+        org = {"name": self.org_name, "slug": self.slug, "seed_version": VERSION, "booted_at": now_iso()}
+        for k, v in org.items():
+            lines.append(f"INSERT OR IGNORE INTO org (key, value) VALUES ({sql_str(k)}, {sql_str(v)});")
+        for r in self.roles:
+            lines.append("INSERT OR IGNORE INTO roles (id, role, project, tick_every, model) VALUES "
+                         f"({sql_str(r['id'])}, {sql_str(r['role'])}, {sql_str(r['project'])}, {r['tick_every']}, {sql_str(r['model'])});")
+        for i in self.items:
+            lines.append("INSERT OR IGNORE INTO items (id, title, kind, project, owner_role, trigger_on, done_check, closing_probe, priority) VALUES "
+                         f"({', '.join(sql_str(i.get(k)) for k in ('id', 'title', 'kind', 'project', 'owner_role', 'trigger_on', 'done_check', 'closing_probe'))}, {i['priority']});")
+        for c in self.state["gate_cards"]:
+            lines.append("INSERT OR IGNORE INTO gate_cards (id, what, why_gated, default_in_effect, prepared_by_fleet, closing_probe) VALUES "
+                         f"({', '.join(sql_str(c[k]) for k in ('id', 'what', 'why_gated', 'default_in_effect', 'prepared_by_fleet', 'closing_probe'))});")
+        base = self.policy["trust"]["baseline"]
+        for sname, surface in self.policy["surfaces"].items():
+            for aname in surface["actions"]:
+                lines.append("INSERT OR IGNORE INTO trust_ledger (surface, action_class, rung, reliability, outcomes) VALUES "
+                             f"({sql_str(sname)}, {sql_str(aname)}, {sql_str(surface['start_rung'])}, {base}, 0);")
+        for p in self.predictions:
+            lines.append("INSERT OR IGNORE INTO predictions (id, item_id, metric, op, target, due_at) VALUES "
+                         f"({sql_str(p['id'])}, {sql_str(p['item_id'])}, {sql_str(p['metric'])}, {sql_str(p['op'])}, {p['target']}, "
+                         f"datetime('now', '+{p['due_hours']} hours'));")
+        lines.append(f"INSERT OR IGNORE INTO doctrine_lineage (version, source) VALUES ({sql_str('seed-' + VERSION)}, 'agents/AGENTS.md + autonomy/policy.json');")
+        return "\n".join(lines) + "\n"
+
+    def provision(self):
+        plan = [
+            ["npx", "wrangler", "d1", "create", self.runtime["d1_database"]],
+            ["npx", "wrangler", "d1", "migrations", "apply", self.runtime["d1_database"], "--remote"],
+            ["npx", "wrangler", "d1", "execute", self.runtime["d1_database"], "--remote", f"--file={self.out / 'seed.sql'}"],
+            ["npx", "wrangler", "deploy"],
+        ]
+        self.state["provision_plan"] = [" ".join(c) for c in plan]
+        if not self.apply:
+            return "degraded", "dry run: planned " + str(len(plan)) + " commands (see boot-log.json provision_plan)"
+        need = {"cloudflare", "cloudflare_account"} - self.connectors_present
+        if need:
+            return "blocked", f"missing connector credentials: {sorted(need)} (gate cards opened)"
+        if not self.tools.get("npx"):
+            return "blocked", "npx not found; install Node.js 20+"
+        worker = self.root / "worker"
+        existing = self.run(["npx", "wrangler", "d1", "list", "--json"], worker)
+        db_id = None
+        for d in json.loads(existing or "[]"):
+            if d.get("name") == self.runtime["d1_database"]:
+                db_id = d.get("uuid")
+        if not db_id:
+            created = self.run(plan[0], worker)
+            m = re.search(r'"?database_id"?\s*[:=]\s*"([0-9a-f-]{36})"', created)
+            if not m:
+                return "blocked", "d1 create gave no database_id"
+            db_id = m.group(1)
+        wr = worker / "wrangler.jsonc"
+        wr.write_text(wr.read_text().replace("{d1_database_id}", db_id))
+        for cmd in plan[1:]:
+            self.run(cmd, worker)
+        return "ok", f"D1 {self.runtime['d1_database']} ({db_id}) migrated and seeded; Worker deployed"
+
+    def start(self):
+        if not self.apply:
+            return "degraded", "dry run: the first tick runs on the Worker's cron after --apply"
+        return "ok", "Worker cron armed; KIT-3 closes when six complete ticks are observed in one hour (prediction P-KIT-3)"
+
+    def run(self, cmd, cwd) -> str:
+        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600)
+        if p.returncode != 0:
+            raise RuntimeError(f"{' '.join(cmd[:4])} exited {p.returncode}: {p.stderr.strip()[-400:]}")
+        return p.stdout
+
+    @staticmethod
+    def card(id_, what, why, default, prepared, probe):
+        return {"id": id_, "what": what, "why_gated": why, "default_in_effect": default,
+                "prepared_by_fleet": prepared, "closing_probe": probe}
+
+    def finalize(self):
+        """Stages after 'plan' may have blocked; record those as backlog items too (nothing drops silently)."""
+        if not hasattr(self, "items"):
+            return
+        have = {i["id"] for i in self.items}
+        extra = [i for i in self.state["blocked_items"] if i["id"] not in have]
+        if extra:
+            self.items += [dict(i, kind="work", project=None, trigger_on=None) for i in extra]
+            (self.out / "backlog.json").write_text(json.dumps(self.items, indent=2) + "\n")
+            (self.out / "seed.sql").write_text(self.seed_sql())
+
+    def report(self) -> str:
+        ok = sum(1 for s in self.log if s["status"] == "ok")
+        blocked = [s["stage"] for s in self.log if s["status"] == "blocked"]
+        lines = [
+            f"Happened: seed {VERSION} booted '{getattr(self, 'org_name', '?')}' ({'apply' if self.apply else 'dry run'}): "
+            f"{ok}/{len(self.log)} stages ok" + (f", blocked: {', '.join(blocked)}" if blocked else "") + ".",
+            f"Decided: {len(getattr(self, 'roles', []))} role instances on models {getattr(self, 'models', {})}.",
+            "Next: " + ("the Worker cron runs the tick every 10 minutes." if self.apply and not blocked
+                        else "run with --apply once the gate cards below are closed."),
+            f"Open: {len(getattr(self, 'items', []))} backlog item(s), {len(self.state['gate_cards'])} gate card(s): "
+            + "; ".join(c["what"] for c in self.state["gate_cards"]) + ".",
+        ]
+        return "\n".join(lines)
+
+
+def validate_policy(policy: dict) -> list[str]:
+    """The rules a policy must keep. Used by the bootstrapper and by tests."""
+    problems = []
+    rungs = policy["ladder"]["rungs"]
+    order = ["none", "propose", "execute"]
+    for sname, s in policy["surfaces"].items():
+        if s["start_rung"] not in rungs:
+            problems.append(f"{sname}: unknown start_rung {s['start_rung']}")
+        if s["max_permission"] not in order:
+            problems.append(f"{sname}: unknown max_permission {s['max_permission']}")
+        ceiling = policy["ladder"]["ceiling_by_max_permission"][s["max_permission"]]
+        if rungs.index(s["start_rung"]) > rungs.index(ceiling):
+            problems.append(f"{sname}: start_rung above its ceiling {ceiling}")
+        for aname, a in s["actions"].items():
+            if not a["reversible"] and a["identity_bound"] and a.get("reversible_path"):
+                problems.append(f"{sname}.{aname}: gated action claims a reversible_path; then it is not gated")
+            if not a["reversible"] and not a["identity_bound"] and not a.get("reversible_path") and not a.get("denied"):
+                problems.append(f"{sname}.{aname}: irreversible but not gated needs a reversible_path or denied")
+    for must in ("harness", "secret", "override"):
+        if not any(must in l for l in policy["standing_limits"]["limits"]):
+            problems.append(f"standing_limits missing '{must}'")
+    return problems
+
+
+def gated_actions(policy: dict):
+    for sname, s in policy["surfaces"].items():
+        for aname, a in s["actions"].items():
+            if not a["reversible"] and a["identity_bound"]:
+                yield sname, aname, a
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true", help="plan and write files only (default)")
+    mode.add_argument("--apply", action="store_true", help="also provision Cloudflare and deploy")
+    ap.add_argument("--root", type=Path, default=ROOT)
+    ap.add_argument("--out", type=Path, default=None, help="output folder (default <root>/org)")
+    a = ap.parse_args(argv)
+    root = a.root.resolve()
+    boot = Boot(root, (a.out or root / "org").resolve(), apply=a.apply)
+    for name in ("read", "detect", "select", "plan", "write", "provision", "start"):
+        st = boot.guard(name, getattr(boot, name))
+        if name == "read" and st == "blocked" and not hasattr(boot, "idea"):
+            break  # nothing to plan from; the report says why
+    boot.finalize()
+    rep = boot.report()
+    boot.out.mkdir(parents=True, exist_ok=True)
+    (boot.out / "boot-log.json").write_text(json.dumps(
+        {"seed_version": VERSION, "mode": "apply" if a.apply else "dry-run", "stages": boot.log,
+         "provision_plan": boot.state.get("provision_plan", [])}, indent=2) + "\n")
+    (boot.out / "boot-report.md").write_text(rep + "\n")
+    print(rep)
+    return 0 if all(s["status"] != "blocked" for s in boot.log) else 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

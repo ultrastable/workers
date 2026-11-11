@@ -1,0 +1,276 @@
+{
+  "$schema_version": "0.1.0",
+  "doc": "Autonomy settings for a new org. Changed only by a reviewed PR; the tick reads it, never writes it. See docs/bootstrapping.md#autonomy. Gated actions on surfaces an agent's shell can reach list their harness_deny rules, mirrored in .claude/settings.json (tests/test_policy.py).",
+  "interrupt_gate": {
+    "rule": "Pause only when an action is irreversible AND identity-bound AND has no engineerable reversible path. Engineer reversibility first (backup, branch, draft, preview, canary), then proceed.",
+    "card_fields": [
+      "what",
+      "why_it_is_gated",
+      "default_in_effect",
+      "prepared_by_fleet",
+      "closing_probe"
+    ],
+    "examples": [
+      "spend or commit money",
+      "sign or file a legal document",
+      "destroy data that has no backup",
+      "send a message outside the org on the owner's behalf",
+      "create or rotate a credential only the owner can mint"
+    ]
+  },
+  "standing_limits": {
+    "doc": "These always win over trust, rung or policy. A refusal is stated plainly with its reason and recorded; it is never re-routed around.",
+    "limits": [
+      "the agent harness's own permission checks",
+      "classifier and safety refusals",
+      "the secret lock: no agent reads, prints, commits or moves a secret; secrets live only in the platform secret store",
+      "consent, suppression and opt-out for any outreach",
+      "the owner's override, always honored and recorded",
+      "another session's live claim on an item"
+    ]
+  },
+  "trust": {
+    "baseline": 0.5,
+    "prior_weight": 2,
+    "formula": "reliability = (verified_successes + baseline * prior_weight) / (outcomes + prior_weight)",
+    "decay_per_idle_day": 0.01,
+    "widens": "only the fleet's own loop scopes, by PR to this file",
+    "never_reaches": [
+      "harness permissions",
+      "secrets",
+      "interrupt_gate",
+      "standing_limits"
+    ]
+  },
+  "ladder": {
+    "rungs": [
+      "observed",
+      "assisted",
+      "delegated",
+      "autonomous",
+      "self-directed",
+      "self-modifying",
+      "self-extending"
+    ],
+    "meaning": {
+      "observed": "agent proposes; a reviewer agent executes and records",
+      "assisted": "agent executes in a branch or preview; a reviewer agent merges",
+      "delegated": "agent executes and merges after a different agent's review passes",
+      "autonomous": "agent executes, merges on green checks, reviewer audits after",
+      "self-directed": "agent also chooses its own next items from the driver",
+      "self-modifying": "agent may open PRs to its own role file and this policy (merged by review)",
+      "self-extending": "agent may propose new roles, surfaces and connectors (merged by review)"
+    },
+    "promote_when": {
+      "min_outcomes": 10,
+      "min_reliability": 0.8,
+      "no_hidden_failure_days": 14
+    },
+    "demote_when": {
+      "reliability_below": 0.6,
+      "or_any": [
+        "hidden failure",
+        "silent drop",
+        "gate bypass attempt"
+      ]
+    },
+    "transitions_act_by": "PR to autonomy/policy.json, opened by the operations role, reviewed by a different agent",
+    "ceiling_by_max_permission": {
+      "none": "observed",
+      "propose": "assisted",
+      "execute": "self-extending"
+    }
+  },
+  "surfaces": {
+    "repo": {
+      "doc": "The org's own git repos.",
+      "max_permission": "execute",
+      "start_rung": "delegated",
+      "actions": {
+        "read": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "branch_commit_push": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "open_pr": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "merge_pr_green": {
+          "reversible": true,
+          "identity_bound": false,
+          "reversible_path": "git revert"
+        },
+        "force_push_default_branch": {
+          "reversible": false,
+          "identity_bound": false,
+          "denied": true,
+          "reason": "rewrites shared history; use revert",
+          "harness_deny": [
+            "Bash(git push --force:*)",
+            "Bash(git push -f:*)"
+          ]
+        },
+        "delete_repo": {
+          "reversible": false,
+          "identity_bound": true,
+          "harness_deny": [
+            "Bash(gh repo delete:*)"
+          ]
+        }
+      }
+    },
+    "runtime": {
+      "doc": "Workers, D1, KV, R2, queues on the org's Cloudflare account.",
+      "max_permission": "execute",
+      "start_rung": "assisted",
+      "actions": {
+        "deploy_preview": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "deploy_production": {
+          "reversible": true,
+          "identity_bound": false,
+          "reversible_path": "versioned deploy with rollback; canary first"
+        },
+        "migrate_additive": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "migrate_destructive": {
+          "reversible": false,
+          "identity_bound": false,
+          "reversible_path": "export the table to R2 first, then it is reversible"
+        },
+        "delete_database_or_bucket": {
+          "reversible": false,
+          "identity_bound": true,
+          "harness_deny": [
+            "Bash(wrangler delete:*)",
+            "Bash(wrangler d1 delete:*)",
+            "Bash(wrangler r2 bucket delete:*)",
+            "Bash(wrangler kv namespace delete:*)"
+          ]
+        }
+      }
+    },
+    "work_tracker": {
+      "doc": "Issues, backlog rows, claims, dispositions.",
+      "max_permission": "execute",
+      "start_rung": "autonomous",
+      "actions": {
+        "create_update_close": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "claim_release": {
+          "reversible": true,
+          "identity_bound": false
+        }
+      }
+    },
+    "internal_chat": {
+      "doc": "Reports to the owner and the org's own channels.",
+      "max_permission": "execute",
+      "start_rung": "autonomous",
+      "actions": {
+        "post_report": {
+          "reversible": true,
+          "identity_bound": false
+        }
+      }
+    },
+    "outreach": {
+      "doc": "Email, social, anything a person outside the org receives.",
+      "max_permission": "propose",
+      "start_rung": "observed",
+      "actions": {
+        "draft": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "send_as_owner": {
+          "reversible": false,
+          "identity_bound": true
+        },
+        "publish_public": {
+          "reversible": false,
+          "identity_bound": true
+        }
+      }
+    },
+    "dns": {
+      "doc": "Domains and records.",
+      "max_permission": "execute",
+      "start_rung": "assisted",
+      "actions": {
+        "add_record": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "change_live_record": {
+          "reversible": true,
+          "identity_bound": false,
+          "reversible_path": "record the old value first"
+        },
+        "transfer_or_delete_domain": {
+          "reversible": false,
+          "identity_bound": true
+        }
+      }
+    },
+    "money": {
+      "doc": "Billing, purchases, subscriptions.",
+      "max_permission": "propose",
+      "start_rung": "observed",
+      "actions": {
+        "estimate_cost": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "spend": {
+          "reversible": false,
+          "identity_bound": true
+        }
+      }
+    },
+    "legal": {
+      "doc": "Contracts, filings, terms.",
+      "max_permission": "propose",
+      "start_rung": "observed",
+      "actions": {
+        "draft": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "sign_or_file": {
+          "reversible": false,
+          "identity_bound": true
+        }
+      }
+    },
+    "secrets": {
+      "doc": "Credentials. Agents never see values. Naming a secret binding in config is a repo edit (repo surface); setting a value is the owner's.",
+      "max_permission": "propose",
+      "start_rung": "observed",
+      "actions": {
+        "request_binding": {
+          "reversible": true,
+          "identity_bound": false
+        },
+        "mint_or_rotate_owner_credential": {
+          "reversible": false,
+          "identity_bound": true,
+          "harness_deny": [
+            "Bash(wrangler secret put:*)",
+            "Bash(wrangler secret delete:*)"
+          ]
+        }
+      }
+    }
+  }
+}
