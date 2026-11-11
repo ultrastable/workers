@@ -12,6 +12,8 @@ import * as claims from '../claims/index.js';
 import { createRouter } from '../router/router.js';
 import { createRunner, runnerExtraSteps } from '../runner/index.js';
 import { createGithubVcs } from '../runner/vcs-github.js';
+import { createVault } from '../vault/index.js';
+import { createGithubApp, createInstallationTokenProvider, hasAppCredentials } from '../githubapp/index.js';
 import { describeExtraSteps, handle as describeHandle } from '../describe/index.js';
 import { createPacks } from '../packs/index.js';
 import { sweep as yieldSweep } from '../yield/index.js';
@@ -27,10 +29,10 @@ export function presence(env = {}) {
 }
 
 /** Names the runner still needs, from config and env presence only. Empty means it can run. */
-export function runnerNeeds(config = {}, env = {}, { vcsInjected = false } = {}) {
+export function runnerNeeds(config = {}, env = {}, { vcsInjected = false, appCredentials = false } = {}) {
   const need = [];
   const tokenEnv = config.vcs?.token_env || 'VCS_TOKEN';
-  if (!env[tokenEnv]) need.push(tokenEnv);
+  if (!env[tokenEnv] && !appCredentials) need.push(tokenEnv);
   if (!vcsInjected && !config.vcs?.repo) need.push('config.vcs.repo');
   const providers = Object.values(config.router?.providers || {});
   if (!providers.length) need.push('config.router.providers');
@@ -45,12 +47,16 @@ const iso = ms => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
 
 export function createOrg({
   db, env = {}, config = {}, fetch, now = () => Date.now(), readFile,
-  vcs, router, store, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
+  vcs, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
 } = {}) {
   const clock = typeof now === 'function' ? now : () => now;
   const doFetch = fetch || ((...a) => globalThis.fetch(...a));
   const packs = createPacks({ db, now: clock, config: config.packs || {}, channels, ...(importer ? { importer } : {}) });
   const dcfg = config.describe || {};
+  const secrets = vault || (db ? createVault({ db }) : null);
+  let appReady = false; // refreshed at the start of each tick: do the vault's GitHub App credentials exist
+  const tokenProvider = secrets ? createInstallationTokenProvider({ vault: secrets, fetch: doFetch, now: clock }) : null;
+  const githubApp = secrets ? (request, origin) => createGithubApp({ vault: secrets, fetch: doFetch, now: clock, consoleToken: env.CONSOLE_TOKEN, config: { org: config.vcs?.repo?.split('/')[0], ...(config.githubapp || {}), baseUrl: config.githubapp?.baseUrl || origin } })(request) : null;
   const describeScope = scope || dcfg.scope || {};
   const describeVoice = voiceRules || dcfg.voice_rules || {};
   const describeSpec = specStatus || dcfg.spec_status || null;
@@ -74,10 +80,10 @@ export function createOrg({
 
   function runnerSteps() {
     if (config.runner?.enabled !== true) return [];
-    const need = runnerNeeds(config, env, { vcsInjected: !!vcs });
+    const need = runnerNeeds(config, env, { vcsInjected: !!vcs, appCredentials: appReady });
     if (need.length) return [{ name: 'runner_needs', run: async (_db, ctx) => { await fileRunnerCards(need); ctx.notes.push(`runner skipped: needs ${need.join(', ')}`); } }];
     const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null });
-    const v = vcs || createGithubVcs({ fetch: doFetch, repo: config.vcs.repo, base: config.vcs.base || 'main', env, tokenEnv: config.vcs?.token_env || 'VCS_TOKEN' });
+    const v = vcs || createGithubVcs({ fetch: doFetch, repo: config.vcs.repo, base: config.vcs.base || 'main', env, tokenEnv: config.vcs?.token_env || 'VCS_TOKEN', ...(!env[config.vcs?.token_env || 'VCS_TOKEN'] && appReady && tokenProvider ? { tokenProvider } : {}) });
     return runnerExtraSteps(createRunner({ db, now: clock, config, env, router: r, claims, vcs: v }));
   }
 
@@ -102,7 +108,8 @@ export function createOrg({
     return steps;
   }
 
-  function tick() {
+  async function tick() {
+    try { appReady = secrets ? await hasAppCredentials(secrets) : false; } catch { appReady = false; }
     return runTick(db, { config, env: presence(env), now: clock(), extraSteps: extraSteps() });
   }
 
@@ -114,6 +121,7 @@ export function createOrg({
       const ok = Boolean(last && last.steps_completed === last.steps_total);
       return Response.json({ ok, org: config.org_slug, last_tick: last || null }, { status: ok ? 200 : 503 });
     }
+    if (githubApp && p.startsWith('/console/github/')) return githubApp(request, url.origin);
     if (p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console')) {
       return handleConsole(request, { DB: db, CONSOLE_TOKEN: env.CONSOLE_TOKEN }, { org: config.org_slug });
     }

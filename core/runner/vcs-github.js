@@ -6,20 +6,29 @@
 const b64decode = s => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s/g, '')), c => c.charCodeAt(0)));
 const seg = p => String(p).split('/').map(encodeURIComponent).join('/');
 
-export function createGithubVcs({ fetch, repo, base = 'main', env = {}, tokenEnv = 'VCS_TOKEN', apiBase = 'https://api.github.com' }) {
+export function createGithubVcs({ fetch, repo, base = 'main', env = {}, tokenEnv = 'VCS_TOKEN', tokenProvider = null, apiBase = 'https://api.github.com' }) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(String(repo || ''))) throw new Error('vcs: repo must be "owner/name"');
   const root = `${String(apiBase).replace(/\/+$/, '')}/repos/${repo}`;
 
+  let lastToken = null; // only so an error message can be scrubbed; never exposed
   const scrub = text => {
     let s = String(text ?? '');
-    const t = env[tokenEnv];
+    const t = lastToken || env[tokenEnv];
     if (t && t.length > 3) s = s.split(t).join('[redacted]');
     return s.slice(0, 300);
   };
 
   async function api(method, path, body, { accept = 'application/vnd.github+json', raw = false, okStatuses = [] } = {}) {
-    const token = env[tokenEnv];
-    if (!token) throw new Error(`vcs: token variable ${tokenEnv} is not set`);
+    // tokenProvider (async, short-lived tokens from the GitHub App) is used when given; otherwise the env variable.
+    let token;
+    if (tokenProvider) {
+      try { token = await tokenProvider(); } catch (e) { throw new Error('vcs: token provider failed: ' + scrub(e?.message)); }
+      if (!token) throw new Error('vcs: token provider returned no token');
+    } else {
+      token = env[tokenEnv];
+      if (!token) throw new Error(`vcs: token variable ${tokenEnv} is not set`);
+    }
+    lastToken = token;
     const init = {
       method,
       headers: { accept, authorization: 'Bearer ' + token, 'x-github-api-version': '2022-11-28', 'user-agent': 'ultrastable-runner' },
