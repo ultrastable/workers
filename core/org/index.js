@@ -34,7 +34,9 @@ export function runnerNeeds(config = {}, env = {}, { vcsInjected = false } = {})
   if (!vcsInjected && !config.vcs?.repo) need.push('config.vcs.repo');
   const providers = Object.values(config.router?.providers || {});
   if (!providers.length) need.push('config.router.providers');
-  else if (!providers.some(p => p.key_env && env[p.key_env])) for (const p of providers) if (p.key_env) need.push(p.key_env);
+  else if (!providers.some(p => (p.kind === 'workers_ai' ? !!env.AI : p.key_env && env[p.key_env]))) {
+    for (const p of providers) { if (p.kind === 'workers_ai') need.push('AI'); else if (p.key_env) need.push(p.key_env); }
+  }
   return [...new Set(need)];
 }
 
@@ -74,7 +76,7 @@ export function createOrg({
     if (config.runner?.enabled !== true) return [];
     const need = runnerNeeds(config, env, { vcsInjected: !!vcs });
     if (need.length) return [{ name: 'runner_needs', run: async (_db, ctx) => { await fileRunnerCards(need); ctx.notes.push(`runner skipped: needs ${need.join(', ')}`); } }];
-    const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env });
+    const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null });
     const v = vcs || createGithubVcs({ fetch: doFetch, repo: config.vcs.repo, base: config.vcs.base || 'main', env, tokenEnv: config.vcs?.token_env || 'VCS_TOKEN' });
     return runnerExtraSteps(createRunner({ db, now: clock, config, env, router: r, claims, vcs: v }));
   }

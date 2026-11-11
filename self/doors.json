@@ -45,8 +45,8 @@
         {
           "id": "cloudflare-workers-ai",
           "owner_effort": "none",
-          "status": "planned",
-          "how": "Use the small open models included with the Cloudflare account through the Workers AI binding: no key, no payment, free-plan limits. The router starts on this rung. (the router provider for this binding is not built yet)"
+          "status": "built",
+          "how": "Use the small open models included with the Cloudflare account through the Workers AI binding: no key, no payment, free-plan limits. The router starts on this rung."
         },
         {
           "id": "provider-key-in-console",

@@ -8,6 +8,7 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "{d1_database}", "database_id": "{d1_database_id}", "migrations_dir": "migrations" }
   ],
+  "ai": { "binding": "AI" },
   "workers_dev": false,
   "observability": { "enabled": true }
 }

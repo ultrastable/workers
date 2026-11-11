@@ -18,13 +18,13 @@ export function periodStart(period, nowMs) {
 function scrub(text, env, config) {
   let s = String(text ?? '');
   for (const p of Object.values(config.providers || {})) {
-    const v = env?.[p.key_env];
+    const v = p.key_env ? env?.[p.key_env] : null;
     if (v && v.length > 3) s = s.split(v).join('[redacted]');
   }
   return s.slice(0, 300);
 }
 
-export function createRouter({ db, fetch, now = () => Date.now(), config, env = {} }) {
+export function createRouter({ db, fetch, now = () => Date.now(), config, env = {}, ai = null }) {
   const rungs = config.rungs || ['small', 'medium', 'large'];
   const providers = config.providers || {};
   const order = config.fallbacks || Object.keys(providers);
@@ -65,6 +65,13 @@ export function createRouter({ db, fetch, now = () => Date.now(), config, env = 
     return out;
   }
 
+  // Which roles a provider kind may serve. Config router.rung_roles overrides; a kind with no entry is unrestricted.
+  const DEFAULT_RUNG_ROLES = { workers_ai: ['triage', 'review', 'reviewer', 'management', 'manager'] };
+  const roleAllowed = (p, role) => {
+    const allow = (config.rung_roles || {})[p.kind] || DEFAULT_RUNG_ROLES[p.kind];
+    return !allow || !role || allow.includes(role);
+  };
+  const usable = p => ADAPTERS[p.kind]?.keyless ? !!ai : !!env[p.key_env]; // presence only
   const modelCost = (m, tin, tout) => (tin / 1000) * (m.usd_per_1k_in || 0) + (tout / 1000) * (m.usd_per_1k_out || 0);
   const isFree = m => !(m.usd_per_1k_in > 0) && !(m.usd_per_1k_out > 0);
 
@@ -106,14 +113,15 @@ export function createRouter({ db, fetch, now = () => Date.now(), config, env = 
     const freeOnly = cs.state === 'hard';
     const exclude = request.kind === 'reviewer' ? await doerFamilies(request.item_id) : new Set();
     const list = request.providers || order;
-    let sawFamilyBlock = false, sawPaidBlock = false;
+    let sawFamilyBlock = false, sawPaidBlock = false, sawRoleBlock = false;
 
     const build = (i) => {
       const out = [];
       for (const name of list) {
         const p = providers[name];
         if (!p || sw.has('provider:' + name)) continue;
-        if (!env[p.key_env]) continue;                         // presence only
+        if (!usable(p)) continue;
+        if (!roleAllowed(p, role)) { sawRoleBlock = true; continue; }
         const m = p.models?.[rungs[i]];
         if (!m || !need.every(c => (m.capabilities || []).includes(c))) continue;
         if (exclude.has(p.family)) { sawFamilyBlock = true; continue; }
@@ -133,6 +141,7 @@ export function createRouter({ db, fetch, now = () => Date.now(), config, env = 
         const id = await fileGateRecord('Hard spend cap reached', `Spend ${cs.spent} reached hard cap ${cs.cap.hard_usd} (${scope})`, scope);
         return { ok: false, refusal: 'hard_cap', gate_record: id, rung_requested: wanted };
       }
+      if (sawRoleBlock) return { ok: false, refusal: 'role_not_allowed', rung_requested: wanted };
       return { ok: false, refusal: sawFamilyBlock ? 'no_distinct_family' : 'no_capable_provider', rung_requested: wanted };
     }
     return { ok: true, rung_requested: wanted, rung: candidates[0].rung, steered, cap_state: cs.state, candidates };
@@ -153,10 +162,15 @@ export function createRouter({ db, fetch, now = () => Date.now(), config, env = 
       const t0 = now();
       try {
         if (!adapter) throw new Error('no adapter for kind ' + p.kind);
-        const { url, init } = adapter.buildRequest(p, model, { ...request, max_tokens: request.max_tokens || config.default_max_tokens || 1024 }, env[p.key_env]);
-        const res = await fetch(url, init);
-        if (!res.ok) throw new Error('http ' + res.status);
-        const out = adapter.parseResponse(await res.json());
+        const req = { ...request, max_tokens: request.max_tokens || config.default_max_tokens || 1024 };
+        let out;
+        if (adapter.keyless) out = await adapter.invoke(ai, p, model, req);
+        else {
+          const { url, init } = adapter.buildRequest(p, model, req, env[p.key_env]);
+          const res = await fetch(url, init);
+          if (!res.ok) throw new Error('http ' + res.status);
+          out = adapter.parseResponse(await res.json());
+        }
         const cost = modelCost(model, out.tokens_in, out.tokens_out);
         await record({ ...base, tokens_in: out.tokens_in, tokens_out: out.tokens_out, cost_usd: cost, latency_ms: now() - t0, outcome: 'ok' });
         return { ok: true, provider: c.provider, model: c.model, rung: c.rung, steered: base.steered, text: out.text, tool_calls: out.tool_calls, tokens_in: out.tokens_in, tokens_out: out.tokens_out, cost_usd: cost, attempts };
