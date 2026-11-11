@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "note": "Read-only checks that must pass on the old deployment and the new one, and agree. Add a check per unit as it is cut over (PARITY-MAP.md).",
+  "checks": [
+    { "id": "health", "unit": "core/org", "path": "/health", "status": [200], "compare_keys": false },
+    { "id": "describe", "unit": "core/describe", "path": "/describe.json", "status": [200], "json_keys": [], "compare_keys": true },
+    { "id": "llms", "unit": "core/describe", "path": "/llms.txt", "status": [200] },
+    { "id": "console", "unit": "core/src", "path": "/console", "status": [200, 401, 302], "compare_keys": false },
+    { "id": "claims-closed", "unit": "core/claims", "path": "/api/claims", "status": [200, 401, 404, 503], "compare_keys": false },
+    { "id": "unauth-closed", "unit": "adapters/shared", "path": "/api/console/items", "status": [401, 503], "compare_keys": false }
+  ]
+}
