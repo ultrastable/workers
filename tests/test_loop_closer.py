@@ -18,6 +18,8 @@ class FakeGh:
     def __init__(self, issues, prs=()):
         self._issues, self._prs, self.log, self.next = [dict(i) for i in issues], list(prs), [], 100
 
+    ci_result = "success"
+    def latest_ci(self, branch="main", workflow="ci"): return self.ci_result
     def issues(self): return self._issues
     def prs(self): return self._prs
     def comment(self, n, t): self.log.append(("comment", n))
@@ -104,6 +106,17 @@ class LoopCloser(unittest.TestCase):
     def test_exit_status_is_one_while_an_open_loop_remains(self):
         r = self.run_(FakeGh([issue(1)]), apply=False)
         self.assertTrue(r["open_loop"])
+
+    def test_a_red_main_opens_one_incident_and_a_green_main_closes_it_by_probe(self):
+        gh = FakeGh([]); gh.ci_result = "failure"
+        r = self.run_(gh)
+        self.assertEqual(r["incidents"], ["failure"])
+        self.assertEqual([e[0] for e in gh.log], ["create"])
+        gh2 = FakeGh([issue(9, title="INCIDENT: ci is red on main", body="Closing probe: ci_green:main", created=NEW)]); gh2.ci_result = "failure"
+        self.assertEqual(self.run_(gh2)["incidents"], [])  # not duplicated while open
+        gh3 = FakeGh([issue(9, title="INCIDENT: ci is red on main", body="Closing probe: ci_green:main", created=NEW)]); gh3.ci_result = "success"
+        r3 = self.run_(gh3)
+        self.assertEqual(r3["closed"][0][0], 9)
 
 
 if __name__ == "__main__":

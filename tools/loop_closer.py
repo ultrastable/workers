@@ -55,6 +55,12 @@ class Gh:
                       "--json", "number,title,body,state,isDraft,updatedAt,mergedAt")
         return json.loads(j)
 
+    def latest_ci(self, branch: str = "main", workflow: str = "ci") -> str | None:
+        """Conclusion of the most recent COMPLETED run of the workflow on the branch (success, failure, ...), or None."""
+        j = self._run("run", "list", "-R", self.repo, "-w", workflow, "-b", branch, "--limit", "10", "--json", "status,conclusion")
+        done = [r for r in json.loads(j) if r.get("status") == "completed"]
+        return done[0]["conclusion"] if done else None
+
     def comment(self, n: int, text: str): self._run("issue", "comment", str(n), "-R", self.repo, "--body", text)
     def close(self, n: int, text: str): self._run("issue", "close", str(n), "-R", self.repo, "--reason", "completed", "--comment", text)
     def label(self, n: int, name: str): self._run("issue", "edit", str(n), "-R", self.repo, "--add-label", name)
@@ -87,6 +93,8 @@ def eval_probe(kind: str, arg: str, issues: dict[int, dict], prs: dict[int, dict
             return (bool(pr and pr.get("mergedAt")), f"pull request #{n} merged" if pr and pr.get("mergedAt") else f"pull request #{n} not merged")
         iss = issues.get(n)
         return (bool(iss and iss["state"].upper() == "CLOSED"), f"issue #{n} closed" if iss and iss["state"].upper() == "CLOSED" else f"issue #{n} still open")
+    if k == "ci_green":
+        return None, "ci_green is evaluated by the runner with the tracker client"
     if k == "file_exists":
         p = (root / arg).resolve()
         if root.resolve() not in p.parents and p != root.resolve():
@@ -103,7 +111,8 @@ def linked_prs(n: int, prs: dict[int, dict]) -> list[dict]:
 def run(gh, root: Path, apply: bool, now: dt.datetime, grace_h: float, stale_d: float) -> dict:
     issues = {i["number"]: i for i in gh.issues()}
     prs = {p["number"]: p for p in gh.prs()}
-    result = {"closed": [], "open_loop": [], "stalled": [], "children": [], "epics_closed": [], "ticked": []}
+    result = {"closed": [], "open_loop": [], "stalled": [], "children": [], "epics_closed": [], "ticked": [], "incidents": []}
+    ci = gh.latest_ci("main") if hasattr(gh, "latest_ci") else None
     names = lambda i: {l["name"] for l in i.get("labels", [])}  # noqa: E731
 
     for n, i in sorted(issues.items()):
@@ -146,7 +155,10 @@ def run(gh, root: Path, apply: bool, now: dt.datetime, grace_h: float, stale_d: 
         probe = PROBE.search(body)
         prs_for = linked_prs(n, prs)
         if probe:
-            ok, ev = eval_probe(probe.group(1), probe.group(2), issues, prs, root)
+            if probe.group(1).lower() == "ci_green":
+                ok, ev = (ci == "success"), f"latest ci run on main: {ci}"
+            else:
+                ok, ev = eval_probe(probe.group(1), probe.group(2), issues, prs, root)
             if ok:
                 result["closed"].append((n, ev))
                 if apply:
@@ -165,12 +177,18 @@ def run(gh, root: Path, apply: bool, now: dt.datetime, grace_h: float, stale_d: 
             result["stalled"].append((n, f"pull request #{live[0]['number']} idle {stale_d:g}+ days"))
             if apply and LABEL_STALLED not in names(i):
                 gh.label(n, LABEL_STALLED)
+    incident_title = "INCIDENT: ci is red on main"
+    open_incident = any(i["state"].upper() == "OPEN" and i["title"].startswith(incident_title) for i in issues.values())
+    if ci not in (None, "success", "cancelled", "skipped") and not open_incident:
+        result["incidents"].append(ci)
+        if apply:
+            gh.create(incident_title, f"The latest completed ci run on main concluded: {ci}. Fix main before anything else merges." + chr(10) + chr(10) + "Closing probe: ci_green:main")
     return result
 
 
 def summary(r: dict) -> str:
     lines = [f"closed by probe: {len(r['closed'])}", f"open loops: {len(r['open_loop'])}", f"stalled: {len(r['stalled'])}",
-             f"child issues filed from epics: {len(r['children'])}", f"epic boxes ticked: {len(r['ticked'])}", f"epics closed: {len(r['epics_closed'])}"]
+             f"child issues filed from epics: {len(r['children'])}", f"epic boxes ticked: {len(r['ticked'])}", f"epics closed: {len(r['epics_closed'])}", f"incidents opened: {len(r['incidents'])}"]
     for kind in ("open_loop", "stalled"):
         for n, why in r[kind]:
             lines.append(f"  #{n} [{kind}] {why}")
