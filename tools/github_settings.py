@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 # Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-"""Apply the safe GitHub settings of docs/GITHUB-SETUP.md (US-SPEC-23, US-23-R30..R34) with `gh api`.
+"""Apply the safe GitHub settings of docs/GITHUB-SETUP.md (US-SPEC-24, US-24-R30..R34) with `gh api`.
 
   python tools/github_settings.py                       # DRY RUN (default): prints the gh api commands, changes nothing
   python tools/github_settings.py --apply               # runs them

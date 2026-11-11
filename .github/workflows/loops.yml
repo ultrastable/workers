@@ -1,5 +1,5 @@
 name: loops
-# allow-schedule: the closer needs a clock and there is no Cloudflare tick yet; one 5-minute job a day is about 150 of the 2000 free minutes a month (US-SPEC-23). Move to the tick when it exists.
+# allow-schedule: the closer needs a clock and there is no Cloudflare tick yet; one 5-minute job a day is about 150 of the 2000 free minutes a month (US-SPEC-24). Move to the tick when it exists.
 # Closes the loops on this repository's own tracker (tools/loop_closer.py): probes close issues, epics file and tick
 # their own child issues, issues with no probe and no pull request are labelled. Daily, plus on demand and after each merge.
 on:

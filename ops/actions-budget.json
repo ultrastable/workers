@@ -1,5 +1,5 @@
 {
-  "_comment": "GitHub Actions minutes budget (US-SPEC-23). Minutes are Linux-equivalent: other runners count at price / linux_minute_rate_usd. Free org plan includes USD 12 of compute a month (about 2000 Linux minutes at 0.006); this file keeps total below that.",
+  "_comment": "GitHub Actions minutes budget (US-SPEC-24). Minutes are Linux-equivalent: other runners count at price / linux_minute_rate_usd. Free org plan includes USD 12 of compute a month (about 2000 Linux minutes at 0.006); this file keeps total below that.",
   "linux_minute_rate_usd": 0.006,
   "monthly_minutes_total": 1500,
   "default_per_repo": 100,

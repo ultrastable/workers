@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 # Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-"""Static cost and security lint for GitHub Actions workflows (US-SPEC-23, requirements US-23-R10..R19).
+"""Static cost and security lint for GitHub Actions workflows (US-SPEC-24, requirements US-24-R10..R19).
 
   python tools/workflow_lint.py                 # lints .github/workflows/*.yml
   python tools/workflow_lint.py path/a.yml ...  # lints the given files
