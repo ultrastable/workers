@@ -1,18 +1,32 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+# Cost rules (US-SPEC-24): read-only token, one run per ref (superseded PR runs cancelled), every job time-boxed,
+# docs-only changes skip the test job, no schedule trigger (scheduled work runs from the Cloudflare tick), Linux only.
 name: ci
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'COMMERCIAL-TERMS.md', 'CITATION.cff']
   pull_request:
+    paths-ignore: ['docs/**', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'COMMERCIAL-TERMS.md', 'CITATION.cff']
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      - name: Workflow lint (cost and security rules, US-SPEC-24)
+        run: python tools/workflow_lint.py
       - run: node --test --no-warnings "core/**/*.test.js" "packs/**/*.test.js"
       - run: python -m unittest discover tests
       - run: node --test --no-warnings adapters/gcp/test/*.js
@@ -27,6 +41,7 @@ jobs:
     # Manual only. Provisions Cloudflare resources from IDEA.md; needs the two secrets below.
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
