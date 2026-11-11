@@ -101,6 +101,23 @@ class SelfStart(unittest.TestCase):
             r = ss.start(self.runner(calls), lambda *a, **k: {}, gh, {}, root, "o/r", NOW)
             self.assertTrue(r["started"]); self.assertEqual(calls, []); self.assertEqual(gh.log, [])
 
+    def test_an_existing_deployment_from_any_door_counts_as_started_with_no_token(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls, gh = make_root(d), [], FakeGh()
+            (root / "self" / "worker-url.txt").write_text("https://w.example.workers.dev
+")
+            r = ss.start(self.runner(calls), lambda url, headers=None: {"ok": True}, gh, {}, root, "o/r", NOW)
+            self.assertTrue(r["started"]); self.assertEqual(r["via"], "existing-deployment")
+            self.assertEqual(calls, []); self.assertTrue((root / "org" / "started.json").exists())
+
+    def test_an_unreachable_or_unhealthy_url_is_not_started_and_falls_through_to_the_other_doors(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls, gh = make_root(d), [], FakeGh()
+            (root / "self" / "worker-url.txt").write_text("https://w.example.workers.dev")
+            def down(url, headers=None): raise OSError("down")
+            r = ss.start(self.runner(calls), down, gh, {}, root, "o/r", NOW)
+            self.assertFalse(r["started"]); self.assertEqual(gh.log[0][0], "create")
+
 
 if __name__ == "__main__":
     unittest.main()

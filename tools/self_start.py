@@ -105,9 +105,31 @@ def put_worker_secrets(run, root: Path, env: dict, worker_dir: str) -> list[str]
     return done
 
 
+def detect_existing(http, env: dict, root: Path, now: dt.datetime) -> bool:
+    """Door: any deployment of the Worker, made by any means. Its address comes from SELF_WORKER_URL or self/worker-url.txt.
+    If /health answers ok the organization has started; write the record (names only) and let the loop closer close the gate."""
+    f = root / "self" / "worker-url.txt"
+    url = (env.get("SELF_WORKER_URL") or (f.read_text(encoding="utf-8").strip() if f.exists() else "")).rstrip("/")
+    if not url.startswith("https://"):
+        return False
+    try:
+        health = http(url + "/health")
+    except Exception:
+        return False
+    if not (health and health.get("ok")):
+        return False
+    (root / "org").mkdir(exist_ok=True)
+    rec = json.dumps({"at": now.isoformat(), "worker_url": url, "health_ok": True, "via": "existing-deployment"}, indent=2)
+    (root / STARTED).write_text(rec + chr(10), encoding="utf-8")
+    return True
+
+
 def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare") -> dict:
     if (root / STARTED).exists():  # already started: nothing to do, nothing spent
         return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "already": True}
+    detected = detect_existing(http, env, root, now)
+    if detected:  # a deployment made by another door (dashboard git import, launcher claim): no token needed to verify it
+        return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "via": "existing-deployment"}
     missing = [n for n in REQUIRED_TO_APPLY if not env.get(n)]
     apply = not missing
     rc = run_bootstrap(run, root, apply)

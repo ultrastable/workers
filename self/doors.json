@@ -28,7 +28,7 @@
           "id": "git-import-by-hand",
           "owner_effort": "clicks",
           "status": "built",
-          "how": "In the Cloudflare dashboard: Workers and Pages, Create, Import a repository, choose ultrastable/workers, set the root directory and deploy command shown in docs/SELF-HOSTING.md. Cloudflare creates its own deploy token."
+          "how": "In the Cloudflare dashboard: Workers and Pages, Create, Import a repository, choose ultrastable/workers, set the root directory and deploy command shown in docs/SELF-HOSTING.md. Cloudflare creates its own deploy token. Then put the Worker address (https://...workers.dev) in self/worker-url.txt or the SELF_WORKER_URL variable; self-start checks /health and records the start with no token."
         },
         {
           "id": "api-token",
