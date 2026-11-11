@@ -11,6 +11,7 @@ export const MODULES = [
   { id: 'runner', dir: 'core/runner/migrations' },
   { id: 'describe', dir: 'core/describe/migrations' },
   { id: 'packs', dir: 'core/packs/migrations' },
+  { id: 'vault', dir: 'core/vault/migrations' },
   { id: 'yield', dir: 'core/yield/migrations' },
   { id: 'docgate', dir: 'core/docgate/migrations' },
   { id: 'codeloop', dir: 'core/codeloop/migrations' },
