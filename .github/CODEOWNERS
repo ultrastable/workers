@@ -6,3 +6,11 @@
 /self/                           @rwnq8
 /core/test/no-qnfo.test.js       @rwnq8
 /.github/                        @rwnq8
+/AGENTS.md                       @rwnq8
+/CLAUDE.md                       @rwnq8
+/GEMINI.md                       @rwnq8
+/.cursor/                        @rwnq8
+/agents/CONTRACT.md              @rwnq8
+/tools/selfhost_check.py         @rwnq8
+/tools/spec_truth.py             @rwnq8
+/tools/sync_agent_files.py       @rwnq8
