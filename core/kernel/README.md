@@ -3,76 +3,67 @@
 
 # core/kernel: the L2 managerial layer
 
-Extends the seed tick (`core/src/tick.js`) with metrics and triggers, a decision log, program charters with focus slots, risk snapshots, a failure-mode register with remediation contracts and a loop breaker, and the lifecycle records and gates of US-SPEC-15. It is generic: nothing here names an organization.
+A small, generic implementation of the L2 requirements of `US-SPEC-03` s4, `04`, `05`, `15` and `17`. It extends the seed tick (`core/src/tick.js`) and never changes its behavior: the seven L1 steps and their tests are untouched.
 
 ```js
 import { runTick } from '../src/tick.js';
 import { L2_EXTRA_STEPS, MIGRATIONS_DIR } from './index.js';
-// apply core/migrations then MIGRATIONS_DIR, then:
-await runTick(db, { config: { ...cfg, kernel: { slots: 25, manager_ops: true } }, extraSteps: L2_EXTRA_STEPS });
+await runTick(db, { config, extraSteps: L2_EXTRA_STEPS });   // L1 steps, then one 'l2' step
 ```
 
-The only change outside this directory is the hook: `runTick` accepts `extraSteps: [{ name, run(db, ctx) }]` (default empty, so behavior and the L1 tests are unchanged). `runL2(db, ctx)` is that step; it runs nine guarded sub-steps (read metrics, risk snapshot, detectors, allocate, focus, decisions, remedies, remediate, lifecycle gaps), writes one evidence row each, and honors `config.kernel.manager_ops === false` (measurement continues, operations stop) and `config.kernel.enabled === false`.
+`extraSteps` is the one backward-compatible hook added to `tick.js` (`[{ name, run(db, ctx) }]`, guarded like any step; omitted means the seven L1 steps). `runL2(db, ctx)` runs nine guarded sub-steps in order: `read_metrics`, `risk_snapshot`, `detectors`, `allocate`, `focus`, `decisions`, `remedies`, `remediate`, `lifecycle`. Each writes a `kernel_step_evidence` row.
 
-Items belong to a program through `items.project` (the program id or the id of a `kernel_projects` row of that program). `kernel_item_meta` links an item to a metric and a doer.
+Configuration (`config.kernel`): `enabled` (false: L2 does nothing), `manager_ops` (false: measurement and detectors keep running, allocation, focus, decisions, remedies, remediation and gate filing stop), `slots` (T, default 25), `high_priority_max` (default 10), `guard_tolerance`. Conventions: a program's items carry `items.project = <program id>` or the id of a kernel project in that program. Migrations: `migrations/0001_kernel.sql`, `0002_lifecycle.sql` (apply after the seed migrations; idempotent).
 
-Spec versions followed: US-SPEC-00, 03, 04, 05, 15, 17, all 0.1.0 draft. Level claim: partial L2 (see deviations below). Status labels follow US-00-R03: BUILT means the named test passes (`core/kernel/kernel.test.js`).
+## Requirement status
 
-## Requirements
+BUILT means implemented and covered by a passing test in this directory. Nothing here is RUNNING (no production use).
 
-| ID | Requirement (short) | Status | Where / note |
-|---|---|---|---|
-| US-03-R11 | Evidence row per step; missing slot rows detected | BUILT | `kernel_step_evidence`, `checkPreviousSlot` (test: manager_ops / evidence) |
-| US-03-R12 | Risk, verdict, quality index snapshotted once per tick | BUILT | `snapshotRisk`, `kernel_risk_snapshot` |
-| US-03-R13 | Allocation never exceeds T | BUILT | `allocateSlots` (largest remainder) |
-| US-03-R14 | Switches stop operations without deploy, measurement continues | BUILT | `config.kernel.manager_ops`, `enabled`; the schedule switch is the runtime's |
-| US-03-R15 | Allocation writes a decision_log row with a parsable prediction | BUILT | `ALLOC-<tick>` decision |
-| US-03-T06 | 120/40/20/15/5, T=25 gives 10/5/4/3/3 | BUILT | allocation test |
-| US-03 s4 | Classification, escalation (x1.5, excess from lowest risk), ranking tiers, no-doer first | BUILT | `allocate`, `setFocus`; accelerate and maintain are labels only (maintain does not cap to one slot) |
-| US-03 s4 | Queue score, operations (promote, supersede, assign doer), origination | NOT COVERED | |
-| US-05-R01..R03, R04, R05 | L1 prediction scoring | BUILT in seed | not changed |
-| US-05-R06 | Decision stored with prediction, authority and revert path before it executes | BUILT | `recordDecision` |
-| US-05-R07 | Parsable prediction forms | BUILT | `parsePrediction` (metric, between, issue closed); kept in `kernel_decisions`, NOT copied into the seed `predictions` table because the seed scorer would score custom metrics as misses |
-| US-05-R08 | Publish parsable share, miss rate, overdue unscored | BUILT (values) / PLANNED (triggers) | `decisionHealth` |
-| US-05-R10, R11 | No close on code-only/staged; inferred needs label | NOT COVERED | |
-| US-05-R09, R12, R13 | Probe-revert on deploy; independent verification; binned calibration | NOT COVERED | |
-| US-05-R14 / US-17-R02 | Clock read with the data | BUILT | view uses `julianday('now')`; staleness check takes `now` with the data |
-| US-04-R08, R09 | Guard measure separate from outcome; missing reading is null, not a pass | BUILT | metrics `kind=guard`, null readings, `unmeasured` state |
-| US-05 keep/revert | Guard breached, unmeasured or worse blocks a target gain; revert item filed | BUILT | `evaluateDecision` |
-| US-04-R10 | Revert item on a miss | BUILT | `REVERT-<id>`; `misses_in_row` and `rest_until` NOT COVERED |
-| US-04-R05, R06, R07, R11, R12..R14 | Reserved share, product registry, simplify pass, digest | NOT COVERED | plus share check remains the seed's |
-| Metrics | Registry with target, guard flag, read probe; trigger state by view, never stored; `metrics_in_breach` | BUILT | `kernel_metrics`, `kernel_v_metric_trigger_state`, `metricsInBreach` |
-| US-17-R01 | One hit row per detector run, fired or not | BUILT | `runDetectors` |
-| US-17-R03, R04 | Detector, severity and full contract required; firing opens an item with the contract | BUILT | `registerFailureMode`, `openRemediation` |
-| US-17-R05 | One outcome bucket per scanned item; accounting invariant | BUILT | `consumeRemediations`, `recordLoopRun` (T04) |
-| US-17-R06 | Close only when the closing probe passes | BUILT | `consumeRemediations` |
-| US-17-R07 | After max attempts: gate card if interrupt-eligible, else reassign | BUILT | when all doers are exhausted the item is set `blocked` with the reason (a deviation: no human queue exists at this layer) |
-| US-17-R08 | Loop breaker: suspend at k, root-cause item, half-open probe, interval grows | BUILT | `recordAttempt`, `canAttempt` (T03) |
-| US-17-R09 | Detector with low confirmed share goes to probation | BUILT | `confirmFiring`, `reviewProbation` |
-| FM-FROZEN | Detector that stopped writing hits is itself a failure | BUILT | `detectStaleDetectors` (T02) |
-| US-17-T06 | Structured payload classification | BUILT | `payloadIsFailure` |
-| Remedy rule | A remedy that did not move its metric in its window is replaced, not repeated | BUILT | `proposeRemedy`, `judgeRemedies` |
-| US-17-R10..R12, R13 | Cross-worker detector, visibility ratio, roster emitter set, no close on repo evidence | NOT COVERED | L3 or integration |
-| US-17 FM-COVERAGE, FM-MASKED, FM-UNBOUNDED-RETRY, ... | The named detectors | NOT COVERED | the register and detector engine are built; the named rows are configuration |
-| US-15-R01 | Delivery mode and reason at initiation | BUILT | `createProject` |
-| US-15-R03, R13 | Mode tailoring of artifact weight | NOT COVERED | all modes use the same required set |
-| US-15-R04 | No phase entry before its gate; passes only on reviewed evidence | BUILT | `advancePhase`, `checkGate`; the Executing to Closing step has no named gate and is not gated |
-| US-15-R05 | Artifact is a file or record, not chat | BUILT | `submitArtifact` rejects empty and chat refs |
-| US-15-R06 | Change after a gate is a change request | BUILT | `amendArtifact`, `decideChangeRequest` (T15-3) |
-| US-15-R07 | Reviewer differs from doer by agent and model family | BUILT | `reviewArtifact` (T15-2); family is the model name prefix before the first `-`, `:`, `/` or space |
-| US-15-R08 | Every deliverable has a closing probe | BUILT (G2 items) | G2 requires every project item to have one |
-| US-15-R11 | Item leaving the active set carries a disposition | BUILT | seed reconcile plus G3 (T15-6) |
-| US-15 s8 | Tables phases, artifacts, change_requests, risks, lessons | BUILT | `0002_lifecycle.sql` |
-| US-15 s7 | Tick files missing artifacts as items | BUILT | `lifecycleGaps`, T15-1 |
-| US-15 A-CLO-3 | Each lesson files a plus item | BUILT | `addLesson` |
-| US-15-R09, R10, R12, R14; T15-4, T15-5 | Retrospective, status report, scope gate, portfolio cap | NOT COVERED | |
-| G1 | Definition-of-done probe, readiness score (US-SPEC-16) | NOT COVERED | |
-| US-15 A-MON-4 | Periodic risk review | PLANNED | `addRisk` stores risks only |
+| Requirement | Status | Where / note |
+|---|---|---|
+| US-03-R11 evidence row per step; missing rows detected | BUILT | `kernel_step_evidence`, `L2MISSING-<tick>` (`l2.test.js`) |
+| US-03-R12 risk, verdict, quality index snapshot once per tick | BUILT | `snapshotRisk` (`programs.test.js`). "Stalled projects" S is counted as blocked items |
+| US-03-R13 allocation never above T | BUILT | `allocateSlots`, largest-remainder rounding |
+| US-03-R14 switches stop operations, measurement continues | BUILT | `config.kernel.manager_ops`, `enabled`. The schedule switch that stops the tick entirely belongs to the runtime, not this layer |
+| US-03-R15 allocation writes a decision with a parsable prediction | BUILT | `ALLOC-<tick>` rows |
+| US-03-T06 allocation 120/40/20/15/5, T=25 gives 10/5/4/3/3 | BUILT | `programs.test.js` |
+| US-03 s4 classification (constrain, escalate, accelerate, maintain, steady, idle) | BUILT | "maintain: one slot" is not enforced as a cap; the worked example gives GREEN programs more |
+| US-03 s4 ranking and focus; no-doer items first | BUILT | tiers 0 to 4, then no doer, priority, age. The queue score formula is NOT COVERED |
+| US-03 s4 operations (promote, supersede, demote, assign doer with anchor validation), daily origination | NOT COVERED | needs a research agent and a code path; PLANNED |
+| US-03-R16 duplicate scheduler firing | NOT COVERED | L3 |
+| US-05-R01..R03, R05 prediction scoring in the seed | not this layer | seed (`score_predictions`) |
+| US-05-R06 decision stored with prediction, authority, revert path | BUILT | `kernel_decisions`, `recordDecision` |
+| US-05-R07 parsable prediction forms | BUILT | `parsePrediction` (metric, `between`, `issue closed`). Own table: the seed's scorer would score a custom metric as a miss, so decisions are not copied into `predictions` |
+| US-05-R08 parsable share, miss rate, unscored overdue | BUILT | `decisionHealth`. The trigger on each is not registered (no metric registry rows are seeded) |
+| US-05-R14, US-17-R02 clock read in the same statement as the data | BUILT | view `kernel_v_metric_trigger_state`; `detectStaleDetectors` |
+| US-05-R09, R12, R13, R10/R11 (probes revert deploys, calibration bins, assertion states) | NOT COVERED | deploy path is outside this layer |
+| Metric registry: target, guard flag, read probe, trigger by view | BUILT | `kernel_metrics`, `kernel_v_metric_trigger_state` (`hit = 1` is a breach; unmeasured is never a pass) |
+| Guard blocks a target gain from being kept | BUILT | `evaluateDecision` (guard breached, unmeasured or worse than at decision time) |
+| US-04-R09 missing or stale reading is null, never 0 | BUILT | `readMetric`, view |
+| US-04-R10 miss: revert item filed | BUILT | `REVERT-<id>`. `misses_in_row` and `rest_until` are NOT COVERED (no product registry) |
+| US-04-R01, R05..R08, R11..R14 plus loop, product registry, simplify pass, digest | NOT COVERED | PLANNED. R02 plus-share rebalance is in the seed |
+| US-17-R01 one hit row per detector run | BUILT | `runDetectors` (errors are rows too) |
+| US-17-R03, R04 detector, severity and full contract required | BUILT | `registerFailureMode` |
+| US-17-R05 one outcome bucket per scanned item; accounting invariant | BUILT | `consumeRemediations`, `recordLoopRun` (incident plus reopen) |
+| US-17-R06 close only when the closing probe passes | BUILT | |
+| US-17-R07 after max attempts: gate card if interrupt-eligible, else reassign | BUILT | when doers run out the item is blocked with the reason |
+| US-17-R08 loop breaker with root-cause item and half-open probe | BUILT | `recordAttempt`, `canAttempt` (k, window, interval configurable) |
+| US-17-R09 probation for a detector whose firings are mostly refuted | BUILT | `confirmFiring`, `reviewProbation` |
+| US-17-T06 structured payload classification | BUILT | `payloadIsFailure` |
+| Remedy not moving its metric in its window is replaced, not repeated | BUILT | `proposeRemedy`, `judgeRemedies` (refuses a repeat of a replaced remedy; one active remedy per metric) |
+| US-17-R10..R12, R13 external host, visibility ratio, roster, repository-only closure | NOT COVERED | L3 / deploy path |
+| US-15-R01 delivery mode with reason | BUILT | `createProject` |
+| US-15-R04 gates G1, G2, G3 and the gate check function | BUILT | `checkGate`, `advancePhase`. Executing to closing has no named gate in the spec and is not gated |
+| US-15-R05 artifact is a file or record, not chat | BUILT | `submitArtifact` |
+| US-15-R06 change after a gate is a change request with revert path | BUILT | `amendArtifact`, `decideChangeRequest` |
+| US-15-R07 reviewer differs from doer (agent, and model family when both known) | BUILT | `reviewArtifact`, re-checked by `checkGate` |
+| US-15-R11 disposition on leaving the active set | BUILT | seed reconcile; G3 checks it per project |
+| US-15 s8 tables `phases`, `artifacts`, `change_requests`, `risks`, `lessons` | BUILT | `0002_lifecycle.sql` |
+| US-15 A-CLO-3 lesson filed into the plus queue | BUILT | `addLesson` |
+| US-15 s7 tick files missing gate artifacts | BUILT | `lifecycleGaps` |
+| US-15-T1, T2, T3, T6 | BUILT | `lifecycle.test.js` |
+| US-15-R02, R03, R08..R10, R12..R14, T4, T5 (mode selection rule, iterations, scope gate, status report, portfolio cap) | NOT COVERED | PLANNED. G1 readiness score (US-SPEC-16) and the charter probe check are also NOT COVERED |
 
-## Deviations (US-00-R02)
+## Deviation list (US-00-R02)
 
-Everything marked NOT COVERED above. Numeric defaults (T=25, k=3, 24 h windows, escalation 10% / 20% / 5 points, stalled = blocked items) are configuration-grade defaults per US-00-R07, set in `config.kernel` where practical.
-
-## Tables
-
-`kernel_*` for the layer's own records; `phases`, `artifacts`, `change_requests`, `risks`, `lessons` are normative names from US-SPEC-15 section 8. All migrations are idempotent.
+Level claim: partial L2. Not met: the NOT COVERED rows above. Records for risk review (A-MON-4), status report (A-MON-1) and variance (A-MON-2) are tables only; no step produces them yet.
