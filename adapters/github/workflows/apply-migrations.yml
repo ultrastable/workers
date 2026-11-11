@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+# TEMPLATE: copy to .github/workflows/ in an organization repository. Manual trigger only (no schedule, US-SPEC-24 cost rules):
+# scheduled work runs from the Worker tick, not from Actions minutes.
+name: apply-migrations
+on:
+  workflow_dispatch:
+    inputs:
+      d1_name:
+        description: D1 database name
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: node tools/build_migrations.mjs --check
+      - run: python tools/apply_migrations.py --d1 "${{ inputs.d1_name }}" --run

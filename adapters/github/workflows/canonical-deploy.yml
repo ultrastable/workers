@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+# TEMPLATE: copy to .github/workflows/ in an organization repository. Manual trigger only (no schedule, US-SPEC-24 cost rules):
+# scheduled work runs from the Worker tick, not from Actions minutes.
+name: canonical-deploy
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit to deploy (default HEAD)
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: npm test
+      - name: Deploy through the canonical path
+        run: node adapters/cloudflare/deployer.js
+      - name: Probe (any route may answer)
+        run: python tools/deploy_probes.py --config ops/probes.json > probes.json
+      - name: Canary decision (prints revert commands, runs none)
+        run: python tools/canary_revert.py --probes probes.json --commit "${{ github.sha }}"

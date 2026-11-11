@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+# TEMPLATE: copy to .github/workflows/ in an organization repository. Manual trigger only (no schedule, US-SPEC-24 cost rules):
+# scheduled work runs from the Worker tick, not from Actions minutes.
+name: agent-pr-lifecycle
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Agent pull request number
+        required: true
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mark ready for review only when the review gate passes
+        run: |
+          SHA=$(gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr }}" --jq .head.sha)
+          CHECKS=$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs" --jq 'if ([.check_runs[] | select(.conclusion != "success" and .conclusion != "skipped")] | length) == 0 then "success" else "failure" end')
+          gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr }}" --jq "{body: .body, author: .user.login, labels: [.labels[].name], checks: \"$CHECKS\"}" > pr.json
+          python3 tools/review_gate.py --pr pr.json && gh pr ready "${{ inputs.pr }}" --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

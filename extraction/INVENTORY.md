@@ -20,7 +20,7 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | ai-yield (cost per output dashboard) | 15k | 9 | `core/yield` | BUILT (this change): ledger and rules; the owner-code login page is not extracted, the guided console is the generic surface |
 | waste-agent (finds spend that produces nothing) | 13k | 16 | `core/yield` | BUILT (this change): rules W-ERR, W-RATE, W-META, W-YIELD with item lifecycle |
 | doc-gate (documents tied to work) | 14k | 20 | `core/docgate` | BUILT (this change): storage-agnostic store port |
-| code-orchestrator (issue to tested, merged PR) | 1.3M | 959 | `core/codeloop` | BUILT (merge gate, task line, multi-host merge); planning stays in `core/runner`; GitHub merge host PLANNED in `adapters/github` |
+| code-orchestrator (issue to tested, merged PR) | 1.3M | 959 | `core/codeloop` | BUILT (merge gate, task line, multi-host merge); planning stays in `core/runner`; GitHub merge host BUILT in `adapters/github/steward.js` |
 | ai-calibration (probe every model endpoint) | 388k | 351 | `core/router` calibration submodule | BUILT (`core/router/calibration.js`) |
 | observability (trace ingest, scorers) | 162k | 231 | `core/observe` | BUILT (ingest, error ratio, p95, degraded-source items, secret scrubbing); QNFO scorer chains stay QNFO |
 | memory-mcp (code topology graph, blast radius) | 224k | 91 | `core/graph` | BUILT (imports, declared edges, blast radius) |
@@ -31,14 +31,14 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | agents (Agents SDK runtime) | 2.9M | 180 | `adapters/cloudflare/agents` | BUILT as an SDK-free runtime; Durable Object wrapper NOT COVERED (needs a live account) |
 | containers-pilot (container executor) | 49k | 49 | `adapters/cloudflare/containers` | BUILT (executor); image and binding NOT COVERED |
 | infra (shared routes) | 338k | 224 | folded into `adapters/shared/routes.js` | BUILT |
-| fleet-dashboard (operator console) | 2.8M | 1995 | `apps/console` (the guided console already serves the generic path) | PLANNED, order 16; the QNFO dashboard repo is demo-instance only |
+| fleet-dashboard (operator console) | 2.8M | 1995 | `apps/console` | SUPERSEDED: the generic operator console already exists (`core/src` console, `/console`, guided buttons, US-SPEC-18); the QNFO dashboard is QNFO-styled demo-instance code and is not extracted. Closing probe: `/console` serves items, ticks and decisions from the org database |
 
 ## Other units
 
 | Unit | Decision |
 |---|---|
-| `scripts/` (560 files): 10 core scripts listed in boundary.json (canary revert, deploy probes, review gate, fleet graph, run-suites, release, migrations, remediation consumer, outline, boundary check) | PLANNED: port to `tools/`, same order as the module each serves. The other ~550 are one-off patches for QNFO's own fleet: not extracted |
-| `.github/workflows/` (77): 7 core workflows in boundary.json | PLANNED as manual-trigger templates under `adapters/github/workflows/`; no scheduled workflows (Actions budget rule) |
+| `scripts/` (560 files): 10 core scripts listed in boundary.json (canary revert, deploy probes, review gate, fleet graph, run-suites, release, migrations, remediation consumer, outline, boundary check) | BUILT: nine ported to `tools/` (see `tools/EXTRACTED.md`), the tenth (`product_boundary`) is `extraction/product_boundary.mjs`. The other ~550 are one-off patches for QNFO's own fleet: not extracted |
+| `.github/workflows/` (77): 7 core workflows in boundary.json | BUILT as manual-trigger templates under `adapters/github/workflows/`; no scheduled workflows (Actions budget rule); lint-checked by test |
 | `migrations/` (2221 files, 21 MB) | Not copied. The 22 core tables in boundary.json are re-derived as per-module migrations (`core/*/migrations`), idempotent and tenant-free |
 | `_shared/` (UI helpers, voice, design system, paper formatting) | App-side and QNFO-styled: not extracted. The console has its own UI |
 | `AGENTS.md`, `agents/` roles, `docs/DOCTRINE-KERNEL.md`, `docs/AUTONOMOUS-OPERATION-DOCTRINE.md` | BUILT as the generic policy pack: `agents/`, `autonomy/policy.json`, `docs/seed.md` (P1). QNFO owner directives stay QNFO |
@@ -46,11 +46,11 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | 12 `app` workers (research, idea-hub, outreach, email, social, pdf, gateway, ...) | Stay in QNFO. Not product |
 | 8 `personal` workers and `docs/` (business plan, career, closeouts, handoffs) | Never copied. Private to the owner |
 | `archive/`, `audits/`, `papers/`, `research-code/`, `funding/`, `android-me/`, branch-cleanup files | Not product. Not copied |
-| `QNFO/qnfo-fleet-dashboard` repository | Source for `apps/console` extraction (order 16). 32 files, QNFO-styled |
+| `QNFO/qnfo-fleet-dashboard` repository | Not extracted (see fleet-dashboard row): QNFO-styled demo-instance code |
 
 ## Disposition of what remains (no silent drops)
 
-Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining: fleet-dashboard, 10 core scripts, 7 core workflows. These are the largest units (1 to 3 MB each) and are rewritten module by module, not copied.
+Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining open items: (1) the server-side ops agent (`core/deploy` has the change path; the agent that drives it is PLANNED), (2) the product claims feed (needs the product's own host, issue #10), (3) per-module NOT COVERED lines, each needing a live account or the QNFO sources. Not covered anywhere, by design: the QNFO-styled dashboard views and every item named NOT COVERED in a module README.
 
 Rewrites are clean-room from each unit's role in boundary.json and the specs: the QNFO sources are not in this repository's reach, so nothing is copied and each README says what is NOT COVERED.
 
