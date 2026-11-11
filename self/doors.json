@@ -1,0 +1,114 @@
+{
+  "rule": "Every prerequisite has at least two independent doors, ordered from least effort for the owner to most. The first door needs no coding and no terminal. The system tries them in order and reports which one worked.",
+  "effort_levels": [
+    "none",
+    "sign-in",
+    "clicks",
+    "typing",
+    "terminal"
+  ],
+  "prerequisites": [
+    {
+      "id": "cloudflare_access",
+      "what": "Let the system create and run the Worker, database and schedule on the new Cloudflare account",
+      "doors": [
+        {
+          "id": "browser-assisted",
+          "owner_effort": "sign-in",
+          "status": "built",
+          "how": "The owner signs in to Cloudflare once in the browser pane the assistant opens (Continue with Google or GitHub). The assistant then performs every click: Workers and Pages, Create, Import a repository, ultrastable/workers, build and deploy settings, and the database. Consent screens (GitHub app install) are the owner's click."
+        },
+        {
+          "id": "launcher-temporary-account",
+          "owner_effort": "clicks",
+          "status": "built",
+          "how": "Open the web launcher (apps/launcher), tick the two Cloudflare agreements, and the launcher creates a temporary account, deploys, and gives a claim link to keep it. No token, no terminal."
+        },
+        {
+          "id": "git-import-by-hand",
+          "owner_effort": "clicks",
+          "status": "built",
+          "how": "In the Cloudflare dashboard: Workers and Pages, Create, Import a repository, choose ultrastable/workers, set the root directory and deploy command shown in docs/SELF-HOSTING.md. Cloudflare creates its own deploy token."
+        },
+        {
+          "id": "api-token",
+          "owner_effort": "terminal",
+          "status": "built",
+          "how": "Create a custom API token (Workers Scripts: Edit, D1: Edit, Account Settings: Read, this account only) and set it as the CLOUDFLARE_API_TOKEN repository secret. Last resort."
+        }
+      ]
+    },
+    {
+      "id": "model_key",
+      "what": "Let the system call a language model with a hard spend limit",
+      "doors": [
+        {
+          "id": "cloudflare-workers-ai",
+          "owner_effort": "none",
+          "status": "planned",
+          "how": "Use the small open models included with the Cloudflare account through the Workers AI binding: no key, no payment, free-plan limits. The router starts on this rung. (the router provider for this binding is not built yet)"
+        },
+        {
+          "id": "provider-key-in-console",
+          "owner_effort": "typing",
+          "status": "planned",
+          "how": "Paste a provider key into a console field once; the Worker stores it as a secret and shows only that it exists."
+        },
+        {
+          "id": "provider-key-secret",
+          "owner_effort": "terminal",
+          "status": "built",
+          "how": "Set ANTHROPIC_API_KEY as a repository secret."
+        }
+      ]
+    },
+    {
+      "id": "vcs_token",
+      "what": "Let the runner open draft pull requests that trigger CI",
+      "doors": [
+        {
+          "id": "github-app-install",
+          "owner_effort": "clicks",
+          "status": "planned",
+          "how": "Install the Ultrastable GitHub App on the ultrastable organization with one click; it issues short-lived tokens by itself."
+        },
+        {
+          "id": "fine-grained-token-in-console",
+          "owner_effort": "typing",
+          "status": "planned",
+          "how": "Create a fine-grained token limited to the ultrastable repositories and paste it into the console once."
+        },
+        {
+          "id": "token-secret",
+          "owner_effort": "terminal",
+          "status": "built",
+          "how": "Set SELF_VCS_TOKEN as a repository secret."
+        }
+      ]
+    },
+    {
+      "id": "console_key",
+      "what": "Let the owner open the console",
+      "doors": [
+        {
+          "id": "generated-first-run",
+          "owner_effort": "none",
+          "status": "planned",
+          "how": "The Worker generates a key on first run and shows it once on a first-run page, or sends the owner a sign-in link by email."
+        },
+        {
+          "id": "access-sso",
+          "owner_effort": "sign-in",
+          "status": "planned",
+          "how": "Put Cloudflare Access in front of the console so the owner signs in with their existing Google or GitHub account."
+        },
+        {
+          "id": "token-secret",
+          "owner_effort": "terminal",
+          "status": "built",
+          "how": "Set SELF_CONSOLE_TOKEN as a repository secret."
+        }
+      ]
+    }
+  ]
+}

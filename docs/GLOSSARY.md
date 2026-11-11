@@ -40,7 +40,11 @@
 
 **Doer and reviewer.** The doer produces a change; a different agent, on a different model family where possible, verifies it. Nothing is reviewed by its author. See: Probe.
 
+**Door.** One independent way to satisfy a prerequisite (a credential, an account, a decision). Every prerequisite has at least two doors, ordered from least effort for the owner to most, and the system tries them in order. A single door is a single point of failure. See: Gate card, Single point of failure.
+
 **Earned autonomy.** Permission to act without a person, widened only from a record of verified outcomes and only by a reviewed change to the autonomy policy. See: Trust ledger.
+
+**Failure log.** The register of the system's own failures: what happened, the root cause, the code that fixes it and the probe that shows it stays fixed. Failures are recorded by the system, not left in a conversation. See: Closed system, Open loop.
 
 **Gate card.** A decision or step only a person can take, written as a record with the default already in effect and a closing probe. It is never an instruction in prose. See: Interrupt gate, Default in effect.
 
@@ -82,6 +86,8 @@
 
 **Self-referential.** A loop that can read and act on loops, including itself: managers manage loops, probes check loops, the loop closer closes the tracker's loops, and the system reads its own backlog, claims, principles and results. See: Loop, Closure.
 
+**Single point of failure.** Any step, tool, person, account or path whose loss stops the system with no workaround. It is a defect: every critical path has a second door that works without the first. See: Door, Open loop.
+
 **Tick.** The heartbeat: one pass of the system's loops on a schedule. Each step is guarded so a failing step never stops the rest. See: Loop.
 
 **Trust ledger.** The record of verified outcomes per surface and action class from which autonomy is earned, promoted and demoted. Trust is computed, not granted. See: Earned autonomy.
@@ -107,3 +113,14 @@ Each is the owner's instruction, kept with the code that enforces it. A directiv
 | D-PLATFORM-AGNOSTIC | Starting with Cloudflare, but it would work with Google Cloud Platform too, and in theory could work with any platform. | enforced | `adapters/gcp/server.js`, `adapters/gcp/test/gcp.test.js` |
 | D-LICENSE-HYBRID | Non-commercial is free, but any kind of money-making commercial use needs a license. | enforced | `LICENSE`, `COMMERCIAL-TERMS.md` |
 | D-BITE-SIZED-CONSOLE | Three screens, bite-sized information, buttons or things to click; don't assume they know what to type. | enforced | `core/test/console.test.js` |
+| D-NO-SINGLE-POINT-OF-FAILURE | There should never be a single point of failure ever. You should always have workarounds. | enforced | `self/doors.json`, `tests/test_doors.py`, `core/principles/principles.json` |
+| D-NON-CODER-START | A non-coder user is not going to know how to do this. This should have happened automatically. | partial | `self/doors.json`, `tests/test_doors.py`; tracked by #84 |
+
+## Failure log
+
+Failures the system has had, with the code that keeps each from recurring.
+
+| Id | What happened | Root cause | Fixed by |
+|---|---|---|---|
+| F-001 | The start of the self-hosted organization was blocked on the owner creating a Cloudflare API token and running `gh secret set`, and the gate issue said so in prose. | The start path had a single door (a manual API token). Nobody had written down the non-coder rule as a test, so a terminal step passed as acceptable. | self/doors.json gives every prerequisite two or more ordered doors; tests/test_doors.py fails the build if one has a single door or the first door needs a terminal; the gate issue now renders the doors, simplest first, as 'do any one'. |
+| F-002 | A syntax error in tools/self_start.py was merged to main before its tests ran, and a schedule trigger failed the workflow linter after merge. | Merging relied on the author's judgment instead of a required check; pull requests ran no CI. | Both fixed (#78, #79). Required check before merge is tracked on the cost-control and protocol work. |

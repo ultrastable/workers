@@ -32,34 +32,41 @@ REQUIRED_TO_APPLY = ("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID")
 # repository secret name -> Worker secret name
 WORKER_SECRETS = {"SELF_CONSOLE_TOKEN": "CONSOLE_TOKEN", "SELF_VCS_TOKEN": "VCS_TOKEN", "ANTHROPIC_API_KEY": "ANTHROPIC_API_KEY"}
 STARTED = "org/started.json"
-HINTS = {
-    "CLOUDFLARE_API_TOKEN": "dash.cloudflare.com/profile/api-tokens, Create Token, Custom token. Permissions (Account): Workers Scripts: Edit, D1: Edit, Account Settings: Read. Account resources: include only this account. No zone or user permissions.",
-}
 
 
 def present(env: dict, names) -> list[str]:
     return [n for n in names if env.get(n)]
 
 
-def gate_issue_body(cards: list[dict], repo: str, missing_apply: list[str]) -> str:
-    lines = ["The organization starts itself as soon as these are done. Until then it stays in dry run and nothing is spent.",
-             "A scheduled workflow (`self-start`) re-checks every few hours; nobody has to run anything.", ""]
-    if missing_apply:
-        lines += ["## Add these repository secrets (identity-bound: only you can create them)", ""]
-        for n in missing_apply:
-            lines.append(f"- `{n}`: `gh secret set {n} -R {repo}`")
-            if n in HINTS:
-                lines.append(f"  - How to create it: {HINTS[n]}")
-        lines.append("")
-    lines += ["## Everything the bootstrapper needs from you", "", "| Step | Why only you | If you do nothing | Closes when |", "|---|---|---|---|"]
+def load_doors(root: Path) -> list[dict]:
+    f = root / "self" / "doors.json"
+    return json.loads(f.read_text(encoding="utf-8"))["prerequisites"] if f.exists() else []
+
+
+def doors_section(prereq: dict) -> list[str]:
+    lines = [f"### {prereq['what']}", "", "Do **any one** of these. They are ordered from least effort to most; the system uses whichever works first.", ""]
+    for i, d in enumerate(prereq["doors"], 1):
+        tag = "" if d["status"] == "built" else " (not built yet)"
+        lines.append(f"{i}. **{d['id']}**, owner effort: {d['owner_effort']}{tag}. {d['how']}")
+    return lines + [""]
+
+
+def gate_issue_body(cards: list[dict], repo: str, missing_apply: list[str], doors: list[dict] | None = None) -> str:
+    lines = ["The organization starts itself as soon as one door below is done. Until then it stays in dry run and nothing is spent.",
+             "A scheduled workflow (`self-start`) re-checks every few hours; nobody has to run anything. No door requires you to write code.", ""]
+    for p in doors or []:
+        if p["id"] == "cloudflare_access" and not missing_apply:
+            continue  # the account credentials are already present
+        lines += doors_section(p)
+    lines += ["## Everything the bootstrapper recorded", "", "| Step | Why only you | If you do nothing | Closes when |", "|---|---|---|---|"]
     for c in cards:
         lines.append(f"| {c['what']} | {c['why_gated']} | {c['default_in_effect']} | `{c['closing_probe']}` |")
     lines += ["", "Closing probe: file_exists:" + STARTED, ""]
-    return "\n".join(lines)
+    return chr(10).join(lines)
 
 
-def ensure_gate_issue(gh, cards, repo, missing_apply):
-    body = gate_issue_body(cards, repo, missing_apply)
+def ensure_gate_issue(gh, cards, repo, missing_apply, doors=None):
+    body = gate_issue_body(cards, repo, missing_apply, doors)
     existing = [i for i in gh.issues() if i["title"].startswith(TITLE) and i["state"].upper() == "OPEN"]
     if existing:
         if (existing[0].get("body") or "").strip() != body.strip():
@@ -108,7 +115,7 @@ def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, wor
     cards = json.loads(cards_path.read_text(encoding="utf-8")) if cards_path.exists() else []
     result = {"applied": apply, "bootstrap_exit": rc, "gate_issue": None, "started": False, "secrets_set": []}
     if cards or missing:
-        result["gate_issue"] = ensure_gate_issue(gh, cards, repo, missing)
+        result["gate_issue"] = ensure_gate_issue(gh, cards, repo, missing, load_doors(root))
     if not apply or rc != 0:
         return result
     cfg = json.loads((root / "self" / "ultrastable.json").read_text(encoding="utf-8"))

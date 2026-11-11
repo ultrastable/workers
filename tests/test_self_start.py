@@ -27,6 +27,9 @@ class FakeGh:
 def make_root(d):
     root = Path(d)
     (root / "self").mkdir()
+    (root / "self" / "doors.json").write_text(json.dumps({"prerequisites": [{"id": "cloudflare_access", "what": "Let the system run", "doors": [
+        {"id": "browser-assisted", "owner_effort": "sign-in", "status": "built", "how": "Sign in once."},
+        {"id": "api-token", "owner_effort": "terminal", "status": "built", "how": "Last resort."}]}]}))
     (root / "self" / "ultrastable.json").write_text(json.dumps({"runtime": {"worker_name": "w-self"}}))
     (root / "org").mkdir()
     (root / "org" / "gate-cards.json").write_text(json.dumps(CARDS))
@@ -48,9 +51,10 @@ class SelfStart(unittest.TestCase):
             self.assertIn("--dry-run", calls[0][0])
             self.assertEqual(gh.log[0][0], "create")
             body = gh._i[0]["body"]
-            self.assertIn("gh secret set CLOUDFLARE_API_TOKEN -R o/r", body)
+            self.assertIn("Do **any one** of these", body)
             self.assertIn("Closing probe: file_exists:org/started.json", body)
-            self.assertIn("Workers Scripts: Edit", body)
+            self.assertLess(body.index("browser-assisted"), body.index("api-token"))  # simplest door first
+            self.assertNotIn("gh secret set", body.split("api-token")[0])  # a terminal command is never the first thing offered
             self.assertFalse((root / "org" / "started.json").exists())
 
     def test_a_second_run_updates_the_same_issue_instead_of_filing_another(self):
