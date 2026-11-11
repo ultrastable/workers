@@ -47,8 +47,9 @@ def gate_issue_body(cards: list[dict], repo: str, missing_apply: list[str]) -> s
     if missing_apply:
         lines += ["## Add these repository secrets (identity-bound: only you can create them)", ""]
         for n in missing_apply:
-            lines.append(f"- `{n}`: `gh secret set {n} -R {repo}`" + (f"
-  - How to create it: {HINTS[n]}" if n in HINTS else ""))
+            lines.append(f"- `{n}`: `gh secret set {n} -R {repo}`")
+            if n in HINTS:
+                lines.append(f"  - How to create it: {HINTS[n]}")
         lines.append("")
     lines += ["## Everything the bootstrapper needs from you", "", "| Step | Why only you | If you do nothing | Closes when |", "|---|---|---|---|"]
     for c in cards:
