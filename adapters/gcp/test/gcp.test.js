@@ -34,3 +34,21 @@ test('no TICK_TOKEN configured: /tick refuses everyone', async () => {
   assert.equal((await fetch(`${base}/tick`, { method: 'POST', headers: { 'x-tick-token': '' } })).status, 401);
   srv.close(); db.close();
 });
+
+test('the guided console runs on the Cloud Run adapter too: off without a key, on with one', async () => {
+  const off = await boot({});
+  assert.equal((await fetch(`${off.base}/console`)).status, 503);
+  off.srv.close(); off.db.close();
+  const { srv, base, db } = await boot({ CONSOLE_TOKEN: 'k3y' });
+  assert.equal((await fetch(`${base}/api/console`)).status, 401);
+  const login = await fetch(`${base}/console/login`, { method: 'POST', body: new URLSearchParams({ key: 'k3y' }), redirect: 'manual' });
+  assert.equal(login.status, 303);
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const api = await fetch(`${base}/api/console`, { headers: { cookie } });
+  assert.equal(api.status, 200);
+  assert.ok((await api.json()).headline);
+  const ask = await fetch(`${base}/api/console/ask`, { method: 'POST', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ text: 'a page to book drills' }) });
+  assert.equal(ask.status, 200);
+  assert.equal(db.raw.prepare('SELECT COUNT(*) AS n FROM console_actions').get().n, 1);
+  srv.close(); db.close();
+});

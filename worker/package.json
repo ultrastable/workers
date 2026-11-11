@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test --no-warnings test/*.test.js",
+    "demo": "node --no-warnings dev/demo.mjs",
     "deploy": "wrangler deploy"
   }
 }

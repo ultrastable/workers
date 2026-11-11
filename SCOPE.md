@@ -24,6 +24,12 @@ A person who can state what they want, and who is **not** a coder or an engineer
 
 The outputs of 3 and 4 are files in a repository. If it is not in code or files, it does not exist.
 
+## Where it sits between a site builder and a coding agent
+
+Site and app builders are friendly but boxed in by what they can do. Coding agents can do anything but assume you work in a terminal. Ultrastable is for the person in between: it can build anything the specifications and scope allow, and it is operated by buttons first and a prompt second (`US-SPEC-18`). The person never has to write code or look under the hood. The front end is the back end: every button writes the same record an agent would. People who do code can use the same interface with their own agents; it is not privileged.
+
+Integration is at the level of records, not lock-in: the console is a replaceable view, and everything the person owns is available as plain files and records.
+
 ## What it does not do by default (out of scope)
 
 Unless the person turns on a Capability Pack (below), Ultrastable does **not**:

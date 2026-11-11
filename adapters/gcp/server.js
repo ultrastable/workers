@@ -10,6 +10,7 @@ import path from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { runTick } from '../../worker/src/tick.js';
 import { openDb } from '../sqlite/d1-sqlite.js';
+import { handleConsole } from '../../worker/src/console.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = process.env.ULTRASTABLE_MIGRATIONS || path.join(HERE, '../../worker/migrations');
@@ -46,6 +47,14 @@ export function createServer({ db, config, env = process.env, now = () => Date.n
         if (!authorized(req, env.TICK_TOKEN)) return send(401, { error: 'unauthorized' });
         const r = await runTick(db, { config, env: presence(env), now: now() });
         return send(200, r);
+      }
+      if (req.url.startsWith('/console') || req.url.startsWith('/api/console')) { // the same guided console as the Worker, over the same store handle
+        const chunks = []; for await (const c of req) chunks.push(c);
+        const base = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+        const r = new Request(base + req.url, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks), redirect: 'manual' });
+        const out = await handleConsole(r, { DB: db, CONSOLE_TOKEN: env.CONSOLE_TOKEN }, { org: config.org_slug });
+        const headers = {}; out.headers.forEach((v, k) => { headers[k] = v; });
+        res.writeHead(out.status, headers); return res.end(Buffer.from(await out.arrayBuffer()));
       }
       send(404, { error: 'not found' });
     } catch (e) { send(500, { error: e.message }); }

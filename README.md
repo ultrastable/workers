@@ -24,10 +24,11 @@ Ultrastable is for a person who can say what they want but is not a coder and do
 
 | Path | What | Status |
 |---|---|---|
-| [`worker/`](worker/) | The Worker: cron tick, D1 schema, tests. `src/tick.js` is the portable core (pure logic over a D1-shaped handle). | BUILT, 9 tests; the same tick runs QNFO's fleet |
+| [`worker/`](worker/) | The Worker: cron tick, D1 schema, tests. `src/tick.js` is the portable core (pure logic over a D1-shaped handle). | BUILT, 9 tick tests; the same tick runs QNFO's fleet |
+| [`worker/src/console.js`](worker/src/console.js) | The guided console: three screens, buttons first, prompt second, default-deny access. Run `cd worker && npm run demo` (key: demo). | BUILT, 4 tests; also served by the GCP adapter |
 | [`bootstrap/`](bootstrap/) | Idea file in, running organization out: plans the org, writes `org/`, creates D1, applies migrations, deploys the Worker | BUILT, 12 tests; `--apply` on a fresh account is not yet proven |
 | [`agents/`](agents/), [`autonomy/`](autonomy/), [`ultrastable.json`](ultrastable.json), [`IDEA.md`](IDEA.md) | The template an org starts from: role instructions, autonomy policy (trust ladder, interrupt gate, limits), org config | BUILT |
-| [`adapters/`](adapters/) | Same tick on Google Cloud Run + SQLite behind a D1-style handle | BUILT, 2 tests; not deployed on GCP |
+| [`adapters/`](adapters/) | Same tick on Google Cloud Run + SQLite behind a D1-style handle | BUILT, 3 tests; not deployed on GCP |
 | [`reference-python/`](reference-python/) | Stdlib-only Python reference runtime of the full control loop, CLI and dashboard | BUILT, 13 tests |
 | [`extraction/`](extraction/) | Map of the 19 core workers still living in QNFO's fleet repository, and the plan to move them here | PLANNED |
 

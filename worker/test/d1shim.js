@@ -2,10 +2,11 @@
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 // Minimal D1-compatible wrapper over node:sqlite, for tests only.
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 export function makeDb() {
   const raw = new DatabaseSync(':memory:');
-  raw.exec(readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8'));
+  const dir = new URL('../migrations/', import.meta.url);
+  for (const f of readdirSync(dir).filter(n => n.endsWith('.sql')).sort()) raw.exec(readFileSync(new URL(f, dir), 'utf8'));
   const db = {
     raw,
     prepare(sql) {

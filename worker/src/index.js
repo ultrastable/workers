@@ -4,6 +4,7 @@
 // Cron fires runTick; GET /health shows the last tick's four-line report.
 import { runTick } from './tick.js';
 import config from './config.js';
+import { handleConsole } from './console.js';
 
 export default {
   async scheduled(_event, env, ctx) {
