@@ -1,0 +1,63 @@
+{
+  "id": "email",
+  "name": "Email list",
+  "version": "0.1.0",
+  "class": "B",
+  "scope": {
+    "does": [
+      "Accepts a subscription request and mails the person one confirmation message",
+      "Records consent only when the person follows the confirmation link",
+      "Sends newsletters and notices to confirmed subscribers who have not unsubscribed, in batches within the caps",
+      "Honors every unsubscribe, bounce and complaint at once by suppressing the address"
+    ],
+    "does_not": [
+      "Mail anyone who has not confirmed, who unsubscribed, or whose address bounced",
+      "Buy lists, scrape addresses or import contacts without their consent",
+      "Move money, sign or file anything, or pose as a person",
+      "Bypass the outbound guard, the caps or a kill switch"
+    ]
+  },
+  "charter": {
+    "objective": "Grow a list of people who asked to hear from the organization, and keep it clean: only confirmed readers, an honest sender line, a working unsubscribe",
+    "primary_metric": {
+      "id": "email_confirmed_subscribers", "op": ">=", "target": 100,
+      "read_probe": "SELECT COUNT(*) AS value FROM email_subscribers WHERE status = 'confirmed'"
+    },
+    "guard_metrics": [
+      {
+        "id": "email_complaint_rate", "op": "<=", "target": 0.001,
+        "read_probe": "SELECT CAST((SELECT COUNT(*) FROM email_events WHERE type = 'complaint' AND at >= datetime('now', '-30 days')) AS REAL) / MAX(1, (SELECT COUNT(*) FROM guard_ledger WHERE pack = 'email' AND channel = 'email' AND decision = 'sent' AND at >= datetime('now', '-30 days'))) AS value"
+      },
+      {
+        "id": "email_unsubscribe_rate", "op": "<=", "target": 0.02,
+        "read_probe": "SELECT CAST((SELECT COUNT(*) FROM email_subscribers WHERE status = 'unsubscribed' AND ended_at >= datetime('now', '-30 days')) AS REAL) / MAX(1, (SELECT COUNT(*) FROM email_subscribers WHERE status IN ('confirmed','unsubscribed'))) AS value"
+      }
+    ]
+  },
+  "requires": {
+    "ports": ["email", "email_confirm"],
+    "secrets": ["EMAIL_LINK_SECRET", "EMAIL_PROVIDER_TOKEN"],
+    "specs": ["US-SPEC-21", "US-SPEC-22", "US-SPEC-06"]
+  },
+  "loops": [
+    { "id": "send", "every_ticks": 1, "entry": "./loops.js#send", "outbound": true },
+    { "id": "metrics", "every_ticks": 1, "entry": "./loops.js#metrics", "outbound": false }
+  ],
+  "outbound": {
+    "channels": ["email", "email_confirm"],
+    "caps": {
+      "email": { "per_day": 500, "per_week": 2000 },
+      "email_confirm": { "per_day": 200, "per_week": 1000 }
+    },
+    "consent": "double_opt_in",
+    "suppression": true,
+    "approval": "by_rung"
+  },
+  "migrations": ["./migrations/0001_email.sql"],
+  "defaults": {
+    "batch_size": 25,
+    "confirm_resend_minutes": 10,
+    "subscribe_per_hour": 60
+  },
+  "enable_gate": "Turn on the Email list? It will let people subscribe on your site, mail each one a confirmation, and send newsletters and notices only to people who confirmed. Every message carries who sent it and a working unsubscribe link, and an unsubscribe or bounce stops mail to that address at once. It will not mail anyone who has not confirmed, move money, sign anything or bypass the caps. It costs your mail provider's per-message fee, within a daily cap of 500 messages. Turn it off any time with one action."
+}
