@@ -20,11 +20,11 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | ai-yield (cost per output dashboard) | 15k | 9 | `core/yield` | BUILT (this change): ledger and rules; the owner-code login page is not extracted, the guided console is the generic surface |
 | waste-agent (finds spend that produces nothing) | 13k | 16 | `core/yield` | BUILT (this change): rules W-ERR, W-RATE, W-META, W-YIELD with item lifecycle |
 | doc-gate (documents tied to work) | 14k | 20 | `core/docgate` | BUILT (this change): storage-agnostic store port |
-| code-orchestrator (issue to tested, merged PR) | 1.3M | 959 | `core/codeloop` | PLANNED, extraction order 5 |
-| ai-calibration (probe every model endpoint) | 388k | 351 | `core/router` calibration submodule | PLANNED, order 6 |
+| code-orchestrator (issue to tested, merged PR) | 1.3M | 959 | `core/codeloop` | BUILT (merge gate, task line, multi-host merge); planning stays in `core/runner`; GitHub merge host PLANNED in `adapters/github` |
+| ai-calibration (probe every model endpoint) | 388k | 351 | `core/router` calibration submodule | BUILT (`core/router/calibration.js`) |
 | observability (trace ingest, scorers) | 162k | 231 | `core/observe` | BUILT (ingest, error ratio, p95, degraded-source items, secret scrubbing); QNFO scorer chains stay QNFO |
-| memory-mcp (code topology graph, blast radius) | 224k | 91 | `core/graph` | PLANNED, order 8 |
-| cloud-ops (task runner, owner-step watch) | 985k | 615 | `core/tasks` | PLANNED, order 9 |
+| memory-mcp (code topology graph, blast radius) | 224k | 91 | `core/graph` | BUILT (imports, declared edges, blast radius) |
+| cloud-ops (task runner, owner-step watch) | 985k | 615 | `core/tasks` | BUILT (queue, multi-route handlers, owner-step watch) |
 | github-steward (issue ledger mirror) | 414k | 361 | `adapters/github` | PLANNED, order 10 |
 | intent-orchestrator (request to issue) | 92k | 76 | `core/intent` | BUILT (submit: filed, duplicate, rejected, gated) |
 | tools-mcp (MCP server for agent clients) | 107k | 101 | `adapters/mcp` | PLANNED, order 12 |
@@ -50,7 +50,9 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 
 ## Disposition of what remains (no silent drops)
 
-Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining: code-orchestrator, ai-calibration, memory-mcp, cloud-ops, github-steward, tools-mcp, agents, containers-pilot, infra, fleet-dashboard, 10 core scripts, 7 core workflows. These are the largest units (1 to 3 MB each) and are rewritten module by module, not copied.
+Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining: github-steward, tools-mcp, agents, containers-pilot, infra, fleet-dashboard, 10 core scripts, 7 core workflows. These are the largest units (1 to 3 MB each) and are rewritten module by module, not copied.
+
+Rewrites are clean-room from each unit's role in boundary.json and the specs: the QNFO sources are not in this repository's reach, so nothing is copied and each README says what is NOT COVERED.
 
 ## Rules this inventory enforces
 

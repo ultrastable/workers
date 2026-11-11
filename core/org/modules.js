@@ -13,6 +13,9 @@ export const MODULES = [
   { id: 'packs', dir: 'core/packs/migrations' },
   { id: 'yield', dir: 'core/yield/migrations' },
   { id: 'docgate', dir: 'core/docgate/migrations' },
+  { id: 'codeloop', dir: 'core/codeloop/migrations' },
+  { id: 'graph', dir: 'core/graph/migrations' },
+  { id: 'tasks', dir: 'core/tasks/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.
