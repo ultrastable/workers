@@ -36,7 +36,7 @@ Layering rule: `core/` imports nothing from `adapters/`; adapters import `core/`
 
 ## Moved, left, and why
 
-- **Moved here**: tick, schema, analytics, bootstrapper, template, GCP adapter, Python runtime (the newer `platform/core`, replacing the older copy), gaplint, bootstrap demos.
+- **Moved here**: tick, schema, guided console, bootstrapper, template, GCP adapter, Python runtime (the newer `platform/core`, replacing the older copy), gaplint, bootstrap demos.
 - **Left in `ultrastable/ultrastable`** (business/admin units, not product): owner dashboard (reads the monorepo's records), `foundation/` instance generator (copies the monorepo kernel layout; to be rewritten against this layout as item WRK-1), funding, outreach and social tooling (Capability Packs outside the core per SCOPE.md), `repo-live` demo (reads internal records), site deploy.
 - **Removed from the bootstrapper**: the funding-registry side effect; funding is not a core function.
 - **`platform/cloudflare-reference/`** (QNFO-derived migrations and scripts) stays in the system of record until extraction phase P2 replaces it with generic core migrations.
