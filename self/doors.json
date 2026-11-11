@@ -69,7 +69,7 @@
         {
           "id": "github-app-install",
           "owner_effort": "clicks",
-          "status": "planned",
+          "status": "built",
           "how": "Install the Ultrastable GitHub App on the ultrastable organization with one click; it issues short-lived tokens by itself."
         },
         {
