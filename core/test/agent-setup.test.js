@@ -88,3 +88,17 @@ test('verify fails loudly when the console is open to strangers or the tick endp
   for (const n of ['console page refuses anonymous visitors', 'console data refuses anonymous visitors', 'console refusal leaks no data', 'anonymous cross-origin write refused', 'tick endpoint is not open to anonymous callers']) assert.ok(failed.includes(n), `should fail: ${n}`);
   bad.close();
 });
+
+test('verify never reads a Cloudflare challenge page, or a foreign address, as a refusal (trial finding)', async () => {
+  const challenge = http.createServer((req, res) => { res.writeHead(403, { 'cf-mitigated': 'challenge', 'content-type': 'text/html' }); res.end('<title>Just a moment...</title>'); });
+  const foreign = http.createServer((req, res) => { res.writeHead(403); res.end('forbidden'); });
+  await Promise.all([challenge, foreign].map(s => new Promise(r => s.listen(0, r))));
+  const a = await verify(`http://127.0.0.1:${challenge.address().port}`);
+  assert.equal(a.ok, false); assert.equal(a.inconclusive, true);
+  assert.deepEqual(a.checks.map(c => c.name), ['reachable by automated clients']);
+  assert.match(a.checks[0].detail, /claim|browser/);
+  const b = await verify(`http://127.0.0.1:${foreign.address().port}`);
+  assert.equal(b.ok, false); assert.equal(b.inconclusive, true);
+  assert.equal(b.checks.some(c => /refuses/.test(c.name) && c.ok), false, 'no refusal check may pass on a foreign 403');
+  challenge.close(); foreign.close();
+});
