@@ -21,7 +21,15 @@ export async function verify(base, { waitSeconds = 0, fetchImpl = fetch } = {}) 
     if ((health.status === 200 && body?.ok) || Date.now() >= deadline) break;
     await sleep(5000);
   }
-  add('health answers', health.status === 200 || health.status === 503, `status ${health.status}${health.error ? ' ' + health.error : ''}`);
+  // A Cloudflare challenge page ("Just a moment") is not an answer from the Worker. Never read it as a refusal.
+  const challenged = health.headers?.get?.('cf-mitigated') === 'challenge';
+  if (challenged) {
+    add('reachable by automated clients', false, 'Cloudflare served a bot challenge, not the Worker (a temporary account is challenged until it is claimed). Open the address in a browser, or claim the account, then run this again. Nothing else was checked.');
+    return { base, ok: false, inconclusive: true, checks };
+  }
+  const isWorker = body && typeof body === 'object' && 'ok' in body;
+  add('health answers with the Worker JSON', isWorker, `status ${health.status}${health.error ? ' ' + health.error : ''}`);
+  if (!isWorker) return { base, ok: false, inconclusive: true, checks }; // refusals mean nothing if the address is not our Worker
   add('a complete tick has run', health.status === 200 && body?.ok === true, body ? JSON.stringify({ ok: body.ok, last_tick: body.last_tick && { id: body.last_tick.id, steps: `${body.last_tick.steps_completed}/${body.last_tick.steps_total}` } }) : 'no JSON from /health');
 
   // 2. the console is closed to strangers
