@@ -1,0 +1,11 @@
+{
+  "id": "FUND-2",
+  "title": "FUND-2: OC-2 owner card: attorney session on licence and patent flags",
+  "body": "**Owner:** ROWAN\n**Trigger:** FUND-1 scheduled\n**Done check:** Licence file committed with attorney note (decision-memo.md flags 1-9)\n**Status:** open\n**Default in effect:** Default: open core not published; Apache-2.0 assumed for planning only.\n\nSource: business/funding/decision-memo.md. Closing probe is the done check.",
+  "labels": [
+    "owner:rowan",
+    "ws:business"
+  ],
+  "milestone": "Now",
+  "workstream": "Business"
+}

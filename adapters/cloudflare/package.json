@@ -1,0 +1,11 @@
+{
+  "name": "@ultrastable/adapter-cloudflare",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "scripts": {
+    "test": "cd ../../core && npm test",
+    "demo": "node --no-warnings dev/demo.mjs",
+    "deploy": "wrangler deploy"
+  }
+}

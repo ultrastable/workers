@@ -1,0 +1,11 @@
+{
+  "id": "GH-3",
+  "title": "GH-3: Labels, issue templates, a GitHub Project board; load this file as issues",
+  "body": "**Owner:** Project mgr\n**Trigger:** GH-2\n**Done check:** Every row here is an issue with owner, trigger and done check\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item GH-3). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:project-mgr",
+    "ws:github-org"
+  ],
+  "milestone": "Next",
+  "workstream": "GitHub org"
+}

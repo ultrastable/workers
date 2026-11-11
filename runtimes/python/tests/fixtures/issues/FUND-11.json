@@ -1,0 +1,11 @@
+{
+  "id": "FUND-11",
+  "title": "FUND-11: Confirm entity jurisdiction assumption before SBIR or EIC work (BG-18)",
+  "body": "**Owner:** funding manager with counsel\n**Trigger:** FUND-3\n**Done check:** Jurisdiction recorded in project memory\n**Status:** open\n**Default in effect:** none assumed.\n\nSource: business/funding/decision-memo.md. Closing probe is the done check.",
+  "labels": [
+    "role:product",
+    "ws:business"
+  ],
+  "milestone": "Now",
+  "workstream": "Business"
+}

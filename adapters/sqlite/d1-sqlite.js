@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-// D1-compatible handle over node:sqlite. The portable core (worker/src/tick.js) only calls
+// D1-compatible handle over node:sqlite. The portable core (core/src/tick.js) only calls
 // db.prepare(sql).bind(...).all()/first()/run(), so any store that offers this surface can run the loops.
 // Used by the GCP adapter (SQLite file on a mounted volume) and by tests.
 import { DatabaseSync } from 'node:sqlite';

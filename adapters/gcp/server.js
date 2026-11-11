@@ -8,12 +8,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
-import { runTick } from '../../worker/src/tick.js';
+import { runTick } from '../../core/src/tick.js';
 import { openDb } from '../sqlite/d1-sqlite.js';
-import { handleConsole } from '../../worker/src/console.js';
+import { handleConsole } from '../../core/src/console.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS = process.env.ULTRASTABLE_MIGRATIONS || path.join(HERE, '../../worker/migrations');
+const MIGRATIONS = process.env.ULTRASTABLE_MIGRATIONS || path.join(HERE, '../../core/migrations');
 
 export function loadConfig(env = process.env) {
   if (env.ULTRASTABLE_CONFIG) return JSON.parse(readFileSync(env.ULTRASTABLE_CONFIG, 'utf8'));

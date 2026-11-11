@@ -1,0 +1,11 @@
+{
+  "id": "FUND-8",
+  "title": "FUND-8: Trademark search and registration plan for Ultrastable",
+  "body": "**Owner:** IP manager\n**Trigger:** FUND-2\n**Done check:** Search report committed in ip/\n**Status:** open\n**Default in effect:** Default: no public use of mark beyond holding page.\n\nSource: business/funding/decision-memo.md. Closing probe is the done check.",
+  "labels": [
+    "role:ip",
+    "ws:business"
+  ],
+  "milestone": "Next",
+  "workstream": "Business"
+}

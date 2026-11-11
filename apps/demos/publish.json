@@ -1,0 +1,5 @@
+{
+  "note": "Everything in demos/public is built into the public bundle. Private demos live elsewhere (demos/private) and never ship. Public content is generic: no research framing, no filing or mechanism detail, no financial claims. Labels: BUILT, MODEL, OBSERVED, PROPHETIC.",
+  "route": "ultrastable.io/demos",
+  "banned": ["qnfo", "patent", "provisional", "disclos", "invention", "key combination", "revenue", "profit", "valuation", "\\$\\s?\\d"]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "PL-3",
+  "title": "PL-3: Tenant isolation design (one org's data never reaches another's)",
+  "body": "**Owner:** Staff (platform)\n**Trigger:** see roadmap\n**Done check:** see roadmap\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PL-3). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:platform"
+  ],
+  "milestone": "Later",
+  "workstream": "Platform"
+}

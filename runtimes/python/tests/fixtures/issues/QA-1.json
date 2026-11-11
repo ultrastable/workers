@@ -1,0 +1,11 @@
+{
+  "id": "QA-1",
+  "title": "QA-1: Independent review: patent draft vs disclosure vs docs say the same thing",
+  "body": "**Owner:** Reviewer\n**Trigger:** IP-1 draft\n**Done check:** Mismatch list empty\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item QA-1). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:reviewer",
+    "ws:patent"
+  ],
+  "milestone": "Now",
+  "workstream": "Patent"
+}

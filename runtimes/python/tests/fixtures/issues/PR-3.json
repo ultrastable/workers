@@ -1,0 +1,12 @@
+{
+  "id": "PR-3",
+  "title": "PR-3: QNFO case study: autonomy rate, trust ledger, plus share, with real numbers",
+  "body": "**Owner:** Product mgr\n**Trigger:** IP-5, PL-1\n**Done check:** Page on the site\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PR-3). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:product-mgr",
+    "ws:product-and-marketing",
+    "gate:filed"
+  ],
+  "milestone": "After filing",
+  "workstream": "Product and marketing"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "PR-4",
+  "title": "PR-4: Pricing hypotheses",
+  "body": "**Owner:** Product mgr\n**Trigger:** see roadmap\n**Done check:** see roadmap\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PR-4). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:product-mgr",
+    "ws:product-and-marketing"
+  ],
+  "milestone": "Later",
+  "workstream": "Product and marketing"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "IP-7",
+  "title": "IP-7: Non-provisional and/or PCT filing",
+  "body": "**Owner:** **ROWAN** with counsel, trigger IP-6 reminders\n**Trigger:** see roadmap\n**Done check:** see roadmap\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item IP-7). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:patent"
+  ],
+  "milestone": "Later",
+  "workstream": "Patent"
+}

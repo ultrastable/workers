@@ -1,0 +1,19 @@
+[
+ "gate:filed",
+ "plus",
+ "role:business-mgr",
+ "role:ops",
+ "role:portfolio-mgr",
+ "role:product-mgr",
+ "role:project-mgr",
+ "role:reviewer",
+ "role:staff",
+ "ws:business",
+ "ws:funding",
+ "ws:github-org",
+ "ws:patent",
+ "ws:platform",
+ "ws:portfolio",
+ "ws:product-and-marketing",
+ "ws:web-and-seo"
+]

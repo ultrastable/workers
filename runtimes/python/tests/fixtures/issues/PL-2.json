@@ -1,0 +1,12 @@
+{
+  "id": "PL-2",
+  "title": "PL-2: Org-chart config schema: roles, objectives, gates, connectors as data",
+  "body": "**Owner:** Product mgr + Staff\n**Trigger:** PL-1\n**Done check:** Schema loads this roadmap as a test fixture\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PL-2). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:product-mgr",
+    "role:staff",
+    "ws:platform"
+  ],
+  "milestone": "Next",
+  "workstream": "Platform"
+}

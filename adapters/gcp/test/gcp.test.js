@@ -6,7 +6,7 @@ import { openDb } from '../../sqlite/d1-sqlite.js';
 import { createServer, loadConfig } from '../server.js';
 
 import { fileURLToPath } from 'node:url';
-const MIG = fileURLToPath(new URL('../../../worker/migrations', import.meta.url));
+const MIG = fileURLToPath(new URL('../../../core/migrations', import.meta.url));
 
 async function boot(env) {
   const db = openDb(':memory:', MIG);

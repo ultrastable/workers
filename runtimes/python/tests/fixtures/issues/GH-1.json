@@ -1,0 +1,11 @@
+{
+  "id": "GH-1",
+  "title": "GH-1: Create repos (now seven: add `seed`), install Claude app",
+  "body": "**Owner:** **ROWAN**\n**Trigger:** none\n**Done check:** Repos visible to the fleet\n**Status:** waiting on Rowan\n\nSource of truth: `docs/roadmap.md` (item GH-1). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:github-org"
+  ],
+  "milestone": "Now",
+  "workstream": "GitHub org"
+}

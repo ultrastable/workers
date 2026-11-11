@@ -1,0 +1,12 @@
+{
+  "id": "IP-8",
+  "title": "IP-8: Trademark clearance and filing decision for \"Ultrastable\"",
+  "body": "**Owner:** Staff researches, **ROWAN** files\n**Trigger:** IP-5\n**Done check:** Decision recorded\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item IP-8). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:patent",
+    "gate:filed"
+  ],
+  "milestone": "After filing",
+  "workstream": "Patent"
+}

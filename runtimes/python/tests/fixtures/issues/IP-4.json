@@ -1,0 +1,11 @@
+{
+  "id": "IP-4",
+  "title": "IP-4: Counsel review",
+  "body": "**Owner:** **ROWAN**\n**Trigger:** IP-1 + QA-1\n**Done check:** Review notes resolved\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item IP-4). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:patent"
+  ],
+  "milestone": "Next",
+  "workstream": "Patent"
+}

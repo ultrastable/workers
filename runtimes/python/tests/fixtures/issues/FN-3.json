@@ -1,0 +1,11 @@
+{
+  "id": "FN-3",
+  "title": "FN-3: Cloudflare for Startups application",
+  "body": "**Owner:** Staff drafts, **ROWAN** submits\n**Trigger:** BIZ-1, WEB-5\n**Done check:** Submission confirmation\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item FN-3). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:funding"
+  ],
+  "milestone": "Next",
+  "workstream": "Funding"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "GH-5",
+  "title": "GH-5: Make `.github` public so the org profile shows; `docs` public if chosen",
+  "body": "**Owner:** Portfolio mgr proposes, **ROWAN** confirms\n**Trigger:** IP-5\n**Done check:** Org page shows the profile\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item GH-5). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:portfolio-mgr",
+    "ws:github-org",
+    "gate:filed"
+  ],
+  "milestone": "After filing",
+  "workstream": "GitHub org"
+}

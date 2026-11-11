@@ -1,0 +1,14 @@
+:root{color-scheme:light dark;--bg:#f6f1e7;--sf:#fffdf8;--sf2:#efe8d9;--ink:#14120f;--ink2:#5b574f;--line:#ddd5c5;--ac:#c93d00;--on:#fff;--soft:#fde6d9;--good:#0a7a3d;--bad:#b3261e;--warn:#8a5a00}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1a15;--sf:#12342a;--sf2:#0f2b22;--ink:#f6f1e7;--ink2:#c9d4cc;--line:#1f4a3c;--ac:#ff5b1f;--on:#0b1a15;--soft:#1b3d31;--good:#4cc38a;--bad:#ff8a80;--warn:#f0b64a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:16px}a{color:var(--ac)}h1{font:600 28px/1.2 Georgia,serif;margin:8px 0}h2{font-size:19px;margin:24px 0 8px}p{margin:0 0 12px}
+.tag{display:inline-block;font:600 12px/1 system-ui;padding:4px 8px;border-radius:99px;background:var(--soft);color:var(--ac);margin-right:6px}
+.card{background:var(--sf);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:10px 0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+label{display:block;font-weight:600;margin:8px 0 4px}textarea,input[type=text]{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--sf);color:var(--ink)}
+button{font:600 15px system-ui;padding:10px 16px;border-radius:8px;border:1px solid var(--ac);background:var(--ac);color:var(--on);cursor:pointer;min-height:44px}button.sec{background:transparent;color:var(--ac)}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.ok{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.mut{color:var(--ink2)}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chk{display:inline-flex;gap:6px;align-items:center;font-weight:400;margin:4px 12px 4px 0}.ev{font-size:14px;margin:2px 0}.ev b{display:inline-block;min-width:76px;color:var(--ink2);font-weight:600}
+nav a{margin-right:14px}pre{white-space:pre-wrap;background:var(--sf2);padding:10px;border-radius:8px;font-size:13px}
+.card{overflow-x:auto}td,th{overflow-wrap:anywhere}.ev{overflow-wrap:anywhere}

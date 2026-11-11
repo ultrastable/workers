@@ -1,0 +1,11 @@
+{
+  "id": "FN-4",
+  "title": "FN-4: Other credit programs (Anthropic, AWS Activate, Microsoft for Startups, NVIDIA Inception)",
+  "body": "**Owner:** Staff (research)\n**Trigger:** FN-1\n**Done check:** Ranked list with eligibility\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item FN-4). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:funding"
+  ],
+  "milestone": "Next",
+  "workstream": "Funding"
+}

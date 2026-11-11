@@ -1,0 +1,11 @@
+{
+  "id": "FUND-4",
+  "title": "FUND-4: OC-4 owner card: submit credit and Project Pitch applications",
+  "body": "**Owner:** ROWAN\n**Trigger:** FUND-1 done and site live\n**Done check:** Confirmation emails logged\n**Status:** open\n**Default in effect:** Default: drafts in external/ and business/google-startups/ ready; not submitted.\n\nSource: business/funding/decision-memo.md. Closing probe is the done check.",
+  "labels": [
+    "owner:rowan",
+    "ws:business"
+  ],
+  "milestone": "After filing",
+  "workstream": "Business"
+}

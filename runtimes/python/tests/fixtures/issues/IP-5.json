@@ -1,0 +1,11 @@
+{
+  "id": "IP-5",
+  "title": "IP-5: File provisional",
+  "body": "**Owner:** **ROWAN**\n**Trigger:** IP-4\n**Done check:** Filing receipt with application number in `ip/`\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item IP-5). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:patent"
+  ],
+  "milestone": "Next",
+  "workstream": "Patent"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "WEB-5",
+  "title": "WEB-5: Domain email (hello@) via Cloudflare Email Routing to Rowan's inbox",
+  "body": "**Owner:** Ops + **ROWAN** click\n**Trigger:** none\n**Done check:** Test mail arrives\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item WEB-5). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:ops",
+    "ws:web-and-seo"
+  ],
+  "milestone": "Next",
+  "workstream": "Web and SEO"
+}
