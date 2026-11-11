@@ -50,6 +50,7 @@ class SelfStart(unittest.TestCase):
             body = gh._i[0]["body"]
             self.assertIn("gh secret set CLOUDFLARE_API_TOKEN -R o/r", body)
             self.assertIn("Closing probe: file_exists:org/started.json", body)
+            self.assertIn("Workers Scripts: Edit", body)
             self.assertFalse((root / "org" / "started.json").exists())
 
     def test_a_second_run_updates_the_same_issue_instead_of_filing_another(self):
@@ -88,6 +89,13 @@ class SelfStart(unittest.TestCase):
             self.assertFalse(r["started"])
             self.assertFalse((root / "org" / "started.json").exists())
             self.assertTrue((root / "org" / "start-attempt.json").exists())
+
+    def test_once_started_a_run_does_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls, gh = make_root(d), [], FakeGh()
+            (root / "org" / "started.json").write_text("{}")
+            r = ss.start(self.runner(calls), lambda *a, **k: {}, gh, {}, root, "o/r", NOW)
+            self.assertTrue(r["started"]); self.assertEqual(calls, []); self.assertEqual(gh.log, [])
 
 
 if __name__ == "__main__":
