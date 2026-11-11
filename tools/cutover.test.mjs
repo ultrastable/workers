@@ -46,3 +46,12 @@ test('parity fails when no route answers', async () => {
   const r = await runParity({ from: ['https://old.test'], to: ['https://gone.test'], contract: contract(), fetchFn: fake(good('https://old.test')) });
   assert.equal(r.pass, false);
 });
+
+test('strict mode rejects the placeholder template until real values are filled', () => {
+  assert.match(validateInstance(example(), { strict: true }).join(), /placeholder value/);
+  const c = example();
+  c.account_id = 'abc123'; c.repository = 'org/name'; c.owner_contact = 'a@b.org';
+  c.routes = [{ name: 'a', base_url: 'https://a.org' }, { name: 'b', base_url: 'https://b.org' }];
+  c.model_ladder = [{ tier: 'small', provider: 'p', model: 'm' }];
+  assert.deepEqual(validateInstance(c, { strict: true }), []);
+});

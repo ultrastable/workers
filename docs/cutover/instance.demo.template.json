@@ -1,0 +1,18 @@
+{
+  "slug": "example",
+  "account_id": "REPLACE_WITH_ACCOUNT_ID",
+  "worker_name": "example-ultrastable",
+  "d1_database": "example-ultrastable",
+  "repository": "owner/repo",
+  "owner_contact": "owner@example.invalid",
+  "routes": [
+    { "name": "primary", "base_url": "https://primary.example.invalid" },
+    { "name": "fallback", "base_url": "https://fallback.example.invalid" }
+  ],
+  "model_ladder": [{ "tier": "small", "provider": "REPLACE", "model": "REPLACE" }],
+  "secrets": {
+    "github": "GITHUB_TOKEN",
+    "cloudflare": "CLOUDFLARE_API_TOKEN",
+    "admin": "ORG_ADMIN_TOKEN"
+  }
+}
