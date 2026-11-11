@@ -1,0 +1,9 @@
+{
+  "name": "ultrastable-workers",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix worker test && node --test --no-warnings adapters/gcp/test/gcp.test.js && python -m unittest discover tests && python -m unittest discover -s reference-python/tests"
+  }
+}
