@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 # Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-"""GitHub Actions minutes watchdog (US-SPEC-21, requirements US-21-R20..R26).
+"""GitHub Actions minutes watchdog (US-SPEC-23, requirements US-23-R20..R26).
 
 Reads a billing usage report (the shape of GET /organizations/{org}/settings/billing/usage: {"usageItems": [...]}),
 sums Linux-equivalent Actions minutes per repository for one month, and compares them with ops/actions-budget.json.

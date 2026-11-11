@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 # Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-"""Static cost and security lint for GitHub Actions workflows (US-SPEC-21, requirements US-21-R10..R19).
+"""Static cost and security lint for GitHub Actions workflows (US-SPEC-23, requirements US-23-R10..R19).
 
   python tools/workflow_lint.py                 # lints .github/workflows/*.yml
   python tools/workflow_lint.py path/a.yml ...  # lints the given files
@@ -87,7 +87,8 @@ def lint_text(text: str, name: str = "workflow.yml"):
             add("W03", f"job `{j}` has no integer `timeout-minutes` (default would be 360)")
         elif int(m.group(1)) > MAX_TIMEOUT:
             add("W03", f"job `{j}` timeout-minutes {m.group(1)} exceeds {MAX_TIMEOUT}")
-    if re.search(r"(^|[\s{,\[])schedule\s*:", on_block) or re.search(r"^\s+schedule\s*:", "\n".join(code), re.M):
+    allow_sched = any(re.search(r"#\s*allow-schedule:\s*\S", l) for l in raw)  # a stated reason and cost estimate
+    if not allow_sched and (re.search(r"(^|[\s{,\[])schedule\s*:", on_block) or re.search(r"^\s+schedule\s*:", "\n".join(code), re.M)):
         add("W04", "`schedule:` trigger is forbidden (scheduled work runs from the Cloudflare tick)")
     if any("pull_request_target" in l for l in code):
         add("W05", "`pull_request_target` is forbidden")

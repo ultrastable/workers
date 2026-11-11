@@ -3,7 +3,7 @@
 
 # GitHub setup checklist (owner)
 
-Mirror of the "what to turn on, in order" section of `docs/github-free-org.md` in the spec repository; requirements are US-SPEC-21. Facts retrieved 2026-11-11. Commands marked untested were written from documentation and not run. Git Bash on Windows: write `gh api` paths without a leading slash.
+Mirror of the "what to turn on, in order" section of `docs/github-free-org.md` in the spec repository; requirements are US-SPEC-23. Facts retrieved 2026-11-11. Commands marked untested were written from documentation and not run. Git Bash on Windows: write `gh api` paths without a leading slash.
 
 ## One command, dry run first
 
