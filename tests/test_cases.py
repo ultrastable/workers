@@ -10,6 +10,9 @@ import cases  # noqa: E402
 LIB = cases.load_library()
 
 
+ALL_PACKS = ("patent", "business", "outreach", "research")
+
+
 class Library(unittest.TestCase):
     def test_library_is_valid(self):
         self.assertEqual(cases.validate_library(LIB), [])
@@ -29,7 +32,7 @@ class Library(unittest.TestCase):
 
 class Scenarios(unittest.TestCase):
     def plan(self, **f):
-        return cases.plan_cases(f)
+        return cases.plan_cases(f, packs=ALL_PACKS)
 
     def test_owner_abroad_without_practitioner_routes_around_us_provisional(self):
         p = self.plan(us_domiciled=False, has_us_practitioner=False)
@@ -78,6 +81,8 @@ class BootStage(unittest.TestCase):
             import shutil
             shutil.copytree(ROOT, Path(d) / "s", dirs_exist_ok=True, ignore=shutil.ignore_patterns(".git", "org", "node_modules", "__pycache__", "config.js", "wrangler.jsonc"))
             (Path(d) / "facts.json").replace(Path(d) / "s" / "facts.json")
+            cfg = Path(d) / "s" / "ultrastable.json"
+            conf = json.loads(cfg.read_text()); conf["packs"] = list(ALL_PACKS); cfg.write_text(json.dumps(conf))
             bs.main(["--root", str(Path(d) / "s"), "--out", str(out), "--dry-run"])
             data = json.loads((out / "bootstrap-cases.json").read_text())
             self.assertIn("BC-2", data["applicable"])
@@ -85,6 +90,28 @@ class BootStage(unittest.TestCase):
             self.assertEqual([c["id"] for c in cards].count("CASE-FILE-PRIORITY"), 1)
             log = json.loads((out / "boot-log.json").read_text())
             self.assertEqual([s["status"] for s in log["stages"] if s["stage"] == "cases"], ["ok"])
+
+
+class ScopePacks(unittest.TestCase):
+    """SCOPE.md: patent, business, outreach and research blockers are Capability Packs, off unless enabled."""
+
+    def test_by_default_no_patent_entity_or_outreach_cards(self):
+        plan = cases.plan_cases({})
+        ids = {c["id"] for c in plan["cards"]}
+        self.assertFalse(ids & {"FILE-PRIORITY", "ENTITY", "OUT-SENDER"}, ids)
+        self.assertFalse({"BC-1", "BC-2", "BC-3", "BC-7", "BC-8"} & set(plan["applicable"]))
+
+    def test_core_blockers_still_apply_without_packs(self):
+        self.assertIn("BC-6", cases.plan_cases({})["applicable"])
+
+    def test_enabling_a_pack_brings_its_cases_back(self):
+        plan = cases.plan_cases({}, packs=("patent",))
+        self.assertIn("BC-1", plan["applicable"])
+        self.assertNotIn("BC-3", plan["applicable"])
+
+    def test_every_tagged_case_names_a_known_pack(self):
+        for c in cases.load_library()["cases"]:
+            self.assertIn(c.get("pack"), (None,) + ALL_PACKS, c["id"])
 
 
 if __name__ == "__main__":

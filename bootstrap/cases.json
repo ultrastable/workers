@@ -1,92 +1,317 @@
 {
-  "_doc": "Bootstrap case library. A case is a starting condition the system must boot from. `when` is an all-of match on facts (see `defaults` for every fact and its conservative default when unknown). `routes` are tried in order, each reversible and each with a probe; the case ends in at most ONE owner card, and only when every route is exhausted by an identity-bound step. Cards with the same id are merged across cases. Read by bootstrap/cases.py; every case is documented in docs/BOOTSTRAP-GAPS.md.",
+  "_doc": "Bootstrap case library. A case is a starting condition the system must boot from. `when` is an all-of match on facts (see `defaults` for every fact and its conservative default when unknown). `routes` are tried in order, each reversible and each with a probe; the case ends in at most ONE owner card, and only when every route is exhausted by an identity-bound step. Cards with the same id are merged across cases. Read by bootstrap/cases.py; every case is documented in docs/BOOTSTRAP-GAPS.md. Cases tagged with a pack apply only when that Capability Pack is enabled in ultrastable.json (\"packs\": [...]); untagged cases are core. See SCOPE.md.",
   "defaults": {
-    "us_domiciled": false, "has_us_practitioner": false, "national_patent_portal_ok": true, "priority_filed": false,
-    "has_entity": false, "has_domain_email": false, "has_org_admin_token": false, "has_sender_identity": false,
-    "has_social_accounts": false, "has_institution": false, "budget_usd_per_month": 0, "funder_sites_reachable": true,
-    "device_reachable": false, "repo_writable": true, "public_disclosure_allowed": false
+    "us_domiciled": false,
+    "has_us_practitioner": false,
+    "national_patent_portal_ok": true,
+    "priority_filed": false,
+    "has_entity": false,
+    "has_domain_email": false,
+    "has_org_admin_token": false,
+    "has_sender_identity": false,
+    "has_social_accounts": false,
+    "has_institution": false,
+    "budget_usd_per_month": 0,
+    "funder_sites_reachable": true,
+    "device_reachable": false,
+    "repo_writable": true,
+    "public_disclosure_allowed": false
   },
   "cases": [
-    {"id": "BC-1", "title": "Owner lives outside the US and has no US practitioner: a US provisional cannot be self-filed",
-     "when": {"us_domiciled": false, "has_us_practitioner": false, "priority_filed": false},
-     "routes": [
-       {"step": "Record the owner's domicile and each target office's representation, fee and language rules from primary sources in a dated memo (no filing route is chosen from memory)", "probe": "memo exists and cites an office rule page with a date"},
-       {"step": "Build the filing set for the home-country or EPO priority route; keep the US route as an optional later step through a practitioner", "probe": "filing set passes the pre-flight check"},
-       {"step": "Keep every public output generic (SAFE NOW only) until a filing receipt is recorded", "probe": "confidentiality guard passes in CI"}],
-     "owner_card": {"id": "FILE-PRIORITY", "what": "File the priority application (sign and pay)", "why": "signing and paying are the owner's legal and financial acts", "default": "no filing; every public output stays generic", "probe": "filing receipt recorded in ip/evidence-log.md"}},
-    {"id": "BC-2", "title": "The national patent office's online portal is not working",
-     "when": {"national_patent_portal_ok": false, "priority_filed": false},
-     "routes": [
-       {"step": "Run the portal diagnosis: retry on a schedule (daily probe), test a second browser and network, read the office's status or help page, and prepare a ready-to-send support e-mail with the exact error text", "probe": "daily probe result recorded in ip/evidence-log.md"},
-       {"step": "Prepare the paper or in-person filing set and the office's address and hours", "probe": "paper set built by the build script"},
-       {"step": "Prepare the alternative office route (direct EPO or PCT through the receiving office) as a second memo section", "probe": "memo section exists"}],
-     "owner_card": {"id": "FILE-PRIORITY", "what": "File the priority application (sign and pay), by portal when it works, else on paper or at the alternative office", "why": "signing and paying are the owner's acts", "default": "no filing", "probe": "filing receipt recorded in ip/evidence-log.md"}},
-    {"id": "BC-3", "title": "No legal entity exists",
-     "when": {"has_entity": false},
-     "routes": [
-       {"step": "Apply as an individual where the programme allows it (open-source funders, research grants); mark entity-only programmes as deferred in the registry with the reason", "probe": "every deferred packet names the missing prerequisite"},
-       {"step": "Keep packets drafted so they ship the day an entity exists", "probe": "funding_packet.py reports drafted, none stale"}],
-     "owner_card": {"id": "ENTITY", "what": "Choose and register the owning entity and assign the IP to it", "why": "a legal act with the owner's identity and money", "default": "projects run in the owner's own name; entity-only programmes stay deferred", "probe": "entity name set in LICENSE and applicant.json"}},
-    {"id": "BC-4", "title": "No domain e-mail address for the project",
-     "when": {"has_domain_email": false},
-     "routes": [
-       {"step": "Add an e-mail forwarding alias at the domain's DNS or registrar through the platform API (reversible; nothing is bought)", "probe": "a test message to the alias reaches the owner's inbox"},
-       {"step": "Use the alias as the reply route in packets only after the probe passes", "probe": "packet reply route equals the alias"}],
-     "owner_card": null},
-    {"id": "BC-5", "title": "No accounts exist (social, funder portals, registries)",
-     "when": {"has_social_accounts": false},
-     "routes": [
-       {"step": "Draft every post and application, run the guards, keep them queued in dry-run", "probe": "social and outreach dry-run logs show queued items"},
-       {"step": "Use channels that need no account first: the repo, the open-source registry listings that accept a pull request, public mailing lists with a published route", "probe": "at least one no-account route is queued"}],
-     "owner_card": {"id": "ACCOUNTS", "what": "Create the listed accounts in the owner's name and store tokens as secrets by binding name", "why": "creating an account in the owner's name is an identity-bound act", "default": "posting and portal submissions stay dry-run", "probe": "the first run logs posted or sent"}},
-    {"id": "BC-6", "title": "No org-admin credential",
-     "when": {"has_org_admin_token": false},
-     "routes": [
-       {"step": "Probe every surface in order and record what each returned: the device session's own login and scopes, the platform connector, the Actions token, a GitHub App manifest", "probe": "boot-log surfaces section lists each route as ok or blocked with reason"},
-       {"step": "Treat an admin:org scope found on any surface as the org-admin credential", "probe": "org-manage probe succeeds"},
-       {"step": "Work in the one repository that accepts writes until a credential exists", "probe": "monorepo is canonical in docs/BOOTSTRAP-GAPS.md"}],
-     "owner_card": {"id": "ORG-TOKEN", "what": "Mint the org admin token with the listed scopes", "why": "minting the owner's credential is identity-bound", "default": "holding page only; profile content staged in the repo", "probe": "org-manage probe passes"}},
-    {"id": "BC-7", "title": "No sender identity for outreach e-mail",
-     "when": {"has_sender_identity": false},
-     "routes": [
-       {"step": "Run outreach in dry-run: queue and guard everything; form-route targets go into one consolidated card per profile", "probe": "outreach/STATUS.md lists queued and awaiting-owner targets"},
-       {"step": "Never send from the owner's personal mailbox", "probe": "gate.json sender.registered stays false until the card closes"}],
-     "owner_card": {"id": "OUT-SENDER", "what": "Register one mailbox for outreach and store its delivery endpoint as secrets", "why": "creating a sending identity is the owner's act", "default": "dry-run", "probe": "a run logs sent for an e-mail-route target"}},
-    {"id": "BC-8", "title": "Nothing may be public until the invention is filed",
-     "when": {"priority_filed": false, "public_disclosure_allowed": false},
-     "routes": [
-       {"step": "Keep repos private; serve a generic holding page; allow only SAFE NOW text in posts, packets and the site", "probe": "disclosure guard check passes on the live page"},
-       {"step": "Block mechanism words in every outgoing text through the guard files", "probe": "guard tests pass"}],
-     "owner_card": null},
-    {"id": "BC-9", "title": "Research programme with no institution behind it",
-     "when": {"has_institution": false},
-     "routes": [
-       {"step": "Read each research funder's eligibility at the source and mark individual-eligible, institution-required and unknown", "probe": "registry rows carry the eligibility note"},
-       {"step": "For institution-required programmes, draft a host-institution inquiry through the same outreach pipeline (published contact routes only)", "probe": "a host-inquiry packet exists"}],
-     "owner_card": null},
-    {"id": "BC-10", "title": "No money to spend",
-     "when": {"budget_usd_per_month": 0},
-     "routes": [
-       {"step": "Pick the smallest model tier and free runtime tiers; log cost per tick", "probe": "boot report shows the small tier"},
-       {"step": "Put funding at the top of the backlog: registry, packets, outreach", "probe": "funding items are the highest priority open items"}],
-     "owner_card": null},
-    {"id": "BC-11", "title": "The agent session cannot reach funder or office websites",
-     "when": {"funder_sites_reachable": false},
-     "routes": [
-       {"step": "Mark every unread registry row unverified; never contact from an unverified row", "probe": "outreach shows blocked-by source-unverified"},
-       {"step": "Verify from the scheduled CI runner, which has open network, and promote rows by reviewed PR", "probe": "funding-maintenance run reports the row read"}],
-     "owner_card": null},
-    {"id": "BC-12", "title": "A repository is archived, private or unwritable",
-     "when": {"repo_writable": false},
-     "routes": [
-       {"step": "Work in the canonical repository and record the other as a mirror target", "probe": "mirror target listed in docs/BOOTSTRAP-GAPS.md"},
-       {"step": "Unarchive or mirror through the admin credential when it exists", "probe": "gh repo view shows isArchived false"}],
-     "owner_card": null},
-    {"id": "BC-13", "title": "The owner's computer is not reachable",
-     "when": {"device_reachable": false},
-     "routes": [
-       {"step": "Run everything through scheduled workflows and the platform connectors; no step depends on the owner's device", "probe": "boot-log surfaces shows a workflow route ok"},
-       {"step": "Queue cards with defaults in effect; they wait without blocking other work", "probe": "dashboard shows each card with its default"}],
-     "owner_card": null}
+    {
+      "id": "BC-1",
+      "title": "Owner lives outside the US and has no US practitioner: a US provisional cannot be self-filed",
+      "when": {
+        "us_domiciled": false,
+        "has_us_practitioner": false,
+        "priority_filed": false
+      },
+      "routes": [
+        {
+          "step": "Record the owner's domicile and each target office's representation, fee and language rules from primary sources in a dated memo (no filing route is chosen from memory)",
+          "probe": "memo exists and cites an office rule page with a date"
+        },
+        {
+          "step": "Build the filing set for the home-country or EPO priority route; keep the US route as an optional later step through a practitioner",
+          "probe": "filing set passes the pre-flight check"
+        },
+        {
+          "step": "Keep every public output generic (SAFE NOW only) until a filing receipt is recorded",
+          "probe": "confidentiality guard passes in CI"
+        }
+      ],
+      "owner_card": {
+        "id": "FILE-PRIORITY",
+        "what": "File the priority application (sign and pay)",
+        "why": "signing and paying are the owner's legal and financial acts",
+        "default": "no filing; every public output stays generic",
+        "probe": "filing receipt recorded in ip/evidence-log.md"
+      },
+      "pack": "patent"
+    },
+    {
+      "id": "BC-2",
+      "title": "The national patent office's online portal is not working",
+      "when": {
+        "national_patent_portal_ok": false,
+        "priority_filed": false
+      },
+      "routes": [
+        {
+          "step": "Run the portal diagnosis: retry on a schedule (daily probe), test a second browser and network, read the office's status or help page, and prepare a ready-to-send support e-mail with the exact error text",
+          "probe": "daily probe result recorded in ip/evidence-log.md"
+        },
+        {
+          "step": "Prepare the paper or in-person filing set and the office's address and hours",
+          "probe": "paper set built by the build script"
+        },
+        {
+          "step": "Prepare the alternative office route (direct EPO or PCT through the receiving office) as a second memo section",
+          "probe": "memo section exists"
+        }
+      ],
+      "owner_card": {
+        "id": "FILE-PRIORITY",
+        "what": "File the priority application (sign and pay), by portal when it works, else on paper or at the alternative office",
+        "why": "signing and paying are the owner's acts",
+        "default": "no filing",
+        "probe": "filing receipt recorded in ip/evidence-log.md"
+      },
+      "pack": "patent"
+    },
+    {
+      "id": "BC-3",
+      "title": "No legal entity exists",
+      "when": {
+        "has_entity": false
+      },
+      "routes": [
+        {
+          "step": "Apply as an individual where the programme allows it (open-source funders, research grants); mark entity-only programmes as deferred in the registry with the reason",
+          "probe": "every deferred packet names the missing prerequisite"
+        },
+        {
+          "step": "Keep packets drafted so they ship the day an entity exists",
+          "probe": "funding_packet.py reports drafted, none stale"
+        }
+      ],
+      "owner_card": {
+        "id": "ENTITY",
+        "what": "Choose and register the owning entity and assign the IP to it",
+        "why": "a legal act with the owner's identity and money",
+        "default": "projects run in the owner's own name; entity-only programmes stay deferred",
+        "probe": "entity name set in LICENSE and applicant.json"
+      },
+      "pack": "business"
+    },
+    {
+      "id": "BC-4",
+      "title": "No domain e-mail address for the project",
+      "when": {
+        "has_domain_email": false
+      },
+      "routes": [
+        {
+          "step": "Add an e-mail forwarding alias at the domain's DNS or registrar through the platform API (reversible; nothing is bought)",
+          "probe": "a test message to the alias reaches the owner's inbox"
+        },
+        {
+          "step": "Use the alias as the reply route in packets only after the probe passes",
+          "probe": "packet reply route equals the alias"
+        }
+      ],
+      "owner_card": null,
+      "pack": "outreach"
+    },
+    {
+      "id": "BC-5",
+      "title": "No accounts exist (social, funder portals, registries)",
+      "when": {
+        "has_social_accounts": false
+      },
+      "routes": [
+        {
+          "step": "Draft every post and application, run the guards, keep them queued in dry-run",
+          "probe": "social and outreach dry-run logs show queued items"
+        },
+        {
+          "step": "Use channels that need no account first: the repo, the open-source registry listings that accept a pull request, public mailing lists with a published route",
+          "probe": "at least one no-account route is queued"
+        }
+      ],
+      "owner_card": {
+        "id": "ACCOUNTS",
+        "what": "Create the listed accounts in the owner's name and store tokens as secrets by binding name",
+        "why": "creating an account in the owner's name is an identity-bound act",
+        "default": "posting and portal submissions stay dry-run",
+        "probe": "the first run logs posted or sent"
+      },
+      "pack": "outreach"
+    },
+    {
+      "id": "BC-6",
+      "title": "No org-admin credential",
+      "when": {
+        "has_org_admin_token": false
+      },
+      "routes": [
+        {
+          "step": "Probe every surface in order and record what each returned: the device session's own login and scopes, the platform connector, the Actions token, a GitHub App manifest",
+          "probe": "boot-log surfaces section lists each route as ok or blocked with reason"
+        },
+        {
+          "step": "Treat an admin:org scope found on any surface as the org-admin credential",
+          "probe": "org-manage probe succeeds"
+        },
+        {
+          "step": "Work in the one repository that accepts writes until a credential exists",
+          "probe": "monorepo is canonical in docs/BOOTSTRAP-GAPS.md"
+        }
+      ],
+      "owner_card": {
+        "id": "ORG-TOKEN",
+        "what": "Mint the org admin token with the listed scopes",
+        "why": "minting the owner's credential is identity-bound",
+        "default": "holding page only; profile content staged in the repo",
+        "probe": "org-manage probe passes"
+      }
+    },
+    {
+      "id": "BC-7",
+      "title": "No sender identity for outreach e-mail",
+      "when": {
+        "has_sender_identity": false
+      },
+      "routes": [
+        {
+          "step": "Run outreach in dry-run: queue and guard everything; form-route targets go into one consolidated card per profile",
+          "probe": "outreach/STATUS.md lists queued and awaiting-owner targets"
+        },
+        {
+          "step": "Never send from the owner's personal mailbox",
+          "probe": "gate.json sender.registered stays false until the card closes"
+        }
+      ],
+      "owner_card": {
+        "id": "OUT-SENDER",
+        "what": "Register one mailbox for outreach and store its delivery endpoint as secrets",
+        "why": "creating a sending identity is the owner's act",
+        "default": "dry-run",
+        "probe": "a run logs sent for an e-mail-route target"
+      },
+      "pack": "outreach"
+    },
+    {
+      "id": "BC-8",
+      "title": "Nothing may be public until the invention is filed",
+      "when": {
+        "priority_filed": false,
+        "public_disclosure_allowed": false
+      },
+      "routes": [
+        {
+          "step": "Keep repos private; serve a generic holding page; allow only SAFE NOW text in posts, packets and the site",
+          "probe": "disclosure guard check passes on the live page"
+        },
+        {
+          "step": "Block mechanism words in every outgoing text through the guard files",
+          "probe": "guard tests pass"
+        }
+      ],
+      "owner_card": null,
+      "pack": "patent"
+    },
+    {
+      "id": "BC-9",
+      "title": "Research programme with no institution behind it",
+      "when": {
+        "has_institution": false
+      },
+      "routes": [
+        {
+          "step": "Read each research funder's eligibility at the source and mark individual-eligible, institution-required and unknown",
+          "probe": "registry rows carry the eligibility note"
+        },
+        {
+          "step": "For institution-required programmes, draft a host-institution inquiry through the same outreach pipeline (published contact routes only)",
+          "probe": "a host-inquiry packet exists"
+        }
+      ],
+      "owner_card": null,
+      "pack": "research"
+    },
+    {
+      "id": "BC-10",
+      "title": "No money to spend",
+      "when": {
+        "budget_usd_per_month": 0
+      },
+      "routes": [
+        {
+          "step": "Pick the smallest model tier and free runtime tiers; log cost per tick",
+          "probe": "boot report shows the small tier"
+        },
+        {
+          "step": "Put funding at the top of the backlog: registry, packets, outreach",
+          "probe": "funding items are the highest priority open items"
+        }
+      ],
+      "owner_card": null
+    },
+    {
+      "id": "BC-11",
+      "title": "The agent session cannot reach funder or office websites",
+      "when": {
+        "funder_sites_reachable": false
+      },
+      "routes": [
+        {
+          "step": "Mark every unread registry row unverified; never contact from an unverified row",
+          "probe": "outreach shows blocked-by source-unverified"
+        },
+        {
+          "step": "Verify from the scheduled CI runner, which has open network, and promote rows by reviewed PR",
+          "probe": "funding-maintenance run reports the row read"
+        }
+      ],
+      "owner_card": null,
+      "pack": "research"
+    },
+    {
+      "id": "BC-12",
+      "title": "A repository is archived, private or unwritable",
+      "when": {
+        "repo_writable": false
+      },
+      "routes": [
+        {
+          "step": "Work in the canonical repository and record the other as a mirror target",
+          "probe": "mirror target listed in docs/BOOTSTRAP-GAPS.md"
+        },
+        {
+          "step": "Unarchive or mirror through the admin credential when it exists",
+          "probe": "gh repo view shows isArchived false"
+        }
+      ],
+      "owner_card": null
+    },
+    {
+      "id": "BC-13",
+      "title": "The owner's computer is not reachable",
+      "when": {
+        "device_reachable": false
+      },
+      "routes": [
+        {
+          "step": "Run everything through scheduled workflows and the platform connectors; no step depends on the owner's device",
+          "probe": "boot-log surfaces shows a workflow route ok"
+        },
+        {
+          "step": "Queue cards with defaults in effect; they wait without blocking other work",
+          "probe": "dashboard shows each card with its default"
+        }
+      ],
+      "owner_card": null
+    }
   ]
 }
