@@ -192,15 +192,17 @@ export const STEPS = {
 
 export const STEP_ORDER = ['reconcile', 'reap_claims', 'probe_gates', 'score_predictions', 'accrue_trust', 'dispatch', 'check_plus_share'];
 
-export async function runTick(db, { config, env = {}, now = Date.now() } = {}) {
+// extraSteps: optional [{ name, run(db, ctx) }] appended after the seven L1 steps (extension point for higher layers).
+export async function runTick(db, { config, env = {}, now = Date.now(), extraSteps = [] } = {}) {
+  const steps = [...STEP_ORDER.map(name => ({ name, run: STEPS[name] })), ...extraSteps];
   const startedIso = iso(new Date(now));
-  const ins = await run(db, `INSERT INTO tick_runs (started_at, steps_total) VALUES (?, ?)`, startedIso, STEP_ORDER.length);
+  const ins = await run(db, `INSERT INTO tick_runs (started_at, steps_total) VALUES (?, ?)`, startedIso, steps.length);
   const tickId = ins.meta.last_row_id;
   const ctx = { config, env, now, nowIso: startedIso, tickId, notes: [], errors: [], dispatched: 0, openGates: 0 };
   let completed = 0;
-  for (const name of STEP_ORDER) {
+  for (const { name, run: stepRun } of steps) {
     try {
-      await STEPS[name](db, ctx);
+      await stepRun(db, ctx);
       completed++;
     } catch (e) {
       ctx.errors.push(`${name}: ${e.message}`);
@@ -215,14 +217,14 @@ export async function runTick(db, { config, env = {}, now = Date.now() } = {}) {
   }
   const open = await first(db, `SELECT COUNT(*) AS n FROM items WHERE status NOT IN ('done','superseded','cancelled')`);
   const report = [
-    `Happened: tick ${tickId} ran ${completed}/${STEP_ORDER.length} steps; ${ctx.notes.join('; ') || 'no changes'}.`,
+    `Happened: tick ${tickId} ran ${completed}/${steps.length} steps; ${ctx.notes.join('; ') || 'no changes'}.`,
     `Decided: dispatched ${ctx.dispatched} item(s) in driver order.`,
     `Next: tick ${tickId + 1} on the next cron.`,
     `Open: ${open.n} active item(s), ${ctx.openGates} gate card(s)${ctx.errors.length ? `, errors: ${ctx.errors.join(' | ')}` : ''}.`,
   ].join('\n');
   await run(db, `UPDATE tick_runs SET finished_at=?, steps_completed=?, report=?, errors=? WHERE id=?`,
     iso(new Date(now)), completed, report, ctx.errors.length ? JSON.stringify(ctx.errors) : null, tickId);
-  return { tickId, completed, total: STEP_ORDER.length, report, errors: ctx.errors };
+  return { tickId, completed, total: steps.length, report, errors: ctx.errors };
 }
 
 export { TERMINAL };
