@@ -23,6 +23,8 @@ Each directory here is one module of the Ultrastable core, written to the specif
 | `claims`, `deploy`, `kernel`, `router` | US-SPEC-08, 07, 03-05, 09 | BUILT |
 | `yield` | cost per output, waste findings | BUILT |
 | `docgate` | documents traced to work | BUILT |
+| `intent` | request intake | BUILT |
+| `observe` | self-observation | BUILT |
 | `runner` | doer/reviewer runner: draft pull requests, US-SPEC-11 | BUILT (see its README) |
 | `describe` | self-description and the claims registry, US-SPEC-22 | BUILT (see its README) |
 | `packs` | capability packs and the outbound guard, US-SPEC-21 | BUILT (see its README) |
