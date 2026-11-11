@@ -1,0 +1,196 @@
+{
+  "version": "0.1.0",
+  "updated": "2026-11-11",
+  "tagline": "A system is autonomous if it has self-referential loops and the privilege to close them.",
+  "one_line_each": [
+    "Knowing something and being unable to act on it is useless: autonomy is doing.",
+    "Nothing stays in a chat thread: everything the system learns is written back into the system.",
+    "No open loops: every loop has a closure, and the closure is code."
+  ],
+  "glossary": [
+    { "term": "Autonomy", "definition": "The property of a system that has self-referential loops and is privileged to close them. A system that knows what is wrong but cannot act on it is not autonomous.", "see": ["Loop", "Closure", "Self-referential"] },
+    { "term": "Loop", "definition": "A cycle that reads a record, decides, acts, verifies the result by an independent path, records the outcome, and feeds what it learned into the next pass. Managers, probes, plussing, the tick, code loops and outreach loops are all loops.", "see": ["Probe", "Manager", "Plussing"] },
+    { "term": "Self-referential", "definition": "A loop that can read and act on loops, including itself: managers manage loops, probes check loops, the loop closer closes the tracker's loops, and the system reads its own backlog, claims, principles and results.", "see": ["Loop", "Closure"] },
+    { "term": "Closure", "definition": "The act and the record that end a loop: a probe passed, evidence stored, a disposition written. A loop without closure is an open loop. Closure is performed by code, never by someone remembering.", "see": ["Open loop", "Closing probe"] },
+    { "term": "Open loop", "definition": "Anything that was started or noticed and has no owner, no closing probe and no path to closure. It is a defect. Open loops are detected by code (gaplint, the loop closer, the kernel reconcile step) and are themselves turned into items.", "see": ["Closure", "Disposition"] },
+    { "term": "Closed system", "definition": "A system whose knowledge, decisions, rules and results live inside itself as records and files, so that nothing important exists only in a chat thread, a person's memory or an external agent's context.", "see": ["Record"] },
+    { "term": "Record", "definition": "A commit, an issue, a pull request, a file or a database row. If it is not a record, it does not exist.", "see": ["Closed system"] },
+    { "term": "Probe", "definition": "A read-only check that returns pass, fail or unknown with evidence and can be re-run by a different agent. Probes verify claims, gate cards, deploys, predictions and closures.", "see": ["Closing probe", "Claims registry"] },
+    { "term": "Closing probe", "definition": "The probe that, when it passes, proves a work item or gate card is done. Every item has one.", "see": ["Probe", "Closure"] },
+    { "term": "Disposition", "definition": "The recorded reason an item left the active set: done, superseded, cancelled or blocked with a named blocker and a closing probe.", "see": ["Open loop"] },
+    { "term": "Default in effect", "definition": "What happens if a person does nothing. Every decision card states it, the work continues on it, and it is recorded with a way to revert.", "see": ["Gate card"] },
+    { "term": "Gate card", "definition": "A decision or step only a person can take, written as a record with the default already in effect and a closing probe. It is never an instruction in prose.", "see": ["Interrupt gate", "Default in effect"] },
+    { "term": "Interrupt gate", "definition": "The narrow rule that the system stops for a person only for a step that is both irreversible and identity-bound (money, signing or filing, destroying unbacked data, using the person's own credentials). Everything else proceeds.", "see": ["Gate card"] },
+    { "term": "Manager", "definition": "A virtual role (portfolio, program, product or project) that owns a charter and metrics, ranks work, allocates capacity and runs its own loop on every tick. Managers are loops.", "see": ["Charter", "Plussing"] },
+    { "term": "Charter", "definition": "A manager's written objective, definition of done, primary metric and guard metrics.", "see": ["Manager", "Guard metric"] },
+    { "term": "Guard metric", "definition": "A metric that must not get worse while a target metric improves. A gain that worsens a guard is reverted.", "see": ["Charter"] },
+    { "term": "Plussing", "definition": "A protected share of capacity (default 20 percent) reserved for improvements, including improving the loops themselves, so the system does not decay into only fixing bugs. Every closed item proposes one improvement.", "see": ["Loop"] },
+    { "term": "Tick", "definition": "The heartbeat: one pass of the system's loops on a schedule. Each step is guarded so a failing step never stops the rest.", "see": ["Loop"] },
+    { "term": "Trust ledger", "definition": "The record of verified outcomes per surface and action class from which autonomy is earned, promoted and demoted. Trust is computed, not granted.", "see": ["Earned autonomy"] },
+    { "term": "Earned autonomy", "definition": "Permission to act without a person, widened only from a record of verified outcomes and only by a reviewed change to the autonomy policy.", "see": ["Trust ledger"] },
+    { "term": "Work claim", "definition": "An exclusive, time-limited hold on an item or path, with a fence token, so two agents never do or overwrite the same work.", "see": ["Loop"] },
+    { "term": "Doer and reviewer", "definition": "The doer produces a change; a different agent, on a different model family where possible, verifies it. Nothing is reviewed by its author.", "see": ["Probe"] },
+    { "term": "Prediction", "definition": "A checkable statement the system logs before it acts (metric, operator, number, deadline) and scores afterward. Scoring its own predictions is how the system learns how reliable it is.", "see": ["Trust ledger"] },
+    { "term": "Revert path", "definition": "The recorded way to undo a decision or change. Reversibility is engineered before an action, not hoped for.", "see": ["Decision log"] },
+    { "term": "Decision log", "definition": "The record of every decision with its prediction, the authority used and the revert path.", "see": ["Revert path"] },
+    { "term": "Bootstrapping", "definition": "Going from nothing to a running system: one idea file in, a running organization out, with the system setting itself up, recording what blocked it, and continuing. A failed step becomes a backlog item, never a stop.", "see": ["Seed"] },
+    { "term": "Seed", "definition": "The starting template and bootstrapper from which an organization grows: roles, policy, config and the first backlog.", "see": ["Bootstrapping"] },
+    { "term": "Prompted recall", "definition": "Asking a person to recognize an answer from options and cues instead of recalling it from scratch. The way a person who does not know what they do not know can still steer.", "see": ["Needs register"] },
+    { "term": "Needs register", "definition": "The list of everything the system requires to produce its required artifacts, each with a state (open, derived, asked, answered, defaulted). The system knows what it needs; the person does not have to.", "see": ["Prompted recall", "Read-back"] },
+    { "term": "Read-back", "definition": "The system's restatement of the specification in the person's own words, defaults listed first, for correction before planning is accepted.", "see": ["Needs register"] },
+    { "term": "Core", "definition": "What Ultrastable is by default: elicit what a person wants, write specifications and charters, manage delivery with full project-management discipline, build and verify, and govern itself.", "see": ["Capability pack"] },
+    { "term": "Capability pack", "definition": "An optional set of agents and code loops outside the core, off by default, enabled by a recorded decision, with its own manager, charter, caps and kill switch. Email, social posting, video, analytics, cloud operations and professional drafts are packs.", "see": ["Outbound guard", "Core"] },
+    { "term": "Outbound guard", "definition": "The single door through which every outward action of every pack passes: consent, suppression, caps, content rules, approval by autonomy rung and kill switches, all logged.", "see": ["Capability pack"] },
+    { "term": "Scope gate", "definition": "The hold placed on a request that falls outside the core: it is recorded, not worked, until a pack is enabled by a decision.", "see": ["Core", "Capability pack"] },
+    { "term": "Claims registry", "definition": "The table of public statements about the organization, each with a probe and a freshness limit. A statement whose probe fails or goes stale is withdrawn automatically.", "see": ["Self-model", "Probe"] },
+    { "term": "Self-model", "definition": "The organization's description of itself, built only from its own records, with limits shown as prominently as capabilities.", "see": ["Claims registry"] },
+    { "term": "Directive", "definition": "A standing instruction from the owner, stored in the principles register with the owner's words, its meaning and the code that enforces it. A directive with no enforcer and no tracking issue is an open loop.", "see": ["Open loop"] },
+    { "term": "Guided console", "definition": "The three-screen, buttons-first interface (Now, Needs you, Progress) with a prompt box second. The front end is the back end: every press writes the record an agent would write.", "see": ["Closed system"] }
+  ],
+  "directives": [
+    {
+      "id": "D-NOTHING-IN-CHAT",
+      "date": "2026-11-11",
+      "owner_words": "Nothing can stay in a chat thread. All of your Claude Code stuff needs to be in the repo.",
+      "meaning": "Every decision, rule, plan and lesson an agent learns is written into the system as a record in the same turn. Knowledge held only in an agent's context is lost.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "file", "path": "agents/AGENTS.md" },
+        { "kind": "file", "path": "tools/loop_closer.py" },
+        { "kind": "file", "path": ".github/workflows/loops.yml" }
+      ]
+    },
+    {
+      "id": "D-NO-OPEN-LOOPS",
+      "date": "2026-11-11",
+      "owner_words": "No open loops. Everything must have a closure and a loop. Self-referential closure.",
+      "meaning": "Every item has an owner, a closing probe and a disposition; code detects open loops and closes the ones whose probes pass.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "file", "path": "tools/loop_closer.py" },
+        { "kind": "test", "path": "tests/test_loop_closer.py" },
+        { "kind": "file", "path": "products/gaplint/gaplint" },
+        { "kind": "file", "path": "core/kernel/index.js" }
+      ]
+    },
+    {
+      "id": "D-AUTONOMY-IS-LOOPS",
+      "date": "2026-11-11",
+      "owner_words": "A system is autonomous if it has self-referential loops and the ability to close those loops.",
+      "meaning": "Autonomy is defined by loops that can read and act on loops, with the privilege to close them; knowing without acting is useless.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "file", "path": "core/kernel/index.js" },
+        { "kind": "file", "path": "core/claims/index.js" },
+        { "kind": "file", "path": "core/runner/index.js" },
+        { "kind": "file", "path": "autonomy/policy.json" }
+      ]
+    },
+    {
+      "id": "D-NO-CODE-FOR-THE-PERSON",
+      "date": "2026-11-11",
+      "owner_words": "Never have to write a line of code. Never have to look under the hood. The front end is your back end.",
+      "meaning": "The intended user states what they want and operates the system by buttons first and a prompt second; every action writes the record an agent would write.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "file", "path": "core/src/console.js" },
+        { "kind": "test", "path": "core/test/console.test.js" }
+      ]
+    },
+    {
+      "id": "D-BOOTSTRAP",
+      "date": "2026-11-11",
+      "owner_words": "Bootstrapping is super important. Start from nothing.",
+      "meaning": "One idea file in, a running organization out; a failed step becomes a backlog item and the boot continues.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "file", "path": "bootstrap/bootstrap.py" },
+        { "kind": "file", "path": "self/IDEA.md" }
+      ]
+    },
+    {
+      "id": "D-IGNORANCE-ASSUMED",
+      "date": "2026-11-11",
+      "owner_words": "Somebody's not going to know the details. The ignorance part of this is really important.",
+      "meaning": "The system knows what it needs, asks in plain words with options and defaults, and writes its own specifications from the answers.",
+      "status": "planned",
+      "tracking_issue": 60,
+      "enforced_by": []
+    },
+    {
+      "id": "D-SCOPE-AND-PACKS",
+      "date": "2026-11-11",
+      "owner_words": "Know what our core mission is and what boundaries we're willing to push that out to. Talking about it is totally insufficient. It has to be implemented in code.",
+      "meaning": "Core, packs (classes A to D) and out-of-bounds tiers are enforced by manifest validation and a single outbound guard.",
+      "status": "partial",
+      "tracking_issue": 28,
+      "enforced_by": [
+        { "kind": "file", "path": "bootstrap/cases.py" },
+        { "kind": "file", "path": "SCOPE.md" }
+      ]
+    },
+    {
+      "id": "D-OUTREACH-AS-LOOPS",
+      "date": "2026-11-11",
+      "owner_words": "Outreach, marketing and branding all need to be managers, part of the plussing and part of the code loops.",
+      "meaning": "Email, social, video and similar capabilities are packs built as agents and code loops with managers, metrics and plussing.",
+      "status": "planned",
+      "tracking_issue": 30,
+      "enforced_by": []
+    },
+    {
+      "id": "D-SEPARATE-FROM-FIRST-INSTALLATION",
+      "date": "2026-11-11",
+      "owner_words": "I need the code base for Ultrastable to start being completely separate from the first installation.",
+      "meaning": "The product's code, configuration and tests contain no first-installation names, hosts or accounts.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "test", "path": "core/test/no-qnfo.test.js" }
+      ]
+    },
+    {
+      "id": "D-RUN-ON-ITSELF",
+      "date": "2026-11-11",
+      "owner_words": "We need to run Ultrastable on Ultrastable infrastructure.",
+      "meaning": "An Ultrastable organization improves Ultrastable on its own account with hard cost caps.",
+      "status": "partial",
+      "tracking_issue": 13,
+      "enforced_by": [
+        { "kind": "file", "path": "self/ultrastable.json" },
+        { "kind": "file", "path": "tools/spec_backlog.py" }
+      ]
+    },
+    {
+      "id": "D-PLATFORM-AGNOSTIC",
+      "date": "2026-11-11",
+      "owner_words": "Starting with Cloudflare, but it would work with Google Cloud Platform too, and in theory could work with any platform.",
+      "meaning": "Core logic uses ports; platforms are adapters.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "file", "path": "adapters/gcp/server.js" },
+        { "kind": "test", "path": "adapters/gcp/test/gcp.test.js" }
+      ]
+    },
+    {
+      "id": "D-LICENSE-HYBRID",
+      "date": "2026-11-11",
+      "owner_words": "Non-commercial is free, but any kind of money-making commercial use needs a license.",
+      "meaning": "Source-available under the Ultrastable License; commercial use shares revenue.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "file", "path": "LICENSE" },
+        { "kind": "file", "path": "COMMERCIAL-TERMS.md" }
+      ]
+    },
+    {
+      "id": "D-BITE-SIZED-CONSOLE",
+      "date": "2026-11-11",
+      "owner_words": "Three screens, bite-sized information, buttons or things to click; don't assume they know what to type.",
+      "meaning": "Three screens, at most three items per list, buttons first, prompt second.",
+      "status": "enforced",
+      "enforced_by": [
+        { "kind": "test", "path": "core/test/console.test.js" }
+      ]
+    }
+  ]
+}
