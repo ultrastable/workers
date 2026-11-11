@@ -1,6 +1,6 @@
 {
   "id": "PL-1",
-  "title": "PL-1: Inventory the QNFO fleet: workers, crons, D1 tables, views, metrics; map each to [architecture](../platform/docs/architecture.md)",
+  "title": "PL-1: Inventory the reference fleet: workers, crons, D1 tables, views, metrics; map each to [architecture](../platform/docs/architecture.md)",
   "body": "**Owner:** Staff (platform)\n**Trigger:** CONN-1\n**Done check:** Mapping table, nothing unaccounted\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PL-1). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
   "labels": [
     "role:staff",

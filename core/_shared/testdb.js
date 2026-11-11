@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const SEED_MIGRATIONS = fileURLToPath(new URL('../../worker/migrations/', import.meta.url));
+const SEED_MIGRATIONS = fileURLToPath(new URL('../migrations/', import.meta.url));
 
 export function makeDb(extraMigrationDirs = []) {
   const raw = new DatabaseSync(':memory:');

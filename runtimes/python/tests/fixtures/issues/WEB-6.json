@@ -1,7 +1,7 @@
 {
   "id": "WEB-6",
-  "title": "WEB-6: Inventory every QNFO setup step (Search Console, analytics, DNS, email, status, social) and clone the list here",
-  "body": "**Owner:** Ops\n**Trigger:** CONN-1\n**Done check:** Checklist with one row per QNFO service and its Ultrastable twin\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item WEB-6). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "title": "WEB-6: Inventory every reference setup step (Search Console, analytics, DNS, email, status, social) and clone the list here",
+  "body": "**Owner:** Ops\n**Trigger:** CONN-1\n**Done check:** Checklist with one row per reference service and its Ultrastable twin\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item WEB-6). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
   "labels": [
     "role:ops",
     "ws:web-and-seo"

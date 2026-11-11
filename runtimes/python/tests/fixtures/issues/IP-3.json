@@ -1,6 +1,6 @@
 {
   "id": "IP-3",
-  "title": "IP-3: Fill the evidence log with dated QNFO commits and migrations",
+  "title": "IP-3: Fill the evidence log with dated reference-fleet commits and migrations",
   "body": "**Owner:** Staff (IP)\n**Trigger:** CONN-1\n**Done check:** Every claimed element has a dated reduction-to-practice entry\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item IP-3). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
   "labels": [
     "role:staff",
