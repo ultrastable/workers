@@ -1,0 +1,33 @@
+{
+  "rungs": ["small", "medium", "large"],
+  "fallbacks": ["provider-a", "provider-b"],
+  "providers": {
+    "provider-a": {
+      "kind": "openai",
+      "base_url": "https://api.provider-a.example/v1",
+      "key_env": "PROVIDER_A_API_KEY",
+      "family": "family-a",
+      "models": {
+        "small":  { "id": "a-small",  "capabilities": ["json"], "usd_per_1k_in": 0.0002, "usd_per_1k_out": 0.0008, "context": 128000 },
+        "medium": { "id": "a-medium", "capabilities": ["json", "tools", "long-context"], "usd_per_1k_in": 0.002, "usd_per_1k_out": 0.008, "context": 200000 },
+        "large":  { "id": "a-large",  "capabilities": ["json", "tools", "long-context", "vision"], "usd_per_1k_in": 0.01, "usd_per_1k_out": 0.04, "context": 200000 }
+      }
+    },
+    "provider-b": {
+      "kind": "anthropic",
+      "base_url": "https://api.provider-b.example/v1",
+      "key_env": "PROVIDER_B_API_KEY",
+      "family": "family-b",
+      "models": {
+        "small":  { "id": "b-small",  "capabilities": ["json", "tools"], "usd_per_1k_in": 0.0003, "usd_per_1k_out": 0.0012, "context": 128000 },
+        "medium": { "id": "b-medium", "capabilities": ["json", "tools", "vision", "long-context"], "usd_per_1k_in": 0.003, "usd_per_1k_out": 0.012, "context": 200000 },
+        "large":  { "id": "b-large",  "capabilities": ["json", "tools", "vision", "long-context"], "usd_per_1k_in": 0.015, "usd_per_1k_out": 0.06, "context": 200000 }
+      }
+    }
+  },
+  "caps": [
+    { "scope": "total", "period": "month", "soft_usd": 40, "hard_usd": 50 },
+    { "scope": "role", "role": "doer", "period": "day", "soft_usd": 2, "hard_usd": 3 }
+  ],
+  "default_max_tokens": 1024
+}
