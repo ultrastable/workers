@@ -1,0 +1,11 @@
+{
+  "id": "FUND-6",
+  "title": "FUND-6: Verify unverified programs at the source (Sloan, Ford/Mellon, NSF POSE, Apache, Open Source Collective, cloud OSS credits)",
+  "body": "**Owner:** funding manager\n**Trigger:** monthly maintenance run\n**Done check:** registry.json shows no unverified items for these ids\n**Status:** open\n**Default in effect:** Default: tracked as unverified, not used in any pitch.\n\nSource: business/funding/decision-memo.md. Closing probe is the done check.",
+  "labels": [
+    "role:funding",
+    "ws:business"
+  ],
+  "milestone": "Next",
+  "workstream": "Business"
+}

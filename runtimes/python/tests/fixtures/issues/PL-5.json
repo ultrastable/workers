@@ -1,0 +1,11 @@
+{
+  "id": "PL-5",
+  "title": "PL-5: GCP embodiment sketch (Cloud Run, Cloud Scheduler, Firestore or Cloud SQL, Vertex AI Agent Engine) for the pitch and the patent's \"other runtimes\"",
+  "body": "**Owner:** Staff (platform)\n**Trigger:** see roadmap\n**Done check:** see roadmap\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PL-5). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:platform"
+  ],
+  "milestone": "Later",
+  "workstream": "Platform"
+}

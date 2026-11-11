@@ -1,0 +1,12 @@
+[project]
+name = "gaplint"
+version = "0.1.0"
+description = "Lint any repository for open loops: incomplete gap entries, owner cards without a default or probe, missing agent rules, and report text that hands work to a person."
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+gaplint = "gaplint.cli:main"
+
+[tool.setuptools]
+packages = ["gaplint"]

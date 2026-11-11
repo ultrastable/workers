@@ -1,0 +1,12 @@
+{
+  "id": "WEB-2",
+  "title": "WEB-2: Attach the ultrastable domains to the site, remove `noindex`, switch footer to \"Patent pending\"",
+  "body": "**Owner:** Ops\n**Trigger:** IP-5\n**Done check:** Domains serve the site over HTTPS\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item WEB-2). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:ops",
+    "ws:web-and-seo",
+    "gate:filed"
+  ],
+  "milestone": "After filing",
+  "workstream": "Web and SEO"
+}

@@ -1,0 +1,49 @@
+{
+  "status": "OBSERVED",
+  "note": "Each case is a pattern the bootstrap met while building Ultrastable itself, stripped of names. Surfaces are tried in order; the first that works wins.",
+  "cases": [
+    {"id": "credential-on-device", "title": "No admin credential for the code host", "situation": "The org page must go live, but every session reports it has no org-admin credential.",
+     "surfaces": [
+       {"name": "Proxy token", "result": "403: scope too narrow"},
+       {"name": "Actions token", "result": "refused: cannot change org settings"},
+       {"name": "Remote session", "result": "refused by the permission check"},
+       {"name": "Signed-in CLI already on the owner's machine", "result": "scopes include org admin; the change applied", "worked": true}],
+     "lesson": "The first route nobody tried worked. The bootstrap now probes the machine's existing sign-in before it opens any owner card."},
+    {"id": "deploy-needs-secrets", "title": "Deploy needs two repository secrets", "situation": "A worker is ready, but the deploy workflow has no cloud token.",
+     "surfaces": [
+       {"name": "Cloud connector, script inline", "result": "upload works only with the script inline; a 66 KB script with base64 image failed transcription"},
+       {"name": "Shrink the asset", "result": "image cut from 32 KB to 8.6 KB; script is now 35 KB", "worked": true}],
+     "lesson": "Fix the size in code. The workflow still waits for the secrets for routine deploys; that is the only identity-bound part.",
+     "gate": {"what": "Save two repository secrets", "why": "mints a credential only the owner can", "default": "the previous version stays live", "prepared": "workflow, tests and a probe", "probe": "HEAD on the social image returns 200 image/png"}},
+    {"id": "portal-down", "title": "A registration portal answers with an error", "situation": "The only online route for a filing returns 'resource not available via this channel'.",
+     "surfaces": [
+       {"name": "Retry from another network", "result": "same error"},
+       {"name": "Read the official status page", "result": "no outage listed"},
+       {"name": "Alternate route: paper submission", "result": "documented, but needs the owner in person"}],
+     "reversible": "A complete draft packet and a draft e-mail to the registry's helpdesk are committed.",
+     "gate": {"what": "Sign and submit the registration", "why": "irreversible and identity-bound (signature, payment)", "default": "nothing is submitted", "prepared": "full packet, click-by-click walkthrough, helpdesk e-mail draft", "probe": "a receipt id is recorded in the repo"}},
+    {"id": "owner-abroad", "title": "The owner is abroad and the process assumes a local address", "situation": "A program requires a local representative for applicants who live elsewhere.",
+     "surfaces": [
+       {"name": "Read the rule at its source", "result": "rule confirmed: representative required"},
+       {"name": "Choose an alternate route with no such rule", "result": "a national route exists with no representative requirement", "worked": true}],
+     "lesson": "Compare routes by rule, at the source, before building the packet for the wrong one."},
+    {"id": "no-legal-entity", "title": "The program needs a legal entity that does not exist", "situation": "A funding form requires a registered company, a company-domain account and a billing account.",
+     "surfaces": [
+       {"name": "Fill the form as an individual", "result": "field is mandatory"},
+       {"name": "Use a different program with no entity requirement", "result": "none of the small programs waive it"}],
+     "reversible": "Packet answers drafted and validated; banned-term guard passes.",
+     "gate": {"what": "Create the entity and billing account", "why": "legal and financial identity of the owner", "default": "packet stays prepared, not sent", "prepared": "validated packet, prerequisites checklist", "probe": "the validator lists zero unmet prerequisites"}},
+    {"id": "scope-excludes-repo", "title": "The session may not read the repository it needs", "situation": "An inventory needs facts from a repository outside the session's scope.",
+     "surfaces": [
+       {"name": "Code host tools", "result": "scope list refused"},
+       {"name": "Owner's machine folders", "result": "not mounted in this session"},
+       {"name": "The repo's own boundary manifest", "result": "covers names only, not the facts needed"}],
+     "reversible": "The manifest is recorded as the inventory of record; no entries are invented.",
+     "gate": {"what": "Attach the repository to the session scope", "why": "grants access to private code", "default": "the manifest stays the inventory of record", "prepared": "the exact list of missing entries", "probe": "each inventory file exists with a commit id per row"}},
+    {"id": "classifier-refusal", "title": "A permission check refuses an action", "situation": "The harness blocks a rule change that was written without its real scope.",
+     "surfaces": [
+       {"name": "Read the refusal's reason", "result": "the rule's own text was unconditional"},
+       {"name": "Write the real scope into the rule and try once more", "result": "accepted", "worked": true}],
+     "lesson": "A refusal is an input. Fix the condition if it is yours; never reword the same action past the same check."}
+  ]
+}

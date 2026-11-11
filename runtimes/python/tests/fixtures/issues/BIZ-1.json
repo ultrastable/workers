@@ -1,0 +1,11 @@
+{
+  "id": "BIZ-1",
+  "title": "BIZ-1: Choose owning entity",
+  "body": "**Owner:** **ROWAN**\n**Trigger:** none\n**Done check:** Entity named in project memory\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item BIZ-1). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:business"
+  ],
+  "milestone": "Now",
+  "workstream": "Business"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "IP-6",
+  "title": "IP-6: Put the 12-month conversion deadline (non-provisional / PCT) on the calendar with 90/60/30-day reminders",
+  "body": "**Owner:** Ops\n**Trigger:** IP-5\n**Done check:** Calendar events exist\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item IP-6). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:ops",
+    "ws:patent"
+  ],
+  "milestone": "Next",
+  "workstream": "Patent"
+}

@@ -40,6 +40,8 @@ from pathlib import Path
 
 VERSION = "0.1.0"
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cases as case_library  # noqa: E402  (bootstrap case library, bootstrap/cases.json)
 
 
 # ---------------------------------------------------------------- helpers
@@ -182,6 +184,27 @@ class Boot:
                 "cost estimate per role in org/charter.md", "manual"))
         return "ok", f"tier for {self.budget:g} USD: " + ", ".join(f"{k}={v}" for k, v in self.models.items())
 
+    def cases(self):
+        """Match the starting conditions against the case library: routes around each blocker, at most one owner card per blocker."""
+        facts = {}
+        fp = self.root / "facts.json"
+        if fp.exists():
+            facts.update(json.loads(fp.read_text()))
+        for k, v in self.idea["front"].items():  # IDEA.md front matter may state a fact, e.g. `us_domiciled: false`
+            if k in case_library.load_library()["defaults"]:
+                facts[k] = {"true": True, "false": False}.get(v.lower(), int(v) if v.isdigit() else v)
+        facts.setdefault("budget_usd_per_month", self.budget)
+        if "has_org_admin_token" not in facts:
+            facts["has_org_admin_token"] = "ORG_ADMIN_TOKEN" in os.environ
+        plan = case_library.plan_cases(facts)
+        for c in plan["cards"]:
+            self.state["gate_cards"].append(self.card(
+                f"CASE-{c['id']}", c["what"], c["why"], c["default"],
+                "routes for " + ", ".join(c["cases"]) + " are in org/bootstrap-cases.json", c["probe"]))
+        self.out.mkdir(parents=True, exist_ok=True)
+        (self.out / "bootstrap-cases.json").write_text(json.dumps({"facts": facts, **plan}, indent=2) + "\n")
+        return "ok", f"{len(plan['applicable'])} case(s) matched, {len(plan['cards'])} owner card(s), {len(plan['assumed'])} fact(s) assumed"
+
     def plan(self):
         roles = []
         for r in self.config["roles"]:
@@ -211,6 +234,9 @@ class Boot:
              "a tick report is visible in the channel", "channel shows last tick id"),
             ("KIT-5", "First plus accepted into the reserved share", "product-manager", "KIT-3",
              "one item of kind plus is done", "SELECT COUNT(*) FROM items WHERE kind='plus' AND status='done'"),
+            ("KIT-7", "Analytics live: beacon on every site, scoreboard registered (analytics/analytics.js REGISTRY), collector self-check green",
+             "operations", "KIT-2", "GET /api/analytics shows collector_selfcheck = 1 and every metric has a trigger or exemption",
+             "GET /api/analytics with the bearer token returns breaches and metrics"),
         ]
         items = [{"id": i, "title": t, "kind": "work", "project": None, "owner_role": o, "trigger_on": trig,
                   "done_check": d, "closing_probe": p, "priority": 10 + n}
@@ -237,7 +263,7 @@ class Boot:
         f = self.idea["front"]
         s = self.idea["sections"]
         charter = [f"# {self.org_name}: charter", "",
-                   f"Bootstrapped by ultrastable/workers {VERSION} on {now_iso()[:10]}. Source: IDEA.md.", "",
+                   f"Bootstrapped by ultrastable/seed {VERSION} on {now_iso()[:10]}. Source: IDEA.md.", "",
                    "## Idea", "", s.get("idea", {}).get("prose", "") or "(not written yet)", "",
                    "## Who it is for", ""] + [f"- {b}" for b in s.get("who it is for", {}).get("bullets", [])] + \
                   ["", "## Objectives (first outcomes)", ""] + [f"- OUT-{i}: {o}" for i, o in enumerate(self.outcomes, 1)] + \
@@ -254,7 +280,7 @@ class Boot:
         values = {k: fill(v, {"slug": self.slug}) if isinstance(v, str) else v for k, v in values.items()}
         values.setdefault("d1_database_id", "{d1_database_id}")
         self.runtime = values
-        worker = self.root / "worker"
+        worker = self.root / "adapters" / "cloudflare"
         (worker / "wrangler.jsonc").write_text(fill((worker / "wrangler.template.jsonc").read_text(), values))
         cfg = {
             "org_slug": self.slug,
@@ -294,6 +320,58 @@ class Boot:
         lines.append(f"INSERT OR IGNORE INTO doctrine_lineage (version, source) VALUES ({sql_str('seed-' + VERSION)}, 'agents/AGENTS.md + autonomy/policy.json');")
         return "\n".join(lines) + "\n"
 
+    @staticmethod
+    def _gh_admin_org() -> bool:
+        """BG-13: a logged-in `gh` with admin:org scope is an org-admin credential."""
+        if not shutil.which("gh"):
+            return False
+        try:
+            r = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True, timeout=20)
+        except Exception:
+            return False
+        return r.returncode == 0 and "admin:org" in (r.stdout + r.stderr)
+
+    def surfaces(self):
+        """Health-check every route before relying on it (BG-9, BG-12). Recorded, never fatal."""
+        free_gb = shutil.disk_usage(self.root).free / 1e9
+        env = os.environ
+        s = {
+            "disk_free_gb": round(free_gb, 1),
+            "disk_ok": free_gb >= 2.0,
+            "gh_cli": bool(shutil.which("gh")),
+            "git": bool(shutil.which("git")),
+            "org_admin_token": bool(env.get("ORG_ADMIN_TOKEN") or env.get("GH_ORG_TOKEN")) or self._gh_admin_org(),
+            "cloudflare_token": bool(env.get("CLOUDFLARE_API_TOKEN")),
+        }
+        self.state["surfaces"] = s
+        bad = [k for k in ("disk_ok", "gh_cli", "git") if not s[k]]
+        if bad:
+            return "degraded", "surfaces not ready: " + ", ".join(bad)
+        return "ok", "surfaces: " + ", ".join(k for k, v in s.items() if v is True)
+
+    def org(self):
+        """Org initialization plan (BG-1 to BG-7, BG-11). Applied only with an admin token."""
+        org = self.config.get("org", {})
+        repos = org.get("repos", [])
+        name = org.get("name", "")
+        plan = [f"gh repo create {name}/{r} --private (skip if exists)" for r in repos]
+        plan += [f"gh repo unarchive {name}/{r} --yes (if archived and not superseded)" for r in repos]
+        plan += [f"publish brand/public-profile/profile to {name}/.github/profile and set it public",
+                 "gh api PATCH orgs/%s description/blog/email" % name,
+                 "org-manage projects; close-superseded"]
+        self.state["org_plan"] = plan
+        if not name:
+            return "degraded", "ultrastable.json org.name unset; org plan not applied"
+        if not self.apply:
+            return "degraded", f"dry run: {len(plan)} org steps planned (see boot-log.json org_plan)"
+        if not self.state.get("surfaces", {}).get("org_admin_token"):
+            self.state["gate_cards"].append({
+                "id": "GATE-ORG-TOKEN", "line": "IDENTITY-BOUND: mint ORG_ADMIN_TOKEN (docs/ops/ORG-TOKEN.md)",
+                "default_in_effect": "holding page only; all non-org stages continue",
+                "closing_probe": "org-init workflow succeeds; curl https://github.com/" + name + " shows the profile"})
+            return "blocked", "no org-admin token: gate card opened, run the org-init workflow once it exists"
+        return "ok", "org token present: run the org-init workflow (.github/workflows/org-init.yml)"
+
     def provision(self):
         plan = [
             ["npx", "wrangler", "d1", "create", self.runtime["d1_database"]],
@@ -309,7 +387,7 @@ class Boot:
             return "blocked", f"missing connector credentials: {sorted(need)} (gate cards opened)"
         if not self.tools.get("npx"):
             return "blocked", "npx not found; install Node.js 20+"
-        worker = self.root / "worker"
+        worker = self.root / "adapters" / "cloudflare"
         existing = self.run(["npx", "wrangler", "d1", "list", "--json"], worker)
         db_id = None
         for d in json.loads(existing or "[]"):
@@ -410,7 +488,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     root = a.root.resolve()
     boot = Boot(root, (a.out or root / "org").resolve(), apply=a.apply)
-    for name in ("read", "detect", "select", "plan", "write", "provision", "start"):
+    for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "provision", "start"):
         st = boot.guard(name, getattr(boot, name))
         if name == "read" and st == "blocked" and not hasattr(boot, "idea"):
             break  # nothing to plan from; the report says why
@@ -419,7 +497,8 @@ def main(argv=None) -> int:
     boot.out.mkdir(parents=True, exist_ok=True)
     (boot.out / "boot-log.json").write_text(json.dumps(
         {"seed_version": VERSION, "mode": "apply" if a.apply else "dry-run", "stages": boot.log,
-         "provision_plan": boot.state.get("provision_plan", [])}, indent=2) + "\n")
+         "provision_plan": boot.state.get("provision_plan", []),
+         "surfaces": boot.state.get("surfaces", {}), "org_plan": boot.state.get("org_plan", [])}, indent=2) + "\n")
     (boot.out / "boot-report.md").write_text(rep + "\n")
     print(rep)
     return 0 if all(s["status"] != "blocked" for s in boot.log) else 2

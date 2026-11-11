@@ -1,0 +1,11 @@
+{
+  "id": "PL-4",
+  "title": "PL-4: Ultrastable runs its own backlog: this roadmap as tenant #1, managers on a tick",
+  "body": "**Owner:** Portfolio mgr\n**Trigger:** see roadmap\n**Done check:** see roadmap\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PL-4). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:portfolio-mgr",
+    "ws:platform"
+  ],
+  "milestone": "Later",
+  "workstream": "Platform"
+}

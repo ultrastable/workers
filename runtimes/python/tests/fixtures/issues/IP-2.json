@@ -1,0 +1,11 @@
+{
+  "id": "IP-2",
+  "title": "IP-2: Prior-art search with differentiators",
+  "body": "**Owner:** Staff (IP)\n**Trigger:** none\n**Done check:** Each [prior-art](../ip/prior-art.md) entry has a link and a \"how we differ\" line\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item IP-2). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:patent"
+  ],
+  "milestone": "Now",
+  "workstream": "Patent"
+}

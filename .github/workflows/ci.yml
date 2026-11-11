@@ -13,11 +13,12 @@ jobs:
         with: { node-version: 22 }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: cd worker && npm test
       - run: node --test --no-warnings "core/**/*.test.js"
       - run: python -m unittest discover tests
       - run: node --test --no-warnings adapters/gcp/test/*.js
-      - run: cd reference-python && python -m unittest discover tests
+      - run: cd runtimes/python && python -m unittest discover tests
+      - run: cd products/gaplint && python -m unittest discover tests
+      - run: node --test --no-warnings apps/demos/test/*.mjs
       - name: License files match the canonical text
         run: |
           curl -fsSL https://raw.githubusercontent.com/ultrastable/license/main/LICENSE -o /tmp/LICENSE || { echo "canonical license not reachable yet; skipping"; exit 0; }

@@ -24,12 +24,14 @@ Ultrastable is for a person who can say what they want but is not a coder and do
 
 | Path | What | Status |
 |---|---|---|
-| [`worker/`](worker/) | The Worker: cron tick, D1 schema, tests. `src/tick.js` is the portable core (pure logic over a D1-shaped handle). | BUILT, 9 tick tests; the same tick runs QNFO's fleet |
-| [`worker/src/console.js`](worker/src/console.js) | The guided console: three screens, buttons first, prompt second, default-deny access. Run `cd worker && npm run demo` (key: demo). | BUILT, 4 tests; also served by the GCP adapter |
+| [`core/`](core/) | Portable core: the tick, schema, guided console. Pure logic over a D1-shaped handle, no cloud named. | BUILT, 13 tests; the same tick runs QNFO's fleet |
+| [`adapters/cloudflare/`](adapters/cloudflare/) | **First platform adapter**: Worker, cron, D1. Local demo: `cd adapters/cloudflare && npm run demo` (key: demo). | BUILT; `--apply` on a fresh account not yet proven |
+| [`adapters/gcp/`](adapters/gcp/) | Google Cloud Run + SQLite behind the same handle; documented path to Cloud SQL and Vertex AI | BUILT, 3 tests; not deployed on GCP |
 | [`bootstrap/`](bootstrap/) | Idea file in, running organization out: plans the org, writes `org/`, creates D1, applies migrations, deploys the Worker | BUILT, 12 tests; `--apply` on a fresh account is not yet proven |
 | [`agents/`](agents/), [`autonomy/`](autonomy/), [`ultrastable.json`](ultrastable.json), [`IDEA.md`](IDEA.md) | The template an org starts from: role instructions, autonomy policy (trust ladder, interrupt gate, limits), org config | BUILT |
-| [`adapters/`](adapters/) | Same tick on Google Cloud Run + SQLite behind a D1-style handle | BUILT, 3 tests; not deployed on GCP |
-| [`reference-python/`](reference-python/) | Stdlib-only Python reference runtime of the full control loop, CLI and dashboard | BUILT, 13 tests |
+| [`runtimes/python/`](runtimes/python/) | Stdlib-only Python reference runtime: full loop, CLI, dashboard, Postgres store, connectors | BUILT, 44 tests |
+| [`products/gaplint/`](products/gaplint/) | Open-loop linter for any repo | BUILT, 12 tests |
+| [`apps/demos/`](apps/demos/) | Static bootstrap simulator and blocker-case demos | BUILT |
 | [`extraction/`](extraction/) | Map of the 19 core workers still living in QNFO's fleet repository, and the plan to move them here | PLANNED |
 
 ## Quick start
@@ -37,7 +39,7 @@ Ultrastable is for a person who can say what they want but is not a coder and do
 Needs Node 22+ and Python 3.11+. No dependencies.
 
 ```bash
-cd worker && npm test                       # the tick against an in-memory D1-shaped database
+cd core && npm test                       # the tick against an in-memory D1-shaped database
 python bootstrap/bootstrap.py --dry-run     # idea file in, org/ plan out; nothing leaves your machine
 python -m unittest discover tests           # bootstrapper and policy tests
 node --test adapters/gcp/test/*.js          # the same tick behind an HTTP service

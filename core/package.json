@@ -1,0 +1,2 @@
+{ "name": "@ultrastable/core", "private": true, "license": "SEE LICENSE IN LICENSE", "type": "module",
+  "scripts": { "test": "node --test --no-warnings test/*.test.js" } }

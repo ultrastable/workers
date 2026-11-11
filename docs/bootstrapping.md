@@ -21,7 +21,7 @@ After `start`, the Worker's cron fires `runTick` every 10 minutes. Managers and 
 | detect | environment | which connector secrets are set (never their values), which tools exist | each missing secret becomes a gate card with an `env:NAME` closing probe |
 | select | budget in IDEA.md | model for doer, reviewer, manager | budget 0 uses the smallest tier |
 | plan | the above | role instances (one project manager and product manager per outcome), kit backlog `KIT-0..6`, outcome items `OUT-n`, predictions | |
-| write | plan | `org/` files, `worker/wrangler.jsonc`, `worker/src/config.js`, `org/seed.sql` | |
+| write | plan | `org/` files, `adapters/cloudflare/wrangler.jsonc`, `adapters/cloudflare/src/config.js`, `org/seed.sql` | |
 | provision | `--apply`, Cloudflare credentials | D1 created or found, migrations applied, seed SQL executed, Worker deployed | blocked: a backlog item `BOOT-PROVISION` with the exact error |
 | start | | Worker cron armed | KIT-3 closes only when six complete ticks are seen in an hour |
 

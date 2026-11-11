@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bootstrap simulator - Ultrastable</title><link rel="stylesheet" href="style.css"></head>
+<body><main><nav><a href="index.html">Demos</a><a href="bootstrap-simulator.html">Bootstrap simulator</a><a href="bootstrap-cases.html">Blocker cases</a></nav>
+<h1>Bootstrap simulator</h1>
+<p><span class="tag">MODEL</span>Deterministic: the same idea gives the same run. No model calls, no accounts.</p>
+<div class="card">
+<label for="idea">Your idea</label><textarea id="idea" rows="2">A booking marketplace for local repair shops</textarea>
+<label>Surfaces the system can reach</label><div id="surfaces"></div>
+<label for="ticks">Ticks: <span id="tn">14</span></label><input id="ticks" type="range" min="4" max="30" value="14">
+<div class="row" style="margin-top:10px"><button id="run">Run the loop</button><button class="sec" id="step">Step one tick</button></div>
+</div>
+<div id="out" aria-live="polite"></div>
+<script type="module" src="simulator-ui.js"></script>
+</main></body></html>

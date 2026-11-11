@@ -1,0 +1,11 @@
+{
+  "id": "PL-6",
+  "title": "PL-6: One-command install for a new organization",
+  "body": "**Owner:** Staff (platform)\n**Trigger:** see roadmap\n**Done check:** see roadmap\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item PL-6). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:platform"
+  ],
+  "milestone": "Later",
+  "workstream": "Platform"
+}

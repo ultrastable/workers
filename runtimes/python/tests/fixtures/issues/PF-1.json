@@ -1,0 +1,11 @@
+{
+  "id": "PF-1",
+  "title": "PF-1: Hold the disclosure gate: nothing public until filed",
+  "body": "**Owner:** Portfolio mgr\n**Trigger:** standing\n**Done check:** Site on preview URL only, repos private, no public pitch\n**Status:** live rule\n\nSource of truth: `docs/roadmap.md` (item PF-1). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:portfolio-mgr",
+    "ws:portfolio"
+  ],
+  "milestone": "Now",
+  "workstream": "Portfolio"
+}

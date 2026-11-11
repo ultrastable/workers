@@ -1,0 +1,11 @@
+{
+  "id": "WEB-4",
+  "title": "WEB-4: robots.txt, sitemap.xml, Open Graph tags, Cloudflare Web Analytics",
+  "body": "**Owner:** Staff (web)\n**Trigger:** WEB-1\n**Done check:** Lighthouse SEO score \u2265 95 on preview\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item WEB-4). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:web-and-seo"
+  ],
+  "milestone": "Next",
+  "workstream": "Web and SEO"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "BIZ-2",
+  "title": "BIZ-2: Business-in-a-box: managers, customers, competition, pitch kit, funding, promotion, events (`business/plan/`)",
+  "body": "**Owner:** Business mgr\n**Trigger:** none\n**Done check:** All eight files marked reviewed by Rowan in `business/plan/README.md`\n**Status:** drafted 2026-11-10, waiting on Rowan's review\n\nSource of truth: `docs/roadmap.md` (item BIZ-2). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:business-mgr",
+    "ws:business"
+  ],
+  "milestone": "Now",
+  "workstream": "Business"
+}

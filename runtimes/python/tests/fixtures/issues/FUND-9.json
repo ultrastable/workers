@@ -1,0 +1,11 @@
+{
+  "id": "FUND-9",
+  "title": "FUND-9: Open-core release plan: governance file, security policy, contribution guide, CLA/DCO",
+  "body": "**Owner:** product manager\n**Trigger:** FUND-2 done\n**Done check:** Files in platform/ pass checks.yml; draft PR open\n**Status:** open\n**Default in effect:** Default: not published before filing.\n\nSource: business/funding/decision-memo.md. Closing probe is the done check.",
+  "labels": [
+    "role:product",
+    "ws:business"
+  ],
+  "milestone": "After filing",
+  "workstream": "Business"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "WEB-3",
+  "title": "WEB-3: Search Console property, DNS verify, submit sitemap",
+  "body": "**Owner:** **ROWAN** adds property, Ops does DNS\n**Trigger:** WEB-2\n**Done check:** Sitemap status \"Success\"\n**Status:** open\n\nSource of truth: `docs/roadmap.md` (item WEB-3). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:ops",
+    "ws:web-and-seo",
+    "gate:filed"
+  ],
+  "milestone": "After filing",
+  "workstream": "Web and SEO"
+}

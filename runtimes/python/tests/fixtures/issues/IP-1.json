@@ -1,0 +1,11 @@
+{
+  "id": "IP-1",
+  "title": "IP-1: Provisional draft: full spec, claims, figures",
+  "body": "**Owner:** Staff (IP)\n**Trigger:** none\n**Done check:** Draft covers every element of the [disclosure](../ip/invention-disclosure.md), all figures referenced\n**Status:** draft done: `ip/provisional/` (spec, 14 figures, drawings PDF, filing checklist)\n\nSource of truth: `docs/roadmap.md` (item IP-1). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:patent"
+  ],
+  "milestone": "Now",
+  "workstream": "Patent"
+}

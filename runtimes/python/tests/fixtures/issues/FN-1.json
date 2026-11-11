@@ -1,0 +1,11 @@
+{
+  "id": "FN-1",
+  "title": "FN-1: Map funding and credit programs",
+  "body": "**Owner:** Staff (research)\n**Trigger:** none\n**Done check:** Options saved in git, not only as a page\n**Status:** done: `business/funding.md`\n\nSource of truth: `docs/roadmap.md` (item FN-1). Every closed item proposes a plus: file it as a new issue labeled `plus`.",
+  "labels": [
+    "role:staff",
+    "ws:funding"
+  ],
+  "milestone": "Now",
+  "workstream": "Funding"
+}
