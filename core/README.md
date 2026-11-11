@@ -31,6 +31,7 @@ Each directory here is one module of the Ultrastable core, written to the specif
 | `packs/email` | email list pack, class B, US-SPEC-21 | BUILT (see its README) |
 | `packs/social` (pack, outside core) | claim-backed public posting through the guard, US-SPEC-21 class B | BUILT (see `packs/social/README.md`) |
 | `githubapp` | one-click GitHub App (manifest flow), short-lived installation tokens for the runner, door github-app-install | BUILT |
+| `doors` | console doors: first-run key shown once, Cloudflare Access sign-in, paste-a-secret (Connect screen), US-SPEC-18/19 | BUILT (see `doors/doors.test.js`) |
 | `org` | composition root: one tick runs every loop, one handle serves every route; the Worker and Cloud Run call it | BUILT (see its README) |
 | `codeloop`, `graph`, `tasks`, `router/calibration` | merge gate, blast radius, task runner, model probes | BUILT (see their READMEs) |
 | rest | see [extraction/INVENTORY.md](../extraction/INVENTORY.md) | PLANNED |

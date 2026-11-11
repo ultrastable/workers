@@ -51,7 +51,7 @@
         {
           "id": "provider-key-in-console",
           "owner_effort": "typing",
-          "status": "planned",
+          "status": "built",
           "how": "Paste a provider key into a console field once; the Worker stores it as a secret and shows only that it exists."
         },
         {
@@ -75,7 +75,7 @@
         {
           "id": "fine-grained-token-in-console",
           "owner_effort": "typing",
-          "status": "planned",
+          "status": "built",
           "how": "Create a fine-grained token limited to the ultrastable repositories and paste it into the console once."
         },
         {
@@ -93,13 +93,13 @@
         {
           "id": "generated-first-run",
           "owner_effort": "none",
-          "status": "planned",
+          "status": "built",
           "how": "The Worker generates a key on first run and shows it once on a first-run page, or sends the owner a sign-in link by email."
         },
         {
           "id": "access-sso",
           "owner_effort": "sign-in",
-          "status": "planned",
+          "status": "built",
           "how": "Put Cloudflare Access in front of the console so the owner signs in with their existing Google or GitHub account."
         },
         {
