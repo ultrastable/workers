@@ -1,0 +1,11 @@
+// The launcher itself: one Worker, no database, no stored data. Runs on the Workers Free plan.
+// Deploy with `npx wrangler deploy` from apps/launcher after `node build.mjs`. Abuse controls (a rate-limit binding and a
+// Turnstile secret) are optional hooks in src/index.js and are NOT configured here yet: see README.
+{
+  "name": "ultrastable-launcher",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": { "enabled": false },
+  "limits": { "cpu_ms": 50, "subrequests": 12 }
+}
