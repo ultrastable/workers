@@ -1,0 +1,65 @@
+{
+  "id": "social",
+  "name": "Social posting",
+  "version": "0.1.0",
+  "class": "B",
+  "scope": {
+    "does": [
+      "Writes short public posts from the organization's own published claims that are fresh, each sentence tied to a claim id",
+      "Checks every draft with a separate checker before it is queued, and rejects unbacked sentences, undated numbers and links off the allowlist",
+      "Publishes approved posts to the configured account on Bluesky or through a scheduler, within a daily and a weekly cap",
+      "Reads each post back to confirm it is live, and reads engagement to score its own predictions"
+    ],
+    "does_not": [
+      "Impersonate a person or post as one: every post comes from the organization's own configured account",
+      "Buy engagement, followers or reposts, or use fake accounts",
+      "Mass-follow, mass-like or auto-reply to strangers",
+      "Post any fact that is not a fresh public claim in the registry",
+      "Bypass the outbound guard, the caps or a kill switch"
+    ]
+  },
+  "charter": {
+    "objective": "Publish accurate, claim-backed public posts and confirm each one is live, without a single removed or unbacked post",
+    "primary_metric": {
+      "id": "social_posts_published_verified", "op": ">=", "target": 1,
+      "read_probe": "SELECT COUNT(*) AS value FROM social_queue WHERE status = 'published' AND verify_status = 'verified' AND published_at >= datetime('now', '-7 days')"
+    },
+    "guard_metrics": [
+      {
+        "id": "social_removed_posts", "op": "<=", "target": 0,
+        "read_probe": "SELECT COUNT(*) AS value FROM social_queue WHERE status = 'removed' AND removed_at >= datetime('now', '-7 days')"
+      },
+      {
+        "id": "social_refused_by_guard", "op": "<=", "target": 5,
+        "read_probe": "SELECT COUNT(*) AS value FROM guard_ledger WHERE pack = 'social' AND decision = 'refused' AND at >= datetime('now', '-7 days')"
+      }
+    ]
+  },
+  "requires": {
+    "ports": ["social", "describe"],
+    "secrets": ["BLUESKY_IDENTIFIER", "BLUESKY_APP_PASSWORD", "SCHEDULER_ACCESS_TOKEN"],
+    "specs": ["US-SPEC-21", "US-SPEC-22", "US-SPEC-06"]
+  },
+  "loops": [
+    { "id": "compose", "every_ticks": 12, "entry": "./compose.js#composeLoop", "outbound": false },
+    { "id": "publish", "every_ticks": 1, "entry": "./publish.js#publishLoop", "outbound": true },
+    { "id": "verify", "every_ticks": 1, "entry": "./verify.js#verifyLoop", "outbound": false },
+    { "id": "metrics", "every_ticks": 6, "entry": "./metrics.js#metricsLoop", "outbound": false }
+  ],
+  "outbound": {
+    "channels": ["social"],
+    "caps": { "social": { "per_day": 2, "per_week": 8 } },
+    "consent": "none",
+    "suppression": true,
+    "approval": "by_rung"
+  },
+  "migrations": ["./migrations/0001_social.sql"],
+  "defaults": {
+    "handle": "organization.example.com",
+    "allowlist": ["example.org"],
+    "link_url": "https://example.org/about",
+    "utm": { "params": { "source": "social", "medium": "post", "campaign": "claims" } },
+    "max_length": 300
+  },
+  "enable_gate": "Turn on Social posting? It will write short public posts from the organization's own published, fresh claims, check each one, and post up to 2 a day and 8 a week to the account you configure (Bluesky or a scheduler). Until it has earned trust, every post waits here as a card with its full text for you to approve. It will not pretend to be a person, buy engagement or followers, mass-follow, or post any fact that is not a fresh claim. It costs only the model calls you allow for phrasing, which can be none. Turn it off any time with one action."
+}
