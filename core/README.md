@@ -20,4 +20,7 @@ Each directory here is one module of the Ultrastable core, written to the specif
 
 | Module | Spec | Status |
 |---|---|---|
-| (see issue tracker: label `extraction`) | | |
+| `claims`, `deploy`, `kernel`, `router` | US-SPEC-08, 07, 03-05, 09 | BUILT |
+| `yield` | cost per output, waste findings | BUILT |
+| `docgate` | documents traced to work | BUILT |
+| rest | see [extraction/INVENTORY.md](../extraction/INVENTORY.md) | PLANNED |
