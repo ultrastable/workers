@@ -4,6 +4,6 @@
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
-    "test": "node --test --no-warnings \"core/**/*.test.js\" && node --test --no-warnings adapters/gcp/test/*.test.js adapters/cloudflare/test/deployer.test.js && python -m unittest discover tests && cd runtimes/python && python -m unittest discover tests"
+    "test": "node --test --no-warnings \"core/**/*.test.js\" \"packs/**/*.test.js\" && node --test --no-warnings adapters/gcp/test/*.test.js adapters/cloudflare/test/deployer.test.js && node --test --no-warnings apps/launcher/test/*.test.mjs && python -m unittest discover tests && cd runtimes/python && python -m unittest discover tests"
   }
 }

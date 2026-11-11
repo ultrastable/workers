@@ -30,6 +30,10 @@ Site and app builders are friendly but boxed in by what they can do. Coding agen
 
 Integration is at the level of records, not lock-in: the console is a replaceable view, and everything the person owns is available as plain files and records.
 
+## Ultrastable runs on itself
+
+This is a rule, not a slogan. The `ultrastable` organization and its repositories are the first organization the product runs: its code and specifications change through the same items, claims, reviews, predictions and probes the product sells ([US-SPEC-20](specs/US-SPEC-20-self-hosting.md)). It holds for any tool: every repository carries the same contract in every file an AI tool reads, CI enforces it, and a tool that cannot do a step is told what to do instead. We state our current stage honestly (today: stage 1) and the project checks its own claims: a specification that says BUILT must name code that exists.
+
 ## Platform: built for Cloudflare Workers, and it says so
 
 Ultrastable is built for **Cloudflare Workers**. It is the only supported platform. We chose it because a free account is a hard cap, a person can start with no account at all, and one account holds the code, database, timer, AI models and identity gate. We proved it runs there and we publish the limits we hit. A Google Cloud Run adapter exists to show the design is not welded to one vendor; it is a proof, not a promise. Self-hosted, AWS and Azure are not targets. The reasons, a comparison with the alternatives, and the limits of Workers are in [docs/why-cloudflare.md](docs/why-cloudflare.md).
