@@ -80,7 +80,10 @@ export async function provision({ fetch: f = fetch, proof, answers, acceptedClou
       { type: 'plain_text', name: 'ORG_NAME', text: orgName },
       { type: 'plain_text', name: 'ORG_SLUG', text: slug },
       { type: 'secret_text', name: 'CONSOLE_TOKEN', text: consoleKey },
+      { type: 'durable_object_namespace', name: 'HEARTBEAT', class_name: 'Heartbeat' },
     ],
+    // a temporary account has no cron; the SQLite-backed Durable Object alarm is the heartbeat (BOOTSTRAP-LADDER rung 3)
+    migrations: { new_tag: 'v1', new_sqlite_classes: ['Heartbeat'] },
   };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }), 'metadata.json');
@@ -97,6 +100,6 @@ export async function provision({ fetch: f = fetch, proof, answers, acceptedClou
     url: `https://${slug}.${subdomain}.workers.dev`, orgName, slug, consoleKey,
     claimUrl: claim && claim.url, claimExpiresAt: claim && claim.expiresAt, accountExpiresAt: account.expiresAt,
     bundleSha256: release.bundleSha256, mode: 'preview',
-    notes: ['This is a preview: it runs for about an hour, cannot run scheduled work, and Cloudflare shows a safety page to automated visitors until you claim it.'],
+    notes: ['This is a preview: it runs for about an hour, ticks itself every 5 minutes with its own alarm, and Cloudflare shows a safety page to automated visitors until you claim it.'],
   };
 }

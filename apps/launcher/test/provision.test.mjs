@@ -132,3 +132,12 @@ test('the challenge is fetched without credentials and returned as published', a
   assert.deepEqual(await fetchChallenge(f), { challengeToken: 'ct', seed: 'AAAA', k: 10, g: 10 });
   assert.equal(calls[0].auth, undefined);
 });
+
+test('the Worker upload binds the Heartbeat Durable Object and declares it SQLite-backed (rung 3: no cron on a temporary account)', async () => {
+  const { f, calls } = fakeCloudflare();
+  await provision({ fetch: f, proof: PROOF, answers: ANSWERS, acceptedCloudflareTerms: true, release: RELEASE });
+  const meta = JSON.parse(await calls[3].body.get('metadata').text());
+  assert.deepEqual(meta.bindings.find(b => b.name === 'HEARTBEAT'), { type: 'durable_object_namespace', name: 'HEARTBEAT', class_name: 'Heartbeat' });
+  assert.deepEqual(meta.migrations, { new_tag: 'v1', new_sqlite_classes: ['Heartbeat'] });
+  assert.equal(JSON.stringify(meta).includes('cron'), false);
+});
