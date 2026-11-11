@@ -43,7 +43,7 @@ export async function calibrate(ctx, { providers, rungs }) {
   }
   const state = {};
   for (const n of names) {
-    const rows = (await ctx.db.prepare('SELECT ok FROM (SELECT id, ok FROM router_calibration WHERE provider = ? ORDER BY id DESC LIMIT ?) ').bind(n, Math.max(c.fail_streak_off, c.pass_streak_on) * PROBES.length).all()).results;
+    const rows = (await ctx.db.prepare('SELECT ok FROM (SELECT id, ok FROM router_calibration WHERE provider = ? ORDER BY id DESC LIMIT ?) ORDER BY id DESC').bind(n, Math.max(c.fail_streak_off, c.pass_streak_on) * PROBES.length).all()).results;
     const recent = rows.map(x => x.ok);
     state[n] = { failing: recent.length >= c.fail_streak_off && recent.slice(0, c.fail_streak_off).every(v => v === 0), passing: recent.slice(0, c.pass_streak_on * PROBES.length).every(v => v === 1) };
   }
