@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 export const REQUIRED = ['slug', 'account_id', 'worker_name', 'd1_database', 'routes', 'owner_contact', 'repository', 'secrets'];
 const BINDING = /^[A-Z][A-Z0-9_]{2,63}$/;
 
-const PLACEHOLDER = /REPLACE|\.invalid\b|^owner\/repo\$/;
+const PLACEHOLDER = /REPLACE|\.invalid\b|^owner\/repo$/;
 
 // strict: also reject placeholder values, so a template fails the closing probe until the real values are filled in.
 export function validateInstance(cfg, { strict = false } = {}) {
@@ -22,7 +22,7 @@ export function validateInstance(cfg, { strict = false } = {}) {
   if (cfg.routes && !(Array.isArray(cfg.routes) && cfg.routes.length >= 1)) errors.push('routes must list at least one route');
   if (cfg.routes && Array.isArray(cfg.routes) && cfg.routes.length < 2) errors.push('no single route: routes needs a second entry (stage fallback)');
   for (const [name, binding] of Object.entries(cfg.secrets || {})) if (!BINDING.test(String(binding))) errors.push('secret ' + name + ' must be a binding name (UPPER_SNAKE), never a value');
-  if (strict) for (const [k, v] of Object.entries(cfg)) if (PLACEHOLDER.test(JSON.stringify(v))) errors.push('placeholder value in ' + k);
+  if (strict) for (const [k, v] of Object.entries(cfg)) if (PLACEHOLDER.test(typeof v === "string" ? v : JSON.stringify(v))) errors.push('placeholder value in ' + k);
   return errors;
 }
 
