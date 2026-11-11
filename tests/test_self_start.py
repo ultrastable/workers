@@ -104,8 +104,7 @@ class SelfStart(unittest.TestCase):
     def test_an_existing_deployment_from_any_door_counts_as_started_with_no_token(self):
         with tempfile.TemporaryDirectory() as d:
             root, calls, gh = make_root(d), [], FakeGh()
-            (root / "self" / "worker-url.txt").write_text("https://w.example.workers.dev
-")
+            (root / "self" / "worker-url.txt").write_text("https://w.example.workers.dev")
             r = ss.start(self.runner(calls), lambda url, headers=None: {"ok": True}, gh, {}, root, "o/r", NOW)
             self.assertTrue(r["started"]); self.assertEqual(r["via"], "existing-deployment")
             self.assertEqual(calls, []); self.assertTrue((root / "org" / "started.json").exists())
