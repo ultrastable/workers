@@ -16,6 +16,8 @@ export const MODULES = [
   { id: 'codeloop', dir: 'core/codeloop/migrations' },
   { id: 'graph', dir: 'core/graph/migrations' },
   { id: 'tasks', dir: 'core/tasks/migrations' },
+  { id: 'steward', dir: 'adapters/github/migrations' },
+  { id: 'agents', dir: 'adapters/cloudflare/agents/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.
