@@ -27,7 +27,7 @@ Migration: `migrations/0001_claims.sql` (tables `claims_*`; a partial unique ind
 | US-08-R02 expiry and reaper returns item to ready | L1 | BUILT | `reapExpired`; T02, seed-reaper agreement |
 | US-08-R03 untriggered item not dispatched | L1 | BUILT (claim side); dispatch itself is the seed tick | `acquire` refuses `trigger_not_done`; T04 |
 | US-08-R04 no exit without disposition | L1 | BUILT (hook; the tick has its own) | `reopenSilentDrops`, `reconcile`; T03 |
-| US-08-R05 gate card closes on probe | L1 | NOT COVERED here (BUILT in `worker/src/tick.js`) | |
+| US-08-R05 gate card closes on probe | L1 | NOT COVERED here (BUILT in `core/src/tick.js`) | |
 | US-08-R06 heartbeat renewal | L1 | BUILT | `heartbeat` |
 | US-08-R07 token, expiry, fence = previous + 1 | L2 | BUILT | `acquire`; T05 |
 | US-08-R08 write only for live token and current fence | L2 | BUILT as `check` for the protected resource to call | `check`; T05 |

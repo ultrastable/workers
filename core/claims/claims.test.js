@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { makeDb } from '../_shared/testdb.js';
 import * as C from './index.js';
-import { STEPS } from '../../worker/src/tick.js';
+import { STEPS } from '../src/tick.js';
 
 const MIG = fileURLToPath(new URL('./migrations/', import.meta.url));
 const T0 = Date.parse('2026-11-11T10:00:00Z');
