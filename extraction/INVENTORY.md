@@ -14,7 +14,7 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | QNFO worker | Bytes | QNFO refs | Product module | Status |
 |---|---:|---:|---|---|
 | deploy-guard (work claims, secret lease) | 224k | 264 | `core/claims` | BUILT |
-| ops (canonical deploy, lock, ledger) | 1.7M | 1589 | `core/deploy` + `adapters/*/deployer.js` | BUILT (change path); ops agent PLANNED |
+| ops (canonical deploy, lock, ledger) | 1.7M | 1589 | `core/deploy` + `adapters/*/deployer.js` | BUILT (change path and `core/deploy/agent.js` ops agent) |
 | ai (model router, gates, budget routing) | 792k | 584 | `core/router` | BUILT |
 | fleet-control (tick, metrics, trust, loop watch) | 3.2M | 1863 | `core/kernel` (L1 + L2), `core/src/tick.js` | BUILT for tick, metrics, lifecycle, failure modes; charter, portfolio and research-specific steps stay QNFO |
 | ai-yield (cost per output dashboard) | 15k | 9 | `core/yield` | BUILT (this change): ledger and rules; the owner-code login page is not extracted, the guided console is the generic surface |
@@ -50,7 +50,7 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 
 ## Disposition of what remains (no silent drops)
 
-Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining open items: (1) the server-side ops agent (`core/deploy` has the change path; the agent that drives it is PLANNED), (2) the product claims feed (needs the product's own host, issue #10), (3) per-module NOT COVERED lines, each needing a live account or the QNFO sources. Not covered anywhere, by design: the QNFO-styled dashboard views and every item named NOT COVERED in a module README.
+Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining open items: (1) the product claims feed (needs the product's own host, issue #10), (2) per-module NOT COVERED lines, each needing a live account or the QNFO sources. Not covered anywhere, by design: the QNFO-styled dashboard views and every item named NOT COVERED in a module README.
 
 Rewrites are clean-room from each unit's role in boundary.json and the specs: the QNFO sources are not in this repository's reach, so nothing is copied and each README says what is NOT COVERED.
 
