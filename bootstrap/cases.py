@@ -17,7 +17,8 @@ def load_library(path=None):
     return json.loads(Path(path or LIB).read_text())
 
 
-def plan_cases(facts, library=None):
+def plan_cases(facts, library=None, packs=()):
+    """Cases tagged with a pack apply only if that Capability Pack is enabled (SCOPE.md); untagged cases are core."""
     lib = library or load_library()
     merged, assumed = dict(lib["defaults"]), []
     for k in lib["defaults"]:
@@ -26,6 +27,8 @@ def plan_cases(facts, library=None):
     merged.update({k: v for k, v in (facts or {}).items()})
     applicable, cards, routes = [], {}, []
     for c in lib["cases"]:
+        if c.get("pack") and c["pack"] not in packs:
+            continue
         if all(merged.get(k) == v for k, v in c["when"].items()):
             applicable.append(c["id"])
             for r in c["routes"]:

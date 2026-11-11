@@ -1,0 +1,8 @@
+# Paths the self-hosted organization may never change by itself (docs/SELF-HOSTING.md, protected paths).
+/SCOPE.md                        @rwnq8
+/LICENSE                         @rwnq8
+/COMMERCIAL-TERMS.md             @rwnq8
+/autonomy/                       @rwnq8
+/self/                           @rwnq8
+/core/test/no-qnfo.test.js       @rwnq8
+/.github/                        @rwnq8

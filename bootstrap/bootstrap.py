@@ -106,8 +106,9 @@ def fill(template: str, values: dict) -> str:
 
 
 class Boot:
-    def __init__(self, root: Path, out: Path, apply: bool):
+    def __init__(self, root: Path, out: Path, apply: bool, idea_path: Path | None = None, config_path: Path | None = None):
         self.root, self.out, self.apply = root, out, apply
+        self.idea_path, self.config_path = idea_path, config_path  # optional overrides, so one repo can boot a different org (self-hosting)
         self.log: list[dict] = []
         self.state: dict = {"blocked_items": [], "gate_cards": []}
 
@@ -133,8 +134,8 @@ class Boot:
     # -------------------------------------------------------------- stages
 
     def read(self):
-        idea_path = self.root / "IDEA.md"
-        self.config = json.loads((self.root / "ultrastable.json").read_text())
+        idea_path = self.idea_path or self.root / "IDEA.md"
+        self.config = json.loads((self.config_path or self.root / "ultrastable.json").read_text())
         self.policy = json.loads((self.root / "autonomy" / "policy.json").read_text())
         if not idea_path.exists():
             self.idea = parse_idea("---\norg_name: Unnamed\n---\n# Idea\n\n# First outcomes\n")
@@ -196,7 +197,7 @@ class Boot:
         facts.setdefault("budget_usd_per_month", self.budget)
         if "has_org_admin_token" not in facts:
             facts["has_org_admin_token"] = "ORG_ADMIN_TOKEN" in os.environ
-        plan = case_library.plan_cases(facts)
+        plan = case_library.plan_cases(facts, packs=tuple(self.config.get("packs", [])))
         for c in plan["cards"]:
             self.state["gate_cards"].append(self.card(
                 f"CASE-{c['id']}", c["what"], c["why"], c["default"],
@@ -485,9 +486,12 @@ def main(argv=None) -> int:
     mode.add_argument("--apply", action="store_true", help="also provision Cloudflare and deploy")
     ap.add_argument("--root", type=Path, default=ROOT)
     ap.add_argument("--out", type=Path, default=None, help="output folder (default <root>/org)")
+    ap.add_argument("--idea", type=Path, default=None, help="idea file (default <root>/IDEA.md)")
+    ap.add_argument("--config", type=Path, default=None, help="org config (default <root>/ultrastable.json)")
     a = ap.parse_args(argv)
     root = a.root.resolve()
-    boot = Boot(root, (a.out or root / "org").resolve(), apply=a.apply)
+    boot = Boot(root, (a.out or root / "org").resolve(), apply=a.apply,
+                idea_path=a.idea.resolve() if a.idea else None, config_path=a.config.resolve() if a.config else None)
     for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "provision", "start"):
         st = boot.guard(name, getattr(boot, name))
         if name == "read" and st == "blocked" and not hasattr(boot, "idea"):

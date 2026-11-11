@@ -1,0 +1,144 @@
+{
+  "$schema_version": "0.1.0",
+  "runtime": {
+    "provider": "cloudflare",
+    "worker_name": "ultrastable-self",
+    "d1_database": "ultrastable-self",
+    "tick_cron": "*/30 * * * *",
+    "other_runtimes_supported_later": [
+      "gcp-cloud-run",
+      "aws-lambda",
+      "self-hosted"
+    ],
+    "plan": "workers-free"
+  },
+  "roles": [
+    {
+      "id": "portfolio-manager",
+      "count": 1,
+      "instructions": "agents/roles/portfolio-manager.md",
+      "tick_every": 6
+    },
+    {
+      "id": "project-manager",
+      "count": "per_outcome",
+      "instructions": "agents/roles/project-manager.md",
+      "tick_every": 1
+    },
+    {
+      "id": "product-manager",
+      "count": "per_outcome",
+      "instructions": "agents/roles/product-manager.md",
+      "tick_every": 3
+    },
+    {
+      "id": "staff",
+      "count": "pool",
+      "instructions": "agents/roles/staff.md",
+      "tick_every": 1
+    },
+    {
+      "id": "reviewer",
+      "count": "pool",
+      "instructions": "agents/roles/reviewer.md",
+      "tick_every": 1
+    },
+    {
+      "id": "operations",
+      "count": 1,
+      "instructions": "agents/roles/operations.md",
+      "tick_every": 1
+    }
+  ],
+  "model_ladder": {
+    "note": "Self-hosting: the small rung is a free-plan open model on Workers AI, the medium rung a paid model behind an AI Gateway spend limit. The reviewer is always a different model family from the doer.",
+    "tiers": [
+      {
+        "budget_usd_per_month_min": 0,
+        "doer": "small",
+        "reviewer": "small",
+        "manager": "small"
+      },
+      {
+        "budget_usd_per_month_min": 20,
+        "doer": "medium",
+        "reviewer": "small",
+        "manager": "small"
+      },
+      {
+        "budget_usd_per_month_min": 300,
+        "doer": "large",
+        "reviewer": "medium",
+        "manager": "medium"
+      }
+    ],
+    "aliases": {
+      "small": "@cf/zai-org/glm-4.7-flash",
+      "medium": "claude-sonnet-5-5",
+      "large": "claude-opus-5-5"
+    }
+  },
+  "connectors": {
+    "github": {
+      "env": "GITHUB_TOKEN",
+      "required_for": [
+        "repo"
+      ]
+    },
+    "cloudflare": {
+      "env": "CLOUDFLARE_API_TOKEN",
+      "required_for": [
+        "runtime",
+        "dns"
+      ]
+    },
+    "cloudflare_account": {
+      "env": "CLOUDFLARE_ACCOUNT_ID",
+      "required_for": [
+        "runtime"
+      ]
+    },
+    "model_api": {
+      "env": "ANTHROPIC_API_KEY",
+      "required_for": [
+        "agents"
+      ]
+    },
+    "chat": {
+      "env": "CHAT_WEBHOOK_URL",
+      "required_for": [
+        "reports"
+      ],
+      "optional": true
+    }
+  },
+  "capacity": {
+    "plus_share": 0.2,
+    "max_wip_per_role": 2,
+    "fix_only_cycles_before_rebalance": 3
+  },
+  "reporting": {
+    "format": "four-lines",
+    "lines": [
+      "what happened",
+      "what I decided",
+      "what is next",
+      "what is open"
+    ]
+  },
+  "org": {
+    "repos": [
+      "workers",
+      "spec",
+      "license",
+      ".github"
+    ]
+  },
+  "spend_caps": {
+    "hard": true,
+    "usd_per_day": 1.5,
+    "usd_per_month": 30,
+    "usd_per_item": 0.5,
+    "note": "Enforced twice: by core/router (per role, per item, per period) and by a spend limit at the gateway in front of the paid provider. The infrastructure itself runs on the Workers Free plan, which stops at its daily limits instead of billing."
+  }
+}
