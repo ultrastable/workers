@@ -83,7 +83,7 @@ export function createOrg({
     const need = runnerNeeds(config, env, { vcsInjected: !!vcs, appCredentials: appReady });
     if (need.length) return [{ name: 'runner_needs', run: async (_db, ctx) => { await fileRunnerCards(need); ctx.notes.push(`runner skipped: needs ${need.join(', ')}`); } }];
     const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null });
-    const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env });
+    const v = vcs || createGithubVcs({ fetch: doFetch, repo: config.vcs.repo, base: config.vcs.base || 'main', env, tokenEnv: config.vcs?.token_env || 'VCS_TOKEN', ...(!env[config.vcs?.token_env || 'VCS_TOKEN'] && appReady && tokenProvider ? { tokenProvider } : {}) });
     return runnerExtraSteps(createRunner({ db, now: clock, config, env, router: r, claims, vcs: v }));
   }
 
