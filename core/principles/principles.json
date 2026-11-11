@@ -605,11 +605,19 @@
       "what": "A syntax error in tools/self_start.py was merged to main before its tests ran, and a schedule trigger failed the workflow linter after merge.",
       "root_cause": "Merging relied on the author's judgment instead of a required check; pull requests ran no CI.",
       "impact": "The start tool was broken on main for several minutes.",
-      "fix": "Both fixed (#78, #79). Required check before merge is tracked on the cost-control and protocol work.",
+      "fix": "Fixed (#78, #79, #100). Required checks are enforced in code because branch protection is a paid feature on private repositories: tools/safe_merge.py refuses to merge unless the test job passed on the head commit; the loop closer opens an incident when main is red and closes it when ci is green again.",
       "enforced_by": [
         {
           "kind": "test",
           "path": "tests/test_self_start.py"
+        },
+        {
+          "kind": "file",
+          "path": "tools/safe_merge.py"
+        },
+        {
+          "kind": "test",
+          "path": "tests/test_safe_merge.py"
         },
         {
           "kind": "file",
