@@ -96,6 +96,6 @@ test('the built preview bundle is a working Worker with the published hash', { s
   assert.match(mod.MIGRATIONS_SQL, /console_actions/);
   const worker = (await import('data:text/javascript;base64,' + Buffer.from(mod.BUNDLE).toString('base64'))).default;
   const health = await worker.fetch(new Request(U + '/health'), { ORG_SLUG: 'x' });
-  assert.deepEqual(await health.json(), { ok: true, preview: true, org: 'x', last_tick: null, note: 'Preview: scheduled work starts after the account is claimed and the heartbeat is set up.' });
+  assert.deepEqual(await health.json(), { ok: true, preview: true, org: 'x', last_tick: null, note: 'Preview: the heartbeat ticks itself every 5 minutes with a Durable Object alarm; no scheduled trigger is used.' });
   assert.equal((await worker.fetch(new Request(U + '/console'), {})).status, 503, 'console is off without a key');
 });
