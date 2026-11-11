@@ -32,13 +32,20 @@ export function validate(reg) {
     if (d.status === 'enforced' && !(d.enforced_by || []).length) errs.push(`${d.id}: enforced but names no enforcer`);
     if (d.status !== 'enforced' && !Number.isInteger(d.tracking_issue)) errs.push(`${d.id}: ${d.status} directive needs a tracking_issue`);
   }
+  const fids = new Set();
+  for (const f of reg.failures || []) {
+    for (const k of ['id', 'date', 'what', 'root_cause', 'fix', 'closing_probe']) if (!f[k]) errs.push(`${f.id || '?'}: ${k} missing`);
+    if (fids.has(f.id)) errs.push(`duplicate failure: ${f.id}`);
+    fids.add(f.id);
+    if (!(f.enforced_by || []).length) errs.push(`${f.id}: a failure with no enforcing code is an open loop`);
+  }
   return errs;
 }
 
 /** Every named enforcer must exist in the checkout. A directive whose enforcer vanished is an open loop. */
 export function missingEnforcers(reg, root) {
   const missing = [];
-  for (const d of reg.directives || []) for (const e of d.enforced_by || []) {
+  for (const d of [...(reg.directives || []), ...(reg.failures || [])]) for (const e of d.enforced_by || []) {
     if (!existsSync(path.join(root, e.path))) missing.push(`${d.id}: ${e.kind} ${e.path}`);
   }
   return missing;
@@ -73,6 +80,8 @@ export function renderGlossary(reg) {
     const by = d.status === 'enforced' ? d.enforced_by.map(e => `\`${e.path}\``).join(', ') : `${d.enforced_by.map(e => `\`${e.path}\``).join(', ')}${d.enforced_by.length ? '; ' : ''}tracked by #${d.tracking_issue}`;
     lines.push(`| ${d.id} | ${d.owner_words.replace(/\|/g, '/')} | ${d.status} | ${by} |`);
   }
+  lines.push('', '## Failure log', '', 'Failures the system has had, with the code that keeps each from recurring.', '', '| Id | What happened | Root cause | Fixed by |', '|---|---|---|---|');
+  for (const f of reg.failures || []) lines.push(`| ${f.id} | ${f.what} | ${f.root_cause} | ${f.fix} |`);
   lines.push('');
   return lines.join('\n');
 }
