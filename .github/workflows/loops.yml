@@ -1,0 +1,28 @@
+name: loops
+# Closes the loops on this repository's own tracker (tools/loop_closer.py): probes close issues, epics file and tick
+# their own child issues, issues with no probe and no pull request are labelled. Daily, plus on demand and after each merge.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+concurrency:
+  group: loops
+  cancel-in-progress: false
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Close loops
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/loop_closer.py --repo "${{ github.repository }}" --apply | tee -a "$GITHUB_STEP_SUMMARY"

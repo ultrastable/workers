@@ -1,0 +1,41 @@
+{
+  "id": "example",
+  "name": "Example notifier",
+  "version": "0.1.0",
+  "class": "B",
+  "scope": {
+    "does": ["Sends one short notice to each recipient who has confirmed they want it, through the fake channel port"],
+    "does_not": [
+      "Contact anyone who has not confirmed consent or who unsubscribed",
+      "Move money, sign or file anything, or impersonate a person",
+      "Bypass the outbound guard, the caps or a kill switch"
+    ]
+  },
+  "charter": {
+    "objective": "Show the pack contract: a manager, a charter, a guarded loop and an outbound channel",
+    "primary_metric": {
+      "id": "example_notices_7d", "op": ">=", "target": 0,
+      "read_probe": "SELECT COUNT(*) AS value FROM guard_ledger WHERE pack = 'example' AND decision = 'sent' AND at >= datetime('now', '-7 days')"
+    },
+    "guard_metrics": [
+      {
+        "id": "example_refusals_7d", "op": "<=", "target": 50,
+        "read_probe": "SELECT COUNT(*) AS value FROM guard_ledger WHERE pack = 'example' AND decision = 'refused' AND at >= datetime('now', '-7 days')"
+      }
+    ]
+  },
+  "requires": { "ports": ["fake"], "secrets": [], "specs": ["US-SPEC-21"] },
+  "loops": [
+    { "id": "noop-notify", "every_ticks": 1, "entry": "./noop.js#run", "outbound": true }
+  ],
+  "outbound": {
+    "channels": ["fake"],
+    "caps": { "fake": { "per_day": 2, "per_week": 5 } },
+    "consent": "double_opt_in",
+    "suppression": true,
+    "approval": "by_rung"
+  },
+  "migrations": [],
+  "defaults": { "recipients": ["person@example.com"] },
+  "enable_gate": "Turn on the Example notifier? It will send one short notice a day to people who confirmed they want it, through the fake channel. It will not contact anyone else, move money, sign anything or bypass the caps. It costs nothing. Turn it off any time with one action."
+}
