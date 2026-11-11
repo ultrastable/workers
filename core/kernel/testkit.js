@@ -16,6 +16,6 @@ export const probe = (k) => `SELECT v AS value FROM t_vals WHERE k = '${k}'`;
 export const HOUR = 3600e3;
 export const item = (db, id, o = {}) => db.raw.prepare(
   `INSERT INTO items (id, title, owner_role, done_check, priority, status, project, closing_probe, disposition) VALUES (?,?,?,?,?,?,?,?,?)`)
-  .run(id, o.title || id, o.owner_role || 'staff', 'x', o.priority ?? 50, o.status || 'open', o.project ?? null, o.closing_probe ?? 'probe', o.disposition ?? null);
+  .run(id, o.title || id, o.owner_role || 'staff', 'x', o.priority ?? 50, o.status || 'open', o.project ?? null, ('closing_probe' in o ? o.closing_probe : 'probe'), o.disposition ?? null);
 export const one = (db, sql, ...a) => db.raw.prepare(sql).get(...a);
 export const rows = (db, sql, ...a) => db.raw.prepare(sql).all(...a);
