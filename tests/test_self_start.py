@@ -50,6 +50,7 @@ class SelfStart(unittest.TestCase):
             body = gh._i[0]["body"]
             self.assertIn("gh secret set CLOUDFLARE_API_TOKEN -R o/r", body)
             self.assertIn("Closing probe: file_exists:org/started.json", body)
+            self.assertIn("Workers Scripts: Edit", body)
             self.assertFalse((root / "org" / "started.json").exists())
 
     def test_a_second_run_updates_the_same_issue_instead_of_filing_another(self):

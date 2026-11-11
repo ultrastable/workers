@@ -32,6 +32,9 @@ REQUIRED_TO_APPLY = ("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID")
 # repository secret name -> Worker secret name
 WORKER_SECRETS = {"SELF_CONSOLE_TOKEN": "CONSOLE_TOKEN", "SELF_VCS_TOKEN": "VCS_TOKEN", "ANTHROPIC_API_KEY": "ANTHROPIC_API_KEY"}
 STARTED = "org/started.json"
+HINTS = {
+    "CLOUDFLARE_API_TOKEN": "dash.cloudflare.com/profile/api-tokens, Create Token, Custom token. Permissions (Account): Workers Scripts: Edit, D1: Edit, Account Settings: Read. Account resources: include only this account. No zone or user permissions.",
+}
 
 
 def present(env: dict, names) -> list[str]:
@@ -44,7 +47,8 @@ def gate_issue_body(cards: list[dict], repo: str, missing_apply: list[str]) -> s
     if missing_apply:
         lines += ["## Add these repository secrets (identity-bound: only you can create them)", ""]
         for n in missing_apply:
-            lines.append(f"- `{n}`: `gh secret set {n} -R {repo}`")
+            lines.append(f"- `{n}`: `gh secret set {n} -R {repo}`" + (f"
+  - How to create it: {HINTS[n]}" if n in HINTS else ""))
         lines.append("")
     lines += ["## Everything the bootstrapper needs from you", "", "| Step | Why only you | If you do nothing | Closes when |", "|---|---|---|---|"]
     for c in cards:
