@@ -19,6 +19,7 @@ export const MODULES = [
   { id: 'tasks', dir: 'core/tasks/migrations' },
   { id: 'steward', dir: 'adapters/github/migrations' },
   { id: 'agents', dir: 'adapters/cloudflare/agents/migrations' },
+  { id: 'doors', dir: 'core/doors/migrations' }, // last, so earlier migration numbers never shift
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.

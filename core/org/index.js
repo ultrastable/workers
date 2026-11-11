@@ -7,6 +7,8 @@
 // VCS adapter at call time and are never stored or logged here.
 import { runTick } from '../src/tick.js';
 import { handleConsole } from '../src/console.js';
+import { createVault } from '../vault/index.js';
+import { sweepFirstRun } from '../doors/index.js';
 import { L2_EXTRA_STEPS } from '../kernel/index.js';
 import * as claims from '../claims/index.js';
 import { createRouter } from '../router/router.js';
@@ -49,6 +51,9 @@ export function createOrg({
   db, env = {}, config = {}, fetch, now = () => Date.now(), readFile,
   vcs, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
 } = {}) {
+  const vault = createVault({ db });
+  // The env the modules see: real env values win, a vault secret fills a missing name. Never logged or stored.
+  const mergedEnv = async () => { try { return await vault.withVault(env); } catch { return env; } };
   const clock = typeof now === 'function' ? now : () => now;
   const doFetch = fetch || ((...a) => globalThis.fetch(...a));
   const packs = createPacks({ db, now: clock, config: config.packs || {}, channels, ...(importer ? { importer } : {}) });
@@ -78,7 +83,7 @@ export function createOrg({
     }
   }
 
-  function runnerSteps() {
+  function runnerSteps(env) {
     if (config.runner?.enabled !== true) return [];
     const need = runnerNeeds(config, env, { vcsInjected: !!vcs, appCredentials: appReady });
     if (need.length) return [{ name: 'runner_needs', run: async (_db, ctx) => { await fileRunnerCards(need); ctx.notes.push(`runner skipped: needs ${need.join(', ')}`); } }];
@@ -91,7 +96,7 @@ export function createOrg({
   const defaultOutputs = async days => (await db.prepare(`SELECT COUNT(*) AS n FROM items WHERE status = 'done' AND updated_at >= ?`).bind(iso(clock() - days * 86400e3)).first()).n;
 
   // Order: kernel L2, claims, describe, yield, docgate, packs, runner. Each is its own guarded step.
-  function extraSteps() {
+  function extraSteps(env_ = env) {
     const steps = [
       ...L2_EXTRA_STEPS,
       { name: 'claims_reap', run: async (_db, ctx) => { const r = await claims.reapExpired(cctx()); ctx.notes.push(`claims reaped: ${JSON.stringify(r)}`); } },
@@ -104,13 +109,16 @@ export function createOrg({
       name: 'packs',
       run: async (d, ctx) => { for (const s of await packs.packSteps()) await s.run(d, ctx); }, // each pack step guards and records its own failure
     });
-    steps.push(...runnerSteps());
+    steps.push(...runnerSteps(env_));
     return steps;
   }
 
   async function tick() {
     try { appReady = secrets ? await hasAppCredentials(secrets) : false; } catch { appReady = false; }
-    return runTick(db, { config, env: presence(env), now: clock(), extraSteps: extraSteps() });
+    const e = await mergedEnv();
+    // Let an unclaimed first-run window expire (and file its card) even if nobody visits; not a tick step, so the step list is unchanged.
+    if (config.doors) await sweepFirstRun(db, { now: clock(), config: config.doors, hasKey: Boolean(e.CONSOLE_TOKEN) || Boolean(config.doors?.access?.team_domain) }).catch(() => {});
+    return runTick(db, { config, env: presence(e), now: clock(), extraSteps: extraSteps(e) });
   }
 
   async function handle(request) {
@@ -123,7 +131,8 @@ export function createOrg({
     }
     if (githubApp && p.startsWith('/console/github/')) return githubApp(request, url.origin);
     if (p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console')) {
-      return handleConsole(request, { DB: db, CONSOLE_TOKEN: env.CONSOLE_TOKEN }, { org: config.org_slug });
+      const e = await mergedEnv();
+      return handleConsole(request, { DB: db, CONSOLE_TOKEN: e.CONSOLE_TOKEN }, { org: config.org_slug, vault, doors: config.doors, fetch: doFetch, now: clock, envNames: presence(e) });
     }
     if (ROUTES.has(p.replace(/\/+$/, '') || '/')) {
       return describeHandle(request, { db, now: clock(), specStatus: describeSpec, packs: await describePacks(), scope: describeScope, compose, voiceRules: describeVoice });

@@ -3,6 +3,7 @@
 // Guided console (US-SPEC-17). Three screens, buttons first, a prompt box second.
 // The front end is the back end: every action below writes a record the tick already understands.
 import { CONSOLE_HTML } from './console-ui.js';
+import { firstRunState, claimFirstRun, sha256Hex, verifyAccessJwt } from '../doors/index.js';
 
 // Request categories that SCOPE.md puts outside the default product (opt-in Capability Packs only).
 export const OUT_OF_SCOPE = [
@@ -58,7 +59,7 @@ export async function resolveCard(db, id, choice) {
 
 function explainCard(c) {
   const probe = c.closing_probe.startsWith('env:')
-    ? `This needs a value only you can add in your cloud account (${c.closing_probe.slice(4)}). The card closes by itself once it is there.`
+    ? `This needs a value only you can add in your cloud account (${c.closing_probe.slice(4)}). The card closes by itself once it is there. You can paste it on the Connect screen.`
     : 'Press "I did it" when it is done, or "Use the default" to let the work carry on as described.';
   return `${c.what}. If you do nothing: ${c.default_in_effect}. ${probe}`;
 }
@@ -99,34 +100,98 @@ const LOGIN = (msg = '') => `<!doctype html><meta charset=utf-8><meta name=viewp
 <body style="font:16px system-ui;max-width:22rem;margin:4rem auto;padding:0 1rem"><h1 style="font-size:1.3rem">Sign in</h1>${msg ? `<p>${msg}</p>` : ''}
 <form method=post action=/console/login><label>Access key<br><input name=key type=password autocomplete=current-password style="width:100%;padding:.6rem;margin:.4rem 0"></label><button style="padding:.6rem 1rem">Open</button></form></body>`;
 
-/** Route /console and /api/console/*. Returns null when the path is not ours. */
-export async function handleConsole(request, env, { org } = {}) {
+// The connections a person can paste in (names must also be on the vault allowlist). Values never come back.
+export const CONNECTIONS = [
+  { name: 'ANTHROPIC_API_KEY', label: 'Add a model key' },
+  { name: 'VCS_TOKEN', label: 'Add GitHub access' },
+];
+
+async function connections(vault, envNames) {
+  if (!vault) return [];
+  const rows = Object.fromEntries((await vault.names()).map(r => [r.name, r.set_at]));
+  const allowed = vault.allowed();
+  return CONNECTIONS.filter(c => allowed.includes(c.name)).map(c => ({ name: c.name, label: c.label, present: Boolean(rows[c.name] || envNames[c.name]), set_at: rows[c.name] || null }));
+}
+
+const SETUP = (inner, status = 200) => page(`<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><body style="font:16px system-ui;max-width:30rem;margin:4rem auto;padding:0 1rem">${inner}`, status);
+const OFF = () => SETUP('<h1>Console is off</h1><p>Set the CONSOLE_TOKEN secret to turn it on. Until then nobody can open it.</p>', 503);
+const FIRST_RUN = () => SETUP(`<h1>Welcome</h1><p>Press the button to create your private access key. It will be shown once, on the next page. Only the first person to press it gets a key.</p>
+<form method=post action=/console/first-run><button style="padding:.7rem 1.2rem;font-size:1rem">Create my key</button></form>`);
+const KEY_PAGE = key => SETUP(`<h1>Your access key</h1><p><b>This is shown once.</b> Copy it somewhere safe now. It cannot be shown again, and the system keeps only a fingerprint of it.</p>
+<p><input id=k readonly value="${key}" style="width:100%;padding:.6rem;font:14px monospace"></p>
+<p><button id=c style="padding:.6rem 1rem">Copy</button> <a href=/console>Open the console</a></p>
+<script>document.getElementById('c').onclick=function(){var k=document.getElementById('k');k.select();(navigator.clipboard?navigator.clipboard.writeText(k.value):Promise.reject()).catch(function(){document.execCommand('copy')});this.textContent='Copied'}</script>`);
+
+/** Route /console and /api/console/*. Returns null when the path is not ours.
+ *  opts: { org, vault, doors (config.doors; omit = no first-run door), fetch, now, envNames } */
+export async function handleConsole(request, env, { org, vault, doors, fetch: fetchFn, now = () => Date.now(), envNames = {} } = {}) {
   const url = new URL(request.url);
   const p = url.pathname;
   if (!(p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console'))) return null;
-  if (!env.CONSOLE_TOKEN) return page('<!doctype html><meta charset=utf-8><body style="font:16px system-ui;max-width:30rem;margin:4rem auto;padding:0 1rem"><h1>Console is off</h1><p>Set the CONSOLE_TOKEN secret to turn it on. Until then nobody can open it.</p>', 503);
+  const api = p.startsWith('/api/');
+  const isPost = request.method === 'POST';
+  const clock = typeof now === 'function' ? now : () => now;
+  const access = doors?.access?.team_domain && doors?.access?.aud ? doors.access : null;
 
-  if (p === '/console/login' && request.method === 'POST') {
+  // Which door is open? A configured token, else an Access team, else the one-time first-run key (never both with Access).
+  let issuedHash = null;
+  if (!env.CONSOLE_TOKEN && !access) {
+    const fr = doors ? await firstRunState(env.DB, { now: clock(), minutes: doors.first_run_minutes ?? 60 }).catch(() => null) : null;
+    if (fr?.state === 'issued') issuedHash = fr.hash;
+    else if (fr?.state === 'open') {
+      if (isPost && p === '/console/first-run') {
+        const origin = request.headers.get('origin');
+        if (!origin || origin !== url.origin) return Response.json({ error: 'cross-origin request refused' }, { status: 403 });
+        const key = await claimFirstRun(env.DB);
+        if (!key) return SETUP('<h1>Already set up</h1><p>A key was already issued.</p>', 409);
+        const res = KEY_PAGE(key);
+        res.headers.append('set-cookie', `${COOKIE}=${encodeURIComponent(key)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000`);
+        return res;
+      }
+      if (request.method === 'GET' && (p === '/console' || p === '/console/')) return FIRST_RUN();
+      return api ? Response.json({ error: 'console not set up' }, { status: 503 }) : OFF();
+    } else if (fr?.state === 'starting') return SETUP('<h1>Starting up</h1><p>The first check has not run yet. Reload in a minute.</p>', 503);
+    else return OFF();
+  }
+  if (p === '/console/first-run') return Response.json({ error: 'not found' }, { status: 404 });
+
+  const keyOk = async given => {
+    if (!given) return false;
+    if (env.CONSOLE_TOKEN && await tokenOk(given, env.CONSOLE_TOKEN)) return true;
+    return issuedHash ? tokenOk(await sha256Hex(given), issuedHash) : false;
+  };
+
+  if (p === '/console/login' && isPost) {
     const form = await request.formData().catch(() => null);
-    if (form && await tokenOk(form.get('key'), env.CONSOLE_TOKEN)) {
-      return new Response(null, { status: 303, headers: { location: '/console', 'set-cookie': `${COOKIE}=${encodeURIComponent(String(form.get('key')))}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000` } });
+    const given = form ? String(form.get('key') || '') : '';
+    if (await keyOk(given)) {
+      return new Response(null, { status: 303, headers: { location: '/console', 'set-cookie': `${COOKIE}=${encodeURIComponent(given)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000` } });
     }
     return page(LOGIN('That key did not work.'), 401);
   }
-  const authed = await tokenOk(decodeURIComponent(cookie(request, COOKIE) || ''), env.CONSOLE_TOKEN);
-  if (!authed) return p.startsWith('/api/') ? Response.json({ error: 'sign in' }, { status: 401 }) : page(LOGIN(), 401);
+  let authed = await keyOk(decodeURIComponent(cookie(request, COOKIE) || ''));
+  if (!authed && access) authed = await verifyAccessJwt(request.headers.get('cf-access-jwt-assertion'), { ...access, fetch: fetchFn, now: clock() });
+  if (!authed) return api ? Response.json({ error: 'sign in' }, { status: 401 }) : page(LOGIN(), 401);
 
   if (request.method === 'GET' && (p === '/console' || p === '/console/')) return page(CONSOLE_HTML);
-  if (request.method === 'GET' && p === '/api/console') return Response.json(await buildConsole(env.DB, { org }), { headers: { 'cache-control': 'no-store' } });
+  if (request.method === 'GET' && p === '/api/console') {
+    const body = await buildConsole(env.DB, { org });
+    body.connections = await connections(vault, envNames);
+    return Response.json(body, { headers: { 'cache-control': 'no-store' } });
+  }
 
-  if (request.method === 'POST') { // state-changing: same-origin only
+  if (isPost) { // state-changing: same-origin only
     const origin = request.headers.get('origin');
     if (!origin || origin !== url.origin) return Response.json({ error: 'cross-origin request refused' }, { status: 403 });
     const body = await request.json().catch(() => ({}));
     let r;
     if (p === '/api/console/card') r = await resolveCard(env.DB, String(body.id || ''), String(body.choice || ''));
     else if (p === '/api/console/ask') r = await recordAsk(env.DB, body.text);
-    else return Response.json({ error: 'not found' }, { status: 404 });
+    else if (p === '/api/console/secret') {
+      if (!vault) return Response.json({ error: 'secrets cannot be stored here' }, { status: 503 });
+      const out = await vault.put(String(body.name || ''), body.value, { by: 'console' });
+      r = out.error ? { status: 400, body: { error: out.error } } : { status: 200, body: { name: out.name, stored: true } };
+    } else return Response.json({ error: 'not found' }, { status: 404 });
     return Response.json(r.body, { status: r.status });
   }
   return Response.json({ error: 'not found' }, { status: 404 });

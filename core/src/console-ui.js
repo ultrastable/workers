@@ -26,12 +26,12 @@ nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);b
 </style></head><body><main>
 <div class="head"><h1><span class="dot" id="dot"></span><span id="headline">Loading</span></h1><p id="sub"></p></div>
 <div id="say" class="say" hidden></div>
-<section id="s-now"></section><section id="s-needs" hidden></section><section id="s-prog" hidden></section>
+<section id="s-now"></section><section id="s-needs" hidden></section><section id="s-prog" hidden></section><section id="s-connect" hidden></section>
 <h2>Ask for something</h2>
 <div class="chips" id="chips"></div>
 <form class="ask" id="askform"><input id="asktext" maxlength="500" placeholder="Say what you want, in your own words" aria-label="Say what you want"><button>Send</button></form>
 </main>
-<nav role="tablist"><button role="tab" data-t="now" aria-selected="true">Now</button><button role="tab" data-t="needs" aria-selected="false">Needs you</button><button role="tab" data-t="prog" aria-selected="false">Progress</button></nav>
+<nav role="tablist"><button role="tab" data-t="now" aria-selected="true">Now</button><button role="tab" data-t="needs" aria-selected="false">Needs you</button><button role="tab" data-t="prog" aria-selected="false">Progress</button><button role="tab" data-t="connect" aria-selected="false">Connect</button></nav>
 <script>
 var D=null,TAB='now';
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
@@ -49,15 +49,23 @@ function render(){
  list(s,'Needs you',D.needs_you.cards,function(c,i){
   c.appendChild(el('p','',i.what));c.appendChild(el('p','mut','If you do nothing: '+i.default_in_effect));
   if(i.kind==='manual'){var b1=el('button','','I did it');b1.onclick=function(){act(i.id,'done')};var b2=el('button','alt','Use the default');b2.onclick=function(){act(i.id,'default')};c.appendChild(b1);c.appendChild(b2)}
+  if(i.kind==='secret'){var b4=el('button','','Add it in Connect');b4.onclick=function(){show('connect')};c.appendChild(b4)}
   var b3=el('button','alt','What does this mean?');b3.onclick=function(){act(i.id,'explain')};c.appendChild(b3)});
  if(D.needs_you.more)s.appendChild(el('p','mut','And '+D.needs_you.more+' more after these.'));
  var p=document.getElementById('s-prog');p.textContent='';
  list(p,'Finished lately',D.progress.done_lately,function(c,i){c.appendChild(el('p','',i.title));c.appendChild(el('p','mut',i.updated_at))});
  p.appendChild(el('h2','','How well it predicts'));var pr=D.progress.predictions;var c1=el('div','card');c1.appendChild(el('p','',pr.scored?('It called '+pr.hit+' of '+pr.scored+' outcomes right.'):'Nothing scored yet.'));p.appendChild(c1);
  list(p,'Where it acts on its own',D.progress.autonomy,function(c,i){c.appendChild(el('p','',i.surface+': '+i.action_class));c.appendChild(el('p','mut','Level: '+i.rung))});
+ renderConnect();
  var ch=document.getElementById('chips');ch.textContent='';D.suggestions.forEach(function(q){var b=el('button','alt',q);b.onclick=function(){chip(q)};ch.appendChild(b)});
  show(TAB)}
-function show(t){TAB=t;['now','needs','prog'].forEach(function(k){document.getElementById('s-'+k).hidden=(k!==t)});document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.t===t))})}
+var HELP={ANTHROPIC_API_KEY:'This lets the system ask a language model to write and review work. You get the key from the account page of your model provider, under API keys. Paste it here once; it is kept private and never shown again.',VCS_TOKEN:'This lets the system open draft pull requests on your code host. Create a fine-grained access token limited to your repositories, with permission to read and write contents and pull requests, then paste it here once. It is never shown again.',OPENAI_API_KEY:'A key from your model provider account.'};
+function renderConnect(){var s=document.getElementById('s-connect');s.textContent='';s.appendChild(el('h2','','Connect'));var L=D.connections||[];if(!L.length)s.appendChild(el('p','mut','Nothing to connect here.'));
+ L.forEach(function(k){var c=el('div','card');c.appendChild(el('p','',k.label));c.appendChild(el('p','mut',k.present?('Connected'+(k.set_at?' ('+k.set_at+')':'')+'. Paste a new value to replace it.'):'Not connected yet.'));c.appendChild(el('p','mut',HELP[k.name]||''));
+  var f=el('form');var inp=el('input');inp.type='password';inp.autocomplete='off';inp.setAttribute('aria-label',k.label);inp.style.cssText='width:100%;padding:.6rem;margin:.4rem 0;font:inherit';var b=el('button','','Save');f.appendChild(inp);f.appendChild(b);
+  f.onsubmit=function(e){e.preventDefault();var v=inp.value.trim();if(!v)return;post('/api/console/secret',{name:k.name,value:v}).then(function(r){inp.value='';say(r.ok?'Saved. It is stored privately and will not be shown again.':(r.j.error||'Could not save.'));load()})};
+  c.appendChild(f);s.appendChild(c)})}
+function show(t){TAB=t;['now','needs','prog','connect'].forEach(function(k){document.getElementById('s-'+k).hidden=(k!==t)});document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.t===t))})}
 function chip(q){if(q.indexOf('need from me')>-1)show('needs');else if(q.indexOf('stuck')>-1)show('now');else show('prog');window.scrollTo(0,0)}
 function act(id,choice){post('/api/console/card',{id:id,choice:choice}).then(function(r){if(r.j.explain)say(r.j.explain);else if(!r.ok)say(r.j.error||'Something went wrong.');else say('Done.');load()})}
 function load(){fetch('/api/console').then(function(r){if(r.status===401){location.href='/console';return null}return r.json()}).then(function(j){if(j){D=j;render()}})}
