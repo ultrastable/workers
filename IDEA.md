@@ -22,7 +22,7 @@ Each line becomes a project with a product manager. Write outcomes, not tasks; t
 
 - A landing page that explains the idea and collects interest
 - A booking prototype that ten neighbours try
-- A one-page plan for funding the first hundred tools
+- A written specification of how booking, deposits and returns work, which the neighbours can read and correct
 
 # Constraints
 

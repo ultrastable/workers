@@ -127,12 +127,8 @@
   },
   "org": {
     "repos": [
-      "site",
-      "docs",
-      "ip",
-      "platform",
-      "seed",
-      "business",
+      "spec",
+      "app",
       ".github"
     ]
   }
