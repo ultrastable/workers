@@ -1,0 +1,5 @@
+[
+  { "name": "core", "cmd": "node --test --no-warnings \"core/**/*.test.js\" \"packs/**/*.test.js\"" },
+  { "name": "adapters", "cmd": "node --test --no-warnings \"adapters/github/*.test.js\" \"adapters/mcp/*.test.js\" \"adapters/shared/*.test.js\" \"adapters/cloudflare/agents/*.test.js\" \"adapters/cloudflare/containers/*.test.js\"" },
+  { "name": "tools", "cmd": "python -m unittest discover tests" }
+]
