@@ -27,7 +27,7 @@ jobs:
         with: { python-version: "3.12" }
       - name: Workflow lint (cost and security rules, US-SPEC-24)
         run: python tools/workflow_lint.py
-      - run: node --test --no-warnings "core/**/*.test.js"
+      - run: node --test --no-warnings "core/**/*.test.js" "packs/**/*.test.js"
       - run: python -m unittest discover tests
       - run: node --test --no-warnings adapters/gcp/test/*.js
       - run: cd runtimes/python && python -m unittest discover tests
