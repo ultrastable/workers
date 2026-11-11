@@ -22,11 +22,11 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | doc-gate (documents tied to work) | 14k | 20 | `core/docgate` | BUILT (this change): storage-agnostic store port |
 | code-orchestrator (issue to tested, merged PR) | 1.3M | 959 | `core/codeloop` | PLANNED, extraction order 5 |
 | ai-calibration (probe every model endpoint) | 388k | 351 | `core/router` calibration submodule | PLANNED, order 6 |
-| observability (trace ingest, scorers) | 162k | 231 | `core/observe` | PLANNED, order 7 |
+| observability (trace ingest, scorers) | 162k | 231 | `core/observe` | BUILT (ingest, error ratio, p95, degraded-source items, secret scrubbing); QNFO scorer chains stay QNFO |
 | memory-mcp (code topology graph, blast radius) | 224k | 91 | `core/graph` | PLANNED, order 8 |
 | cloud-ops (task runner, owner-step watch) | 985k | 615 | `core/tasks` | PLANNED, order 9 |
 | github-steward (issue ledger mirror) | 414k | 361 | `adapters/github` | PLANNED, order 10 |
-| intent-orchestrator (request to issue) | 92k | 76 | `core/intent` | PLANNED, order 11 |
+| intent-orchestrator (request to issue) | 92k | 76 | `core/intent` | BUILT (submit: filed, duplicate, rejected, gated) |
 | tools-mcp (MCP server for agent clients) | 107k | 101 | `adapters/mcp` | PLANNED, order 12 |
 | agents (Agents SDK runtime) | 2.9M | 180 | `adapters/cloudflare/agents` | PLANNED, order 13 (mostly vendored SDK; do not copy vendor code) |
 | containers-pilot (container executor) | 49k | 49 | `adapters/cloudflare/containers` | PLANNED, order 14 |
@@ -47,6 +47,10 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | 8 `personal` workers and `docs/` (business plan, career, closeouts, handoffs) | Never copied. Private to the owner |
 | `archive/`, `audits/`, `papers/`, `research-code/`, `funding/`, `android-me/`, branch-cleanup files | Not product. Not copied |
 | `QNFO/qnfo-fleet-dashboard` repository | Source for `apps/console` extraction (order 16). 32 files, QNFO-styled |
+
+## Disposition of what remains (no silent drops)
+
+Each PLANNED row above is an open extraction item: owner role `project-manager`, trigger = the previous row's module merged, closing probe = module README lists every requirement BUILT or NOT COVERED, module tests pass, `core/test/no-qnfo.test.js` green. Remaining: code-orchestrator, ai-calibration, memory-mcp, cloud-ops, github-steward, tools-mcp, agents, containers-pilot, infra, fleet-dashboard, 10 core scripts, 7 core workflows. These are the largest units (1 to 3 MB each) and are rewritten module by module, not copied.
 
 ## Rules this inventory enforces
 
