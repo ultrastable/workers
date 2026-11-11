@@ -5,6 +5,6 @@
 * **Policy as code**: `ultrastable/data/policy.json` is read, never written, by the loop. Scope widening past `max_auto_rung` opens a gate card.
 * **Standing limits** (always win over trust): harness permission checks, secret lock, outreach consent/suppression, owner override, live claims.
 * **Audit trail**: every execution, gate, rung change and rule amendment is an `events` row.
-* **Reporting**: security issues to security@ultrastable.io [domain mail to be confirmed].
+* **Reporting**: security issues to rowan.quni@qnfo.org (see ../SECURITY.md).
 
 Not yet done: per-user auth, tenant isolation, encrypted-at-rest store, third-party penetration test.
