@@ -30,6 +30,14 @@ Site and app builders are friendly but boxed in by what they can do. Coding agen
 
 Integration is at the level of records, not lock-in: the console is a replaceable view, and everything the person owns is available as plain files and records.
 
+## Platform: built for Cloudflare Workers, and it says so
+
+Ultrastable is built for **Cloudflare Workers**. It is the only supported platform. We chose it because a free account is a hard cap, a person can start with no account at all, and one account holds the code, database, timer, AI models and identity gate. We proved it runs there and we publish the limits we hit. A Google Cloud Run adapter exists to show the design is not welded to one vendor; it is a proof, not a promise. Self-hosted, AWS and Azure are not targets. The reasons, a comparison with the alternatives, and the limits of Workers are in [docs/why-cloudflare.md](docs/why-cloudflare.md).
+
+## No terminal required
+
+The first step is never "open a terminal". There are three doors ([US-SPEC-19](specs/US-SPEC-19-front-door.md)): a web page for anyone, one prompt pasted into an AI assistant for people who use one, and a developer path. All end at the same checks and the same three-screen console.
+
 ## What it does not do by default (out of scope)
 
 Unless the person turns on a Capability Pack (below), Ultrastable does **not**:
@@ -79,7 +87,7 @@ If any answer is no, it is not core. It becomes a Capability Pack proposal, file
 
 ## Branding line
 
-> Say what you want. Ultrastable works out what it needs to know, writes the specifications, and builds and runs it, managed to the standard of a professional project office.
+> Say what you want. Ultrastable works out what it needs to know, writes the specifications, and builds and runs it on Cloudflare Workers, managed to the standard of a professional project office. No code and no terminal.
 
 ## What QNFO is, for scope purposes
 
