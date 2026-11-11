@@ -328,6 +328,17 @@ export function createRunner({ db, now = () => Date.now(), config = {}, env = {}
           if (s.ok) { out.started = s.run_id; break; }
           if (s.reason === 'max_wip') break;
         }
+      } else if (probe.refusal === 'role_not_allowed') {
+        // Only a model too weak for code changes is configured: ask for a stronger one instead of opening a bad PR.
+        const next = await first(`SELECT id FROM items WHERE status = 'ready' AND owner_role = 'staff'
+          AND id NOT IN (SELECT item_id FROM claims) AND id NOT IN (SELECT item_id FROM runner_runs WHERE state NOT IN ('refused','pr_opened'))
+          ORDER BY priority, created_at LIMIT 1`);
+        if (next) {
+          await card(`runner-${next.id}-stronger-model`, `A stronger model is needed for code changes (${next.id})`,
+            'only a small keyless model is configured and the router refuses it for the doer role; add a provider key for a stronger model in the console, or allow the role in router.rung_roles');
+          await run(`UPDATE items SET status = 'blocked', blocker = ?, updated_at = ? WHERE id = ?`, `a stronger model is needed for code changes: see decision card runner-${next.id}-stronger-model`, iso(now()), next.id);
+          out.errors.push('doer refused: stronger model needed for ' + next.id);
+        } else out.errors.push('not selecting: router role_not_allowed');
       } else out.errors.push('not selecting: router ' + probe.refusal);
     }
     return out;

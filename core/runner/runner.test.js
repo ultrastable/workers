@@ -289,3 +289,13 @@ test('plugs into runTick through extraSteps next to the seed steps', async () =>
   assert.deepEqual(result.errors, []);
   assert.equal(result.total, 8);
 });
+
+test('only a keyless small model configured: the item becomes a decision card, no PR', async () => {
+  const { db, vcs, router, runner } = setup();
+  router.route = async () => ({ ok: false, refusal: 'role_not_allowed' });
+  await runner.step();
+  const card = db.raw.prepare(`SELECT what FROM gate_cards WHERE id = 'runner-US-SPEC-11-1-stronger-model'`).get();
+  assert.match(card.what, /stronger model is needed for code changes/);
+  assert.equal(db.raw.prepare(`SELECT status FROM items WHERE id = 'US-SPEC-11-1'`).get().status, 'blocked');
+  assert.equal(vcs.prs.length, 0); assert.equal(runs(db).length, 0);
+});

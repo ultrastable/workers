@@ -3,5 +3,6 @@
 // Provider adapter registry. Add an adapter by adding a module exporting buildRequest and parseResponse.
 import * as openai from './openai.js';
 import * as anthropic from './anthropic.js';
+import * as workers_ai from './workers-ai.js';
 
-export const ADAPTERS = { openai, anthropic };
+export const ADAPTERS = { openai, anthropic, workers_ai };

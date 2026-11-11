@@ -40,3 +40,14 @@ Configuration: see `example-config.json` (generic `provider-a`/`provider-b`). Mi
 | US-09-R15 loop breaker | NOT COVERED | |
 
 Not built: L0 deterministic handlers, L1 cache, ensemble, distillation, draft-then-verify, persisted capability matrix.
+
+## Workers AI provider (keyless first rung)
+
+A provider with `kind: "workers_ai"` calls the Workers AI binding (`env.AI.run(model, { messages, max_tokens })`), injected as the `ai` port. It needs no key and no payment: set `key_env` to `null`, give the models zero prices, and name the model ids in config. Usage is still written to `router_calls` (tokens as reported, or estimated at 4 characters per token), cost is 0, so the yield module sees it. A binding error takes the normal fallback path to the next provider.
+
+```json
+"edge": { "kind": "workers_ai", "key_env": null, "family": "open-weights",
+  "models": { "small": { "id": "<model id>", "capabilities": ["json"], "usd_per_1k_in": 0, "usd_per_1k_out": 0 } } }
+```
+
+Quality guard: `router.rung_roles` maps a provider kind to the roles it may serve. Default for `workers_ai`: triage, review, reviewer, management, manager. The doer role is refused (`role_not_allowed`) unless config adds `"doer"`. When the runner has ready work and only such a provider exists, it files the decision card "a stronger model is needed for code changes" and blocks the item instead of opening a poor pull request. `runnerNeeds` treats the `AI` binding as satisfying the provider requirement.

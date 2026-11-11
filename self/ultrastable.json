@@ -78,6 +78,36 @@
       "large": "claude-opus-5-5"
     }
   },
+  "router": {
+    "rungs": ["small", "medium", "large"],
+    "fallbacks": ["edge", "paid"],
+    "providers": {
+      "edge": {
+        "kind": "workers_ai",
+        "key_env": null,
+        "family": "open-weights",
+        "models": {
+          "small": { "id": "@cf/zai-org/glm-4.7-flash", "capabilities": ["json"], "usd_per_1k_in": 0, "usd_per_1k_out": 0, "context": 128000 }
+        }
+      },
+      "paid": {
+        "kind": "anthropic",
+        "base_url": "https://api.anthropic.com/v1",
+        "key_env": "ANTHROPIC_API_KEY",
+        "family": "claude",
+        "models": {
+          "medium": { "id": "claude-sonnet-5-5", "capabilities": ["json", "tools", "long-context"], "usd_per_1k_in": 0.003, "usd_per_1k_out": 0.015, "context": 200000 },
+          "large": { "id": "claude-opus-5-5", "capabilities": ["json", "tools", "long-context"], "usd_per_1k_in": 0.015, "usd_per_1k_out": 0.075, "context": 200000 }
+        }
+      }
+    },
+    "rung_roles": { "workers_ai": ["triage", "review", "reviewer", "management", "manager"] },
+    "caps": [
+      { "scope": "total", "period": "day", "soft_usd": 1, "hard_usd": 1.5 },
+      { "scope": "total", "period": "month", "soft_usd": 20, "hard_usd": 30 }
+    ],
+    "default_max_tokens": 1024
+  },
   "connectors": {
     "github": {
       "env": "GITHUB_TOKEN",
