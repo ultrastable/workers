@@ -11,3 +11,5 @@
 6. **Generated files.** Adding a module migration directory means registering it in `core/org/modules.js` and running `node tools/build_migrations.mjs`, or the drift test fails.
 7. **Actions minutes.** Workflow templates are manual-only and live outside `.github/workflows/`; a test lints them and rejects `schedule:`.
 8. **Honest checks.** An early draft of the PR-lane template hard-coded `checks: success`; it now reads the real check runs. A gate that assumes success is not a gate.
+9. **Cutover is configuration plus a contract (2026-11-11).** Cutting over needs only two new artifacts: an instance file that holds every tenant value, and a parity contract run against both sides. Both are tested here with fake servers, so the gate logic is proven before any account exists. See `docs/cutover/PLAN.md`.
+10. **A validator can enforce the no-single-route rule.** `instance_config.mjs` rejects an instance with fewer than two routes and rejects secret values in secret slots, so the rules are checked, not remembered.
