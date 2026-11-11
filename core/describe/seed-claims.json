@@ -1,0 +1,58 @@
+[
+  {
+    "id": "operation.tick-running",
+    "text": "As of {date}, the heartbeat completed {value} full tick(s) in the last day.",
+    "probe": "sql:SELECT COUNT(*) AS value FROM tick_runs WHERE finished_at >= datetime({now}, '-1 day') AND steps_completed = steps_total",
+    "expect": ">=1",
+    "max_age_hours": 2,
+    "public": 1
+  },
+  {
+    "id": "performance.predictions-scored",
+    "text": "As of {date}, {value} predictions have been scored against what happened.",
+    "probe": "sql:SELECT COUNT(*) AS value FROM predictions WHERE verdict IS NOT NULL",
+    "expect": ">=0",
+    "max_age_hours": 24,
+    "public": 1
+  },
+  {
+    "id": "capabilities.built",
+    "text": "As of {date}, {value} specified capabilities are marked BUILT.",
+    "probe": "spec:BUILT",
+    "expect": ">=1",
+    "max_age_hours": 48,
+    "public": 1
+  },
+  {
+    "id": "limits.planned",
+    "text": "As of {date}, {value} specified capabilities are still PLANNED and not built: {names}.",
+    "probe": "spec:PLANNED",
+    "expect": ">=0",
+    "max_age_hours": 48,
+    "public": 1
+  },
+  {
+    "id": "limits.open-items",
+    "text": "As of {date}, {value} work items are blocked or open as known risks.",
+    "probe": "sql:SELECT COUNT(*) AS value FROM items WHERE status = 'blocked'",
+    "expect": ">=0",
+    "max_age_hours": 24,
+    "public": 1
+  },
+  {
+    "id": "packs.enabled",
+    "text": "As of {date}, {value} capability packs are enabled: {names}.",
+    "probe": "sql:SELECT COUNT(*) AS value, COALESCE(group_concat(substr(key, 6), ', '), 'none') AS names FROM org WHERE key LIKE 'pack:%' AND value = 'enabled'",
+    "expect": ">=0",
+    "max_age_hours": 24,
+    "public": 1
+  },
+  {
+    "id": "scope.out-of-scope",
+    "text": "The scope file states what is not done by default.",
+    "probe": "file:SCOPE.md",
+    "expect": "contains:What it does not do",
+    "max_age_hours": 168,
+    "public": 1
+  }
+]

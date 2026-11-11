@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "banned": ["world-class", "revolutionary", "cutting-edge", "best-in-class", "game-changing", "seamless", "effortless", "guaranteed", "state-of-the-art", "unlock the power"],
+  "out_of_scope": [
+    { "pack": "outreach", "terms": ["marketing", "outreach", "sales campaign", "social account", "social media"] },
+    { "pack": "drafts", "terms": ["business plan", "patent", "trademark", "pitch deck", "funding application"] },
+    { "pack": "advice", "terms": ["legal advice", "tax advice", "investment advice", "medical advice"] },
+    { "pack": "money", "terms": ["hires people", "pays contractors", "moves money", "transfers funds"] },
+    { "pack": "research", "terms": ["writes papers", "research papers"] }
+  ],
+  "negation": ["not", "never", "no", "without", "out of scope", "off by default", "planned"]
+}
