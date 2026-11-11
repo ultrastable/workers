@@ -28,5 +28,6 @@ Each directory here is one module of the Ultrastable core, written to the specif
 | `packs` | capability packs and the outbound guard, US-SPEC-21 | BUILT (see its README) |
 | `packs/email` | email list pack, class B, US-SPEC-21 | BUILT (see its README) |
 | `packs/social` (pack, outside core) | claim-backed public posting through the guard, US-SPEC-21 class B | BUILT (see `packs/social/README.md`) |
+| `org` | composition root: one tick runs every loop, one handle serves every route; the Worker and Cloud Run call it | BUILT (see its README) |
 | rest | see [extraction/INVENTORY.md](../extraction/INVENTORY.md) | PLANNED |
 | `principles/` | Principles register: tagline, glossary, owner directives with their enforcers; renders `docs/GLOSSARY.md` | US-SPEC-23, BUILT |
