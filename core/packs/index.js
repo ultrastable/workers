@@ -11,12 +11,14 @@ import { registerMetric } from '../kernel/metrics.js';
 import { recordDecision } from '../kernel/decisions.js';
 import { validateManifest, parseEntry } from './manifest.js';
 import { sandboxDb, sandboxCtx, freezeGuard, scanPackSource } from './sandbox.js';
+import { applyPackMigrations, scanPackDirs } from './loader.js';
 import { createGuard, sha256, setSwitch, engagedSwitches, rungCeilings, DEFAULT_RUNGS } from './guard.js';
 
 export * from './manifest.js';
 export * from './guard.js';
 export { assertCoreImportsNoPacks } from './static-check.js';
 export * from './sandbox.js';
+export * from './loader.js';
 export const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations/', import.meta.url));
 
 export function loadManifest(dir) { return JSON.parse(readFileSync(path.join(dir, 'pack.json'), 'utf8')); }
@@ -53,6 +55,17 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
     return { ok: true, hash };
   }
 
+  // Find packs by scanning a directory (one subdirectory per pack, each with pack.json). Registers every valid pack; never enables.
+  async function loadFromDir(root) {
+    const { found, failed } = scanPackDirs(root);
+    const registered = [];
+    for (const f of found) {
+      const r = await register(f.manifest, { dir: f.dir });
+      if (r.ok) registered.push(f.manifest.id); else failed.push({ dir: f.dir, id: f.manifest && f.manifest.id, errors: r.errors });
+    }
+    return { registered, failed };
+  }
+
   // US-21-R01, R04: a recorded decision, then the manager role, charter, guard metrics and a plus item in the kernel records.
   async function enablePack(id, { by, cardText } = {}) {
     const r = await row(id);
@@ -60,6 +73,9 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
     const m = JSON.parse(r.manifest_json);
     if (!by || !String(by).trim()) return { ok: false, reason: 'enabled_by_required' };
     if (!cardText || String(cardText).trim() !== m.enable_gate.trim()) return { ok: false, reason: 'card_text_mismatch' };
+    // The pack's own tables exist before its loops can run; a refused or failed migration leaves the pack disabled.
+    const mig = await applyPackMigrations(db, m, r.source_dir, now);
+    if (!mig.ok) return { ok: false, reason: mig.reason, errors: mig.errors };
     const t = now();
     const decisionId = `pack-enable-${id}-${t}`;
     const kernel = await hasTable(db, 'kernel_programs');
@@ -86,7 +102,7 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
       managerRole(id), managerRole(id), null, 1, config.manager_model || 'default');
     await run(db, `UPDATE packs_registry SET enabled = 1, enabled_by = ?, enabled_at = ?, card_text_shown = ?, decision_id = ?, disabled_at = NULL WHERE id = ?`,
       String(by), iso(t), String(cardText), decisionId, id);
-    return { ok: true, decisionId, kernelRecords: kernel };
+    return { ok: true, decisionId, kernelRecords: kernel, migrations: mig.applied };
   }
 
   // One action, fully reversible; the pack's loops stop on the next tick and the guard refuses its sends at once.
@@ -152,7 +168,7 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
   }
 
   return {
-    guard, register, enablePack, disablePack, packSteps, boundGuard,
+    guard, register, loadFromDir, enablePack, disablePack, packSteps, boundGuard,
     setSwitch: (scope, on, reason) => setSwitch(db, scope, on, reason, now()),
     status: async () => all(db, `SELECT id, class, enabled, enabled_by, enabled_at, decision_id, rung_ceiling FROM packs_registry ORDER BY id`),
   };
