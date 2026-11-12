@@ -1,0 +1,62 @@
+{
+  "id": "cloud",
+  "name": "Cloud operations",
+  "version": "0.1.0",
+  "class": "D",
+  "scope": {
+    "does": [
+      "Deploys versions of the organization's own units to Cloudflare or Google Cloud, only through the canonical deploy path in core/deploy (lock, live-version check, probes, rollback)",
+      "Queues each deploy request once, runs it through the outbound guard, and records the ledger result next to the request",
+      "Compares each unit's live version with the deploy ledger and files an item when something changed outside the path",
+      "Reports kept, reverted and failed deploys as the pack's own metrics"
+    ],
+    "does_not": [
+      "Deploy any unit that is not on the configured unit list, or to a provider that is not configured",
+      "Create billing accounts, raise spend limits, buy resources or move money",
+      "Change DNS, permissions, credentials or organization policy",
+      "Store or print a credential value: secrets are referred to by name only",
+      "Bypass core/deploy, the guard, the caps or a kill switch"
+    ]
+  },
+  "charter": {
+    "objective": "Ship the organization's units to its cloud accounts only through the canonical deploy path, and notice any change made outside it",
+    "primary_metric": {
+      "id": "cloud_deploys_kept_7d", "op": ">=", "target": 1,
+      "read_probe": "SELECT COUNT(*) AS value FROM cloud_requests WHERE status = 'deployed' AND finished_at >= datetime('now', '-7 days')"
+    },
+    "guard_metrics": [
+      {
+        "id": "cloud_unlogged_changes", "op": "<=", "target": 0,
+        "read_probe": "SELECT COUNT(*) AS value FROM cloud_units WHERE consistent = 0"
+      },
+      {
+        "id": "cloud_failed_or_reverted_7d", "op": "<=", "target": 2,
+        "read_probe": "SELECT COUNT(*) AS value FROM cloud_requests WHERE status IN ('reverted','failed') AND finished_at >= datetime('now', '-7 days')"
+      }
+    ]
+  },
+  "requires": {
+    "ports": ["deploy_cloudflare", "deploy_gcp", "artifacts"],
+    "secrets": ["CLOUDFLARE_API_TOKEN", "GCP_SERVICE_ACCOUNT_KEY"],
+    "specs": ["US-SPEC-21", "US-SPEC-07", "US-SPEC-14", "US-SPEC-06"]
+  },
+  "loops": [
+    { "id": "apply", "every_ticks": 1, "entry": "./apply.js#applyLoop", "outbound": true },
+    { "id": "inventory", "every_ticks": 6, "entry": "./inventory.js#inventoryLoop", "outbound": false },
+    { "id": "metrics", "every_ticks": 6, "entry": "./inventory.js#metricsLoop", "outbound": false }
+  ],
+  "outbound": {
+    "channels": ["cloud"],
+    "caps": { "cloud": { "per_day": 10, "per_week": 40 } },
+    "consent": "none",
+    "suppression": true,
+    "approval": "by_rung"
+  },
+  "migrations": ["./migrations/0001_cloud.sql"],
+  "defaults": {
+    "providers": ["cloudflare", "gcp"],
+    "units": [],
+    "max_backlog": 10
+  },
+  "enable_gate": "Turn on Cloud operations? It will deploy versions of your own units to Cloudflare or Google Cloud, only through the checked deploy path: lock, version check, health probes and automatic rollback. Up to 10 deploys a day and 40 a week, only for units you list. Until it has earned trust, each deploy waits here as a card for you to approve. It will not create billing, raise spend, buy resources, change DNS, permissions or credentials, or deploy anything not on your list. It costs your cloud providers' normal usage fees. Turn it off any time with one action."
+}

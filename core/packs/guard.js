@@ -142,7 +142,8 @@ export function createGuard({ db, now = Date.now, config = {}, channels = {} }) 
   async function decide(queueId, by, approve) {
     const q = await first(db, `SELECT * FROM guard_queue WHERE id = ?`, queueId);
     if (!q || q.status !== 'pending') return { decision: 'refused', reason: 'not_pending' };
-    const req = { pack: q.pack, channel: q.channel, kind: q.kind, recipient: q.recipient, content: q.content, idempotencyKey: q.idem_key };
+    // A queued entry already passed the class D deploy-route check when it was queued, so approval keeps that route.
+    const req = { pack: q.pack, channel: q.channel, kind: q.kind, recipient: q.recipient, content: q.content, idempotencyKey: q.idem_key, viaDeploy: true };
     const hashes = { recipient: q.recipient_hash, content: q.content_hash };
     let out;
     if (!approve) out = { decision: 'refused', reason: 'approval_rejected', id: await record(req, 'refused', 'approval_rejected', null, hashes) };
