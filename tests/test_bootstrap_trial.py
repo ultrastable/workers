@@ -38,7 +38,7 @@ class BootstrapTrial(unittest.TestCase):
         self.assertIn("{d1_database_id}", self.cfg)
         src = (ROOT / "bootstrap/bootstrap.py").read_text(encoding="utf-8")
         self.assertIn('.replace("{d1_database_id}", db_id)', src)
-        self.assertLess(src.index('"migrations", "apply"'), src.index('"wrangler", "deploy"'))
+        self.assertLess(src.index('"migrations", "apply"'), src.index('"wrangler", "deploy"]'))
 
     def test_dry_run_writes_no_secret(self):
         for f in (self.tmp / "out").rglob("*"):

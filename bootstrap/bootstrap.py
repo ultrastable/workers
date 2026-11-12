@@ -103,13 +103,26 @@ def budget_from(idea: dict) -> float:
     return 0.0
 
 
+def temporary_wrangler(text: str) -> str:
+    """Variant of the rendered wrangler.jsonc that a temporary Cloudflare account accepts (issue #22, trial findings 1, 3):
+    no cron (temporary accounts allow no triggers), workers_dev on (the only address it gets), and no database_id so
+    `wrangler deploy --temporary` creates the database."""
+    out = ladder.render_wrangler(text, "alarm")  # no cron: the Heartbeat Durable Object alarm ticks the Worker
+    out = re.sub(r'\n[ \t]*"triggers":\s*\{[^}]*\},?', "", out)
+    out = re.sub(r',\s*"database_id":\s*"[^"]*"', "", out)
+    out = out.replace('"workers_dev": false', '"workers_dev": true')
+    return out
+
+
 def fill(template: str, values: dict) -> str:
     return re.sub(r"\{(\w+)\}", lambda m: str(values.get(m.group(1), m.group(0))), template)
 
 
 class Boot:
-    def __init__(self, root: Path, out: Path, apply: bool, idea_path: Path | None = None, config_path: Path | None = None, interactive: bool = False):
+    def __init__(self, root: Path, out: Path, apply: bool, idea_path: Path | None = None, config_path: Path | None = None, interactive: bool = False,
+                 temporary: bool = False, console_key_file: Path | None = None):
         self.root, self.out, self.apply, self.interactive = root, out, apply, interactive
+        self.temporary, self.console_key_file = temporary, console_key_file
         self.idea_path, self.config_path = idea_path, config_path  # optional overrides, so one repo can boot a different org (self-hosting)
         self.log: list[dict] = []
         self.state: dict = {"blocked_items": [], "gate_cards": []}
@@ -289,7 +302,8 @@ class Boot:
         values.setdefault("tick_mode", "cron")
         self.runtime = values
         worker = self.root / "adapters" / "cloudflare"
-        (worker / "wrangler.jsonc").write_text(fill((worker / "wrangler.template.jsonc").read_text(), values))
+        rendered = fill((worker / "wrangler.template.jsonc").read_text(), values)
+        (worker / "wrangler.jsonc").write_text(temporary_wrangler(rendered) if self.temporary else rendered)
         cfg = {
             "org_slug": self.slug,
             "claim_ttl_minutes": 120,
@@ -382,6 +396,8 @@ class Boot:
 
     def ladder(self):
         """Try the bootstrap ladder (docs/BOOTSTRAP-LADDER.md) before provisioning: connect, temporary, scoped token."""
+        if self.temporary:
+            return "ok", "temporary route chosen with --temporary: the ladder is not needed (alarm tick, no account credential)"
         have_wrangler = bool(self.tools.get("wrangler"))
         # A dry run never downloads or starts anything: it only asks an already-installed wrangler.
         usable = have_wrangler or (self.apply and bool(self.tools.get("npx")))
@@ -405,8 +421,49 @@ class Boot:
             return subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout)
         except (OSError, subprocess.TimeoutExpired) as e:  # a missing or hung tool is a failed rung, not a crash
             return subprocess.CompletedProcess(cmd, 127, "", f"{type(e).__name__}: {e}")
+    def console_token(self) -> str | None:
+        """The console key for a temporary deploy. Taken from ULTRASTABLE_CONSOLE_TOKEN, else generated and written (mode 600)
+        to --console-key-file so the person can read it once. Never printed, logged or put on a command line."""
+        env = os.environ.get("ULTRASTABLE_CONSOLE_TOKEN")
+        if env:
+            return env
+        if not self.console_key_file:
+            return None
+        import secrets
+        tok = secrets.token_urlsafe(24)
+        self.console_key_file.write_text(tok + "\n")
+        try:
+            self.console_key_file.chmod(0o600)
+        except OSError:
+            pass
+        return tok
+
+    def provision_temporary(self):
+        """Deploy to a temporary Cloudflare account with no manual edits (issue #22): the rendered config is already the
+        temporary variant; secrets and migrations use the --temporary flag, in the order the 2026-11-11 trial needed."""
+        worker = self.root / "adapters" / "cloudflare"
+        db = "DB"
+        plan = [
+            (["npx", "wrangler", "deploy", "--temporary"], None),
+            (["npx", "wrangler", "d1", "migrations", "apply", db, "--temporary"], None),
+            (["npx", "wrangler", "d1", "execute", db, f"--file={self.out / 'seed.sql'}", "--temporary"], None),
+            (["npx", "wrangler", "secret", "put", "CONSOLE_TOKEN", "--temporary"], "token"),
+        ]
+        self.state["provision_plan"] = [" ".join(c) for c, _ in plan]
+        if not self.apply:
+            return "degraded", "dry run (temporary): planned " + str(len(plan)) + " commands (see boot-log.json provision_plan)"
+        if not self.tools.get("npx"):
+            return "blocked", "npx not found; install Node.js 20+"
+        token = self.console_token()
+        if not token:
+            return "blocked", "no console key: set ULTRASTABLE_CONSOLE_TOKEN or pass --console-key-file"
+        for cmd, stdin in plan:
+            self.run(cmd, worker, stdin=(token + "\n") if stdin else None, scrub=token)
+        return "ok", "temporary account: Worker deployed, migrations applied, seed loaded, CONSOLE_TOKEN set (no cron on this path)"
 
     def provision(self):
+        if self.temporary:
+            return self.provision_temporary()
         plan = [
             ["npx", "wrangler", "d1", "create", self.runtime["d1_database"]],
             ["npx", "wrangler", "d1", "migrations", "apply", self.runtime["d1_database"], "--remote"],
@@ -457,10 +514,13 @@ class Boot:
             return "ok", "Worker ticks from its Durable Object alarm (no cron); KIT-3 closes when six complete ticks are observed in one hour (prediction P-KIT-3)"
         return "ok", "Worker cron armed; KIT-3 closes when six complete ticks are observed in one hour (prediction P-KIT-3)"
 
-    def run(self, cmd, cwd) -> str:
-        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600, env=getattr(self, "cmd_env", None))
+    def run(self, cmd, cwd, stdin: str | None = None, scrub: str | None = None) -> str:
+        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600, input=stdin, env=getattr(self, "cmd_env", None))
         if p.returncode != 0:
-            raise RuntimeError(f"{' '.join(cmd[:4])} exited {p.returncode}: {p.stderr.strip()[-400:]}")
+            tail = p.stderr.strip()[-400:]
+            if scrub:
+                tail = tail.replace(scrub, "[redacted]")
+            raise RuntimeError(f"{' '.join(cmd[:4])} exited {p.returncode}: {tail}")
         return p.stdout
 
     @staticmethod
@@ -530,6 +590,8 @@ def main(argv=None) -> int:
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="plan and write files only (default)")
     mode.add_argument("--apply", action="store_true", help="also provision Cloudflare and deploy")
+    ap.add_argument("--temporary", action="store_true", help="target a temporary Cloudflare account: no cron, workers_dev on, no database_id, --temporary flags")
+    ap.add_argument("--console-key-file", type=Path, default=None, help="with --temporary --apply: where to write a generated console key (mode 600)")
     ap.add_argument("--root", type=Path, default=ROOT)
     ap.add_argument("--out", type=Path, default=None, help="output folder (default <root>/org)")
     ap.add_argument("--idea", type=Path, default=None, help="idea file (default <root>/IDEA.md)")
@@ -539,7 +601,8 @@ def main(argv=None) -> int:
     root = a.root.resolve()
     boot = Boot(root, (a.out or root / "org").resolve(), apply=a.apply,
                 idea_path=a.idea.resolve() if a.idea else None, config_path=a.config.resolve() if a.config else None,
-                interactive=a.interactive)
+                interactive=a.interactive, temporary=a.temporary,
+                console_key_file=a.console_key_file.resolve() if a.console_key_file else None)
     for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "ladder", "provision", "start"):
         st = boot.guard(name, getattr(boot, name))
         if name == "read" and st == "blocked" and not hasattr(boot, "idea"):
