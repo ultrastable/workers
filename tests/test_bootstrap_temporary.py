@@ -35,6 +35,8 @@ class TemporaryRender(unittest.TestCase):
             self.assertIn('"workers_dev": true', cfg)
             self.assertNotIn("crons", cfg)
             self.assertNotIn("triggers", cfg)
+            self.assertIn('"TICK_MODE": "alarm"', cfg)  # the Durable Object alarm ticks it instead (bootstrap/ladder.py)
+            self.assertIn("HEARTBEAT", cfg)
             self.assertNotIn("database_id", cfg)
             self.assertNotIn("{d1_database_id}", cfg)
             self.assertIn('"migrations_dir"', cfg)  # the binding stays, so migrations can run
