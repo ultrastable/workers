@@ -13,13 +13,18 @@ export async function invoke(ai, provider, model, req) {
   const messages = req.messages || [];
   const input = { messages, max_tokens: req.max_tokens };
   if (req.json) input.response_format = { type: 'json_object' };
+  if (req.temperature != null) input.temperature = req.temperature;
+  if (Array.isArray(req.tools) && req.tools.length) input.tools = req.tools;
   const json = await run(model.id, input);
   const choice = json?.choices?.[0]?.message;
   let text = json?.response ?? choice?.content ?? '';
   if (text && typeof text === 'object') text = JSON.stringify(text); // json mode may return a parsed object
   text = String(text ?? '');
+  const calls = json?.tool_calls || choice?.tool_calls || [];
+  // An empty answer is a failed call, so the router falls back to the next provider instead of returning nothing.
+  if (!text && !calls.length) throw new Error('workers ai returned no text');
   const u = json?.usage || {};
   const tokens_in = Number(u.prompt_tokens) || estimate(messages.map(m => m.content).join('\n'));
   const tokens_out = Number(u.completion_tokens) || estimate(text);
-  return { text, tool_calls: json?.tool_calls || choice?.tool_calls || [], tokens_in, tokens_out };
+  return { text, tool_calls: calls, tokens_in, tokens_out };
 }
