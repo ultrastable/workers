@@ -38,7 +38,7 @@ async function setup({ rung = 'delegated', healthy = true } = {}) {
   const deploys = { cloudflare: deploy, gcp: deploy };
   const artifacts = async () => ({ body: 'code' });
   const settings = { units: [{ provider: 'cloudflare', unit: 'web' }], deploys, artifacts };
-  const packs = createPacks({ db, now: () => clock.t, config: { packs: { cloud: settings } }, channels: { cloud: guardPort({ db, deploys, artifacts, now: () => clock.t }) } });
+  const packs = createPacks({ db, now: () => clock.t, config: { packs: { cloud: settings } }, deployRoute: guardPort({ db, deploys, artifacts, now: () => clock.t }) });
   const m = loadManifest(DIR);
   assert.deepEqual((await packs.register(m, { dir: DIR })).errors, undefined);
   assert.equal((await packs.enablePack('cloud', { by: 'owner', cardText: m.enable_gate })).ok, true);

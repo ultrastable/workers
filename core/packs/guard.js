@@ -38,7 +38,9 @@ export function rungCeilings(config = {}) {
 
 const norm = s => String(s ?? '').trim().toLowerCase();
 
-export function createGuard({ db, now = Date.now, config = {}, channels = {} }) {
+// deployRoute: the only way a class D pack acts. { send(req) -> { id } } backed by core/deploy (see core/deploy/packs-route.js).
+// A request cannot opt in or out of it: the route is chosen from the pack's class, held by the host, never read from the request.
+export function createGuard({ db, now = Date.now, config = {}, channels = {}, deployRoute = null }) {
   const rungs = config.rungs || DEFAULT_RUNGS;
   const actRung = config.act_rung || 'delegated';
   const startRung = config.start_rung || rungs[0];
@@ -77,7 +79,7 @@ export function createGuard({ db, now = Date.now, config = {}, channels = {} }) 
     const o = p.manifest.outbound;
     if (p.class === 'C') return 'class_c_never_sends';
     if (!o || !o.channels.includes(req.channel)) return 'channel_not_declared';
-    if (p.class === 'D' && req.viaDeploy !== true) return 'class_d_requires_deploy';
+    if (p.class === 'D' && !(deployRoute && typeof deployRoute.send === 'function')) return 'class_d_requires_deploy';
     if (!req.idempotencyKey) return 'idempotency_key_required';
     const dup = await first(db, `SELECT 1 AS x FROM guard_ledger WHERE pack = ? AND idem_key = ? AND decision = 'sent'`, p.id, req.idempotencyKey)
       || await first(db, `SELECT 1 AS x FROM guard_queue WHERE pack = ? AND idem_key = ? AND status = 'pending' AND id IS NOT ?`, p.id, req.idempotencyKey, ignoreQueueId);
@@ -93,7 +95,7 @@ export function createGuard({ db, now = Date.now, config = {}, channels = {} }) 
     const sent = since => first(db, `SELECT COUNT(*) AS n FROM guard_ledger WHERE pack = ? AND channel = ? AND decision = 'sent' AND at > ?`, p.id, req.channel, iso(since));
     if ((await sent(now() - 86400e3)).n >= cap.per_day) return 'cap_per_day';
     if ((await sent(now() - 7 * 86400e3)).n >= cap.per_week) return 'cap_per_week';
-    const port = channels[req.channel] || {};
+    const port = (p.class === 'D' ? deployRoute : channels[req.channel]) || {};
     const content = typeof req.content === 'string' ? req.content : '';
     if (!content.trim()) return 'content_empty';
     const max = port.maxLength ?? config.max_length?.[req.channel];
@@ -103,8 +105,8 @@ export function createGuard({ db, now = Date.now, config = {}, channels = {} }) 
     return null;
   }
 
-  async function deliver(req, hashes) {
-    const port = channels[req.channel];
+  async function deliver(req, hashes, p) {
+    const port = p && p.class === 'D' ? deployRoute : channels[req.channel];
     if (!port || typeof port.send !== 'function') return { decision: 'refused', reason: 'channel_port_missing', id: await record(req, 'refused', 'channel_port_missing', null, hashes) };
     try {
       const res = await port.send({ pack: req.pack, channel: req.channel, kind: req.kind, recipient: req.recipient, content: req.content, idempotencyKey: req.idempotencyKey });
@@ -136,21 +138,21 @@ export function createGuard({ db, now = Date.now, config = {}, channels = {} }) 
         'Nothing is sent; the entry stays queued until approved or rejected.', `guard queue ${qid}`, 'manual');
       return { decision: 'queued_for_approval', reason: `rung_${rung}_below_${actRung}`, queueId: qid, cardId, id: await record(r, 'queued_for_approval', `rung_${rung}_below_${actRung}`, null, hashes) };
     }
-    return deliver(r, hashes);
+    return deliver(r, hashes, p);
   }
 
   async function decide(queueId, by, approve) {
     const q = await first(db, `SELECT * FROM guard_queue WHERE id = ?`, queueId);
     if (!q || q.status !== 'pending') return { decision: 'refused', reason: 'not_pending' };
-    // A queued entry already passed the class D deploy-route check when it was queued, so approval keeps that route.
-    const req = { pack: q.pack, channel: q.channel, kind: q.kind, recipient: q.recipient, content: q.content, idempotencyKey: q.idem_key, viaDeploy: true };
+    const req = { pack: q.pack, channel: q.channel, kind: q.kind, recipient: q.recipient, content: q.content, idempotencyKey: q.idem_key };
     const hashes = { recipient: q.recipient_hash, content: q.content_hash };
     let out;
     if (!approve) out = { decision: 'refused', reason: 'approval_rejected', id: await record(req, 'refused', 'approval_rejected', null, hashes) };
     else {
       // Everything is checked again at delivery time: a switch, suppression or cap may have changed while it waited.
-      const why = await checks(req, await packRow(q.pack), { ignoreQueueId: q.id });
-      out = why ? { decision: 'refused', reason: why, id: await record(req, 'refused', why, null, hashes) } : await deliver(req, hashes);
+      const p = await packRow(q.pack);
+      const why = await checks(req, p, { ignoreQueueId: q.id });
+      out = why ? { decision: 'refused', reason: why, id: await record(req, 'refused', why, null, hashes) } : await deliver(req, hashes, p);
     }
     const status = !approve ? 'rejected' : out.decision === 'sent' ? 'sent' : 'refused';
     await run(db, `UPDATE guard_queue SET status = ?, decided_by = ?, decided_at = ?, reason = ?, recipient = NULL, content = NULL WHERE id = ?`, status, by ?? null, ledgerAt(), out.reason, queueId);

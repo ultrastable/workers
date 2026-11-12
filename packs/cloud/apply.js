@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-// Apply: each queued request goes through guard.send (viaDeploy) and the guard's port calls core/deploy, which owns the lock,
+// Apply: each queued request goes through guard.send and the host's deployRoute (this port) calls core/deploy, which owns the lock,
 // version check, probes and rollback. The port records the deploy result on the request before it returns or throws.
 import { all, first, run, iso } from '../../core/kernel/util.js';
 import { cfg, CHANNEL } from './lib.js';
@@ -44,7 +44,7 @@ export async function applyLoop({ db, ctx, now, settings, guard }) {
     }
     await run(db, `UPDATE cloud_requests SET attempts = attempts + 1 WHERE id = ?`, r.id);
     const res = await guard.send({ channel: CHANNEL, kind: 'deploy', recipient: `${r.provider}:${r.unit}`, content: JSON.stringify({ provider: r.provider, unit: r.unit, version: r.version }),
-      idempotencyKey: r.idem_key, viaDeploy: true });
+      idempotencyKey: r.idem_key });
     if (res.decision === 'sent') { notes.push(`${r.unit}@${r.version} deployed`); continue; }
     if (res.decision === 'queued_for_approval') {
       await run(db, `UPDATE cloud_requests SET status = 'awaiting_approval', guard_queue_id = ?, card_id = ?, guard_reason = ? WHERE id = ?`, res.queueId, res.cardId, res.reason, r.id);

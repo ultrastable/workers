@@ -3,7 +3,7 @@
 
 # packs/cloud: Cloudflare and Google Cloud through core/deploy
 
-Class D pack (`US-SPEC-21`): every deploy leaves through `guard.send` with `viaDeploy: true`, and the guard's port calls `core/deploy` (lock, version check, probes, rollback). Class ceiling is `delegated`; below that a deploy waits as a decision card.
+Class D pack (`US-SPEC-21`): every deploy leaves through `guard.send`, and the host's `deployRoute` (this pack's `guardPort`) calls `core/deploy` (lock, version check, probes, rollback). Class ceiling is `delegated`; below that a deploy waits as a decision card.
 
 ```js
 const deploys = { cloudflare: createDeploy({ db, deployer: cloudflareDeployer, ... }), gcp: createDeploy({ db, deployer: gcpDeployer, ... }) };

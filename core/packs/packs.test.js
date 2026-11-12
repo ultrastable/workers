@@ -333,7 +333,7 @@ test('T21 class C can never send, even if a manifest is forced into the registry
   }
   assert.equal((await guard.send(msg({ pack: 'clsc' }))).reason, 'class_c_never_sends');
   assert.equal((await guard.send(msg({ pack: 'clsd' }))).reason, 'class_d_requires_deploy');
-  assert.equal((await guard.send(msg({ pack: 'clsd', viaDeploy: true }))).decision, 'sent');
+  assert.equal((await guard.send(msg({ pack: 'clsd', viaDeploy: true }))).reason, 'class_d_requires_deploy');   // a request flag opens nothing; see core/deploy/packs-route.test.js
   assert.equal((await guard.send({ ...msg({ pack: 'nonexistent' }) })).reason, 'pack_disabled');
 });
 
