@@ -33,8 +33,8 @@ const withTimeout = (p, ms) => new Promise((res, rej) => {
 });
 
 // config: { step_timeout_ms, tenant_names, rungs, act_rung, ceilings, manager_model, packs: { <id>: settings } }
-export function createPacks({ db, now = Date.now, config = {}, channels = {}, importer = d => import(pathToFileURL(d).href) } = {}) {
-  const guard = createGuard({ db, now, config, channels });
+export function createPacks({ db, now = Date.now, config = {}, channels = {}, deployRoute = null, importer = d => import(pathToFileURL(d).href) } = {}) {
+  const guard = createGuard({ db, now, config, channels, deployRoute });
   const bounces = createBounceIntake({ db, guard, now, config: config.bounces || {} });
   const rungs = config.rungs || DEFAULT_RUNGS;
   const ceilings = rungCeilings(config);

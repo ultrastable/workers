@@ -35,3 +35,7 @@ Migration: `migrations/0001_deploy.sql` (tables `deploy_*`, idempotent). Only di
 ## Ops agent (`agent.js`)
 
 `step({ db, deploy, liveVersion, sources })` drives this change path from work items: an open item whose `done_check` contains `deploy-unit: <unit>; version: <v>` is a deploy request. `sources` is an ordered list of artifact sources (first that returns an artifact wins). `kept` closes the item with the ledger id; `reverted`, `failed` or `refused` (loop breaker, kill switch, stale version) leave it open with the reason as its blocker. Owner role: operations. Trigger: every tick (2 items max). Closing probe: the item is `done` with a ledger id, or carries a blocker. Status: BUILT (`agent.test.js`). Wiring into `core/org` steps: NOT COVERED (opt-in, needs a configured deployer).
+
+## Class D pack route (`packs-route.js`)
+
+`createPacksRoute({ deploys, plan, allow? })` returns the `deployRoute` port for `createPacks`. The pack guard calls it, instead of a channel port, for every send of a class D pack; `plan(req)` maps the approved request to `{ provider, unit, artifact, expectedVersion }`, `allow(pack, unit)` can restrict units, and the call goes through `createDeploy(...).deploy` (kill switch, lock, version check, probes, revert). Only a `kept` deploy counts as sent. Status: BUILT (`packs-route.test.js`).

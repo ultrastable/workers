@@ -61,7 +61,7 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | T21-1 .. T21-8 | BUILT | `packs.test.js` |
 | Honest sender identification | BUILT when the channel port declares `senderId` | |
 | Bounce and complaint intake | BUILT: `packs.bounces.ingest(payload, {channel, format})` and `handle(request, {secret})`; hard bounce suppresses the channel, complaint and unsubscribe suppress `*`, soft bounces count to a limit; events are idempotent by id; ledger `guard_bounces` keeps hashes only | `bounce.js`, `bounce.test.js` |
-| Class D routing through `core/deploy` | PARTLY: the guard refuses class D sends without `viaDeploy: true`; the deploy call itself is the pack's | |
+| Class D routing through `core/deploy` | BUILT: `createPacks({ deployRoute })` (see `core/deploy/packs-route.js`); the guard delivers a class D pack's sends only through the route, chosen from the pack class, so a `viaDeploy` flag in a request is ignored; no route means `class_d_requires_deploy` | `guard.js`, `core/deploy/packs-route.test.js` |
 | Applying a pack's own migrations on enable, loading packs from a directory scan | BUILT: `enablePack` applies the manifest's migrations once (ledger `packs_migrations`, digest kept; only `CREATE`/`ALTER`/`INSERT` on `<id>` or `<id>_*` objects; failure leaves the pack disabled); `loadFromDir(root)` registers every valid pack | `loader.js`, `loader.test.js` |
 
 Storage note: `guard_ledger` holds only hashes of recipient and content. `guard_queue` holds the raw recipient and content while a send awaits approval and clears both when decided. Consent is per recipient, channel and pack (`*` means any pack).
