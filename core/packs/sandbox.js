@@ -15,7 +15,7 @@ const CORE_DIR = fileURLToPath(new URL('../', import.meta.url));
 export const SHARED_WRITE_TABLES = ['items', 'predictions'];
 const NO_ACCESS = /\b(packs_registry|packs_switches|guard_consent)\b/i;
 const DDL = /^\s*(create|drop|alter|pragma|attach|detach|vacuum|reindex|analyze)\b|\bload_extension\b/i;
-const WRITE_TARGET = /\b(?:insert\s+(?:or\s+\w+\s+)?into|replace\s+into|update(?:\s+or\s+\w+)?|delete\s+from)\s+([A-Za-z_][\w.]*)/gi;
+const WRITE_TARGET = /\b(?:insert\s+(?:or\s+\w+\s+)?into|replace\s+into|(?<!\bdo\s+)update(?:\s+or\s+\w+)?|delete\s+from)\s+([A-Za-z_][\w.]*)/gi;
 
 // Strip comments and string literals so keywords inside text cannot hide or fake a table reference.
 export function stripSql(sql) {

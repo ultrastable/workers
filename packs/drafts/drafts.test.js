@@ -44,7 +44,7 @@ test('manifest is valid, class C with no outbound, drafts_ prefixed tables, prob
   const db = makeDb([KERNEL_DIR, MIGRATIONS_DIR, MIG]);
   const sql = readFileSync(new URL('./migrations/0001_drafts.sql', import.meta.url), 'utf8');
   db.raw.exec(sql); db.raw.exec(sql);
-  assert.deepEqual(rows(db, `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'drafts%'`).map(r => r.name).sort(), ['drafts', 'drafts_metrics', 'drafts_rejections', 'drafts_versions']);
+  assert.deepEqual(rows(db, `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'drafts_%'`).map(r => r.name).sort(), ['drafts_items', 'drafts_metrics', 'drafts_rejections', 'drafts_versions']);
   for (const g of [...m.charter.guard_metrics, m.charter.primary_metric]) db.raw.prepare(g.read_probe).get();
 });
 
@@ -80,11 +80,11 @@ test('a rejected draft is recorded and not stored; a rejected revision keeps the
   const { db, now } = await setup();
   const bad = await createDraft({ db, now, kind: 'legal', title: 'T', body: LEGAL + '\nThis is legal advice.' });
   assert.equal(bad.created, false);
-  assert.equal(rows(db, `SELECT * FROM drafts`).length, 0);
+  assert.equal(rows(db, `SELECT * FROM drafts_items`).length, 0);
   assert.match(one(db, `SELECT violations FROM drafts_rejections`).violations, /claims_advice/);
   await createDraft({ db, now, kind: 'plan', title: 'P', body: PLAN });
   assert.equal((await reviseDraft({ db, now, id: 1, body: 'nothing useful' })).revised, false);
-  assert.equal(one(db, `SELECT version FROM drafts WHERE id = 1`).version, 1);
+  assert.equal(one(db, `SELECT version FROM drafts_items WHERE id = 1`).version, 1);
 });
 
 test('only a named person marks a draft taken; a taken or closed draft is not revised', async () => {

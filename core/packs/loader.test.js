@@ -3,7 +3,7 @@
 // Tests for the pack loader: directory scan and migrations applied on enable (US-SPEC-21, US-21-R08).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, cpSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, cpSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ import { KERNEL_DIR } from '../kernel/testkit.js';
 import { createPacks, MIGRATIONS_DIR, splitStatements, checkMigrationStatement, scanPackDirs } from './index.js';
 
 const PACKS_ROOT = fileURLToPath(new URL('../../packs/', import.meta.url));
+const SHIPPED = readdirSync(PACKS_ROOT).filter(d => existsSync(path.join(PACKS_ROOT, d, 'pack.json'))).sort();   // every shipped pack, so adding one needs no edit here
 const EXAMPLE_DIR = fileURLToPath(new URL('./example/', import.meta.url));
 const T0 = Date.parse('2026-11-11T10:00:00Z');
 const tables = (db, like) => db.raw.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?`).all(like).map(r => r.name).sort();
@@ -58,8 +59,8 @@ test('loadFromDir finds every pack by scanning, including the shipped email and 
   const { db, packs } = host();
   const r = await packs.loadFromDir(PACKS_ROOT);
   assert.deepEqual(r.failed, []);
-  assert.deepEqual(r.registered, ['email', 'social']);
-  assert.deepEqual(db.raw.prepare(`SELECT id, enabled FROM packs_registry ORDER BY id`).all().map(x => ({ ...x })), [{ id: 'email', enabled: 0 }, { id: 'social', enabled: 0 }]);
+  assert.deepEqual(r.registered, SHIPPED);
+  assert.deepEqual(db.raw.prepare(`SELECT id, enabled FROM packs_registry ORDER BY id`).all().map(x => ({ ...x })), SHIPPED.map(id => ({ id, enabled: 0 })));
   assert.deepEqual(tables(db, 'email_%'), []);                  // scanning registers, it never migrates or enables
 });
 
@@ -131,14 +132,15 @@ test('editing an applied migration is refused; a pack with migrations but no dir
   assert.equal(db.raw.prepare(`SELECT enabled FROM packs_registry WHERE id='delta'`).get().enabled, 0);
 });
 
-test('the shipped email and social packs enable through the loader and create their tables', async () => {
+test('every shipped pack enables through the loader and creates its tables', async () => {
   const { db, packs } = host();
   await packs.loadFromDir(PACKS_ROOT);
-  for (const id of ['email', 'social']) {
+  for (const id of SHIPPED) {
     const m = JSON.parse(readFileSync(path.join(PACKS_ROOT, id, 'pack.json'), 'utf8'));
     const r = await packs.enablePack(id, { by: 'owner', cardText: m.enable_gate });
     assert.equal(r.ok, true, JSON.stringify(r));
   }
   assert.ok(tables(db, 'email_%').includes('email_subscribers'));
   assert.ok(tables(db, 'social_%').includes('social_queue'));
+  for (const [id, t] of [['video', 'video_queue'], ['analytics', 'analytics_events'], ['drafts', 'drafts_items'], ['cloud', 'cloud_requests']]) if (SHIPPED.includes(id)) assert.ok(tables(db, `${id}_%`).includes(t), t);
 });
