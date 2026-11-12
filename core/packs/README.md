@@ -62,6 +62,6 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | Honest sender identification | BUILT when the channel port declares `senderId` | |
 | Bounce and complaint intake | NOT COVERED (use `guard.suppress({reason: 'bounce'})` from the pack) | |
 | Class D routing through `core/deploy` | PARTLY: the guard refuses class D sends without `viaDeploy: true`; the deploy call itself is the pack's | |
-| Applying a pack's own migrations, loading packs from a directory scan | NOT COVERED (host applies migrations; `register` takes a manifest) | |
+| Applying a pack's own migrations on enable, loading packs from a directory scan | BUILT: `enablePack` applies the manifest's migrations once (ledger `packs_migrations`, digest kept; only `CREATE`/`ALTER`/`INSERT` on `<id>_*` objects; failure leaves the pack disabled); `loadFromDir(root)` registers every valid pack | `loader.js`, `loader.test.js` |
 
 Storage note: `guard_ledger` holds only hashes of recipient and content. `guard_queue` holds the raw recipient and content while a send awaits approval and clears both when decided. Consent is per recipient, channel and pack (`*` means any pack).
