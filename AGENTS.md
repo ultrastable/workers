@@ -42,6 +42,8 @@ At the start of every session, fetch https://raw.githubusercontent.com/QNFO/qnfo
 - Documents, memories and owner cards are not state. State is code and data that code reads. Delete or wire any document, card or issue nothing automated consumes. The sole exception is IC-GATE-001 (irreversible and identity-bound), and there the card is machine-readable data with a default in effect and a probe, never prose.
 - Executable proof: `python3 tools/self_closed_lint.py` fails when this rule leaves an instruction file or when a change adds text that waits on a person (for review, owner decision, approval, "please review").
 
+13. **CLOSED-LOOP-AXIOM.** Every loop is closed by the system itself. No step depends on a person reading, deciding, reviewing or approving, and nothing is assumed to be read. Every output has a code consumer. Every open item has an automatic owner, trigger and probe. A credential only the owner can mint becomes an automated acquisition attempt on every surface plus a staged default in effect, never a document or a card. Documents or notes that no code consumes are not produced.
+
 ## If your tool cannot do all of that
 
 You can still work inside the contract. Do what your tool allows and say plainly what you could not do.
