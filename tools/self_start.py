@@ -106,18 +106,22 @@ def put_worker_secrets(run, root: Path, env: dict, worker_dir: str) -> list[str]
     return done
 
 
-def detect_existing(http, env: dict, root: Path, now: dt.datetime) -> bool:
+def detect_existing(http, env: dict, root: Path, now: dt.datetime, trace: list | None = None) -> bool:
     """Door: any deployment of the Worker, made by any means. Its address comes from SELF_WORKER_URL or self/worker-url.txt.
     If /health answers ok the organization has started; write the record (names only) and let the loop closer close the gate."""
     f = root / "self" / "worker-url.txt"
     url = (env.get("SELF_WORKER_URL") or (f.read_text(encoding="utf-8").strip() if f.exists() else "")).rstrip("/")
+    note = (lambda r: trace.append({"door": "existing-deployment", "ok": False, "reason": r})) if trace is not None else (lambda r: None)
     if not url.startswith("https://"):
+        note("no https address in SELF_WORKER_URL or self/worker-url.txt")
         return False
     try:
         health = http(url + "/health")
-    except Exception:
+    except Exception as e:
+        note(f"/health unreachable ({type(e).__name__})")
         return False
     if not (health and health.get("ok")):
+        note("/health answered but not ok")
         return False
     (root / "org").mkdir(exist_ok=True)
     rec = json.dumps({"at": now.isoformat(), "worker_url": url, "health_ok": True, "via": "existing-deployment"}, indent=2)
@@ -145,21 +149,26 @@ def builds_url(check_runs: list[dict]) -> str | None:
     return None
 
 
-def detect_builds(http, gh_api, repo: str, root: Path, now: dt.datetime) -> bool:
+def detect_builds(http, gh_api, repo: str, root: Path, now: dt.datetime, trace: list | None = None) -> bool:
     """Door: a Workers Builds git-import deployment (Cloudflare dashboard, Import a repository). Cloudflare reports each build as a
     check run on the commit, so the address is read from GitHub with no Cloudflare token. If /health answers ok, record the start."""
+    note = (lambda r: trace.append({"door": "workers-builds", "ok": False, "reason": r})) if trace is not None else (lambda r: None)
     try:
         runs = (gh_api(f"repos/{repo}/commits/main/check-runs?per_page=100") or {}).get("check_runs", [])
-    except Exception:
+    except Exception as e:
+        note(f"check runs unreadable ({type(e).__name__})")
         return False
     url = builds_url(runs)
     if not url:
+        note("no successful Workers Builds check run with a workers.dev address on main")
         return False
     try:
         health = http(url + "/health")
-    except Exception:
+    except Exception as e:
+        note(f"/health unreachable ({type(e).__name__})")
         return False
     if not (health and health.get("ok")):
+        note("/health answered but not ok")
         return False
     (root / "org").mkdir(exist_ok=True)
     rec = json.dumps({"at": now.isoformat(), "worker_url": url, "health_ok": True, "via": "workers-builds"}, indent=2)
@@ -167,20 +176,41 @@ def detect_builds(http, gh_api, repo: str, root: Path, now: dt.datetime) -> bool
     return True
 
 
+def record_attempt(root: Path, now: dt.datetime, doors: list[dict]) -> None:
+    """Every run that does not start the org leaves org/start-attempt.json (names and reasons only; the self-start workflow commits it),
+    so the gate issue and the next run read what each door did instead of guessing."""
+    (root / "org").mkdir(exist_ok=True)
+    f = root / "org" / "start-attempt.json"
+    prev = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    runs = int(prev.get("runs", 0)) + 1
+    rec = {**{k: v for k, v in prev.items() if k not in ("at", "doors", "runs", "first_at")}, "first_at": prev.get("first_at", now.isoformat()), "at": now.isoformat(), "runs": runs, "doors": doors}
+    f.write_text(json.dumps(rec, indent=2) + chr(10), encoding="utf-8")
+
+
 def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare", gh_api=None) -> dict:
     if (root / STARTED).exists():  # already started: nothing to do, nothing spent
         return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "already": True}
-    detected = detect_existing(http, env, root, now)
+    doors: list[dict] = []
+    detected = detect_existing(http, env, root, now, doors)
     if detected:  # a deployment made by another door (dashboard git import, launcher claim): no token needed to verify it
         return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "via": "existing-deployment"}
-    if gh_api and detect_builds(http, gh_api, repo, root, now):  # git import by Workers Builds: no token needed
+    if gh_api and detect_builds(http, gh_api, repo, root, now, doors):  # git import by Workers Builds: no token needed
         return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "via": "workers-builds"}
     missing = [n for n in REQUIRED_TO_APPLY if not env.get(n)]
     apply = not missing
+    if not gh_api:
+        doors.append({"door": "workers-builds", "ok": False, "reason": "no GitHub API client in this run"})
     rc = run_bootstrap(run, root, apply)
     cards_path = root / "org" / "gate-cards.json"
     cards = json.loads(cards_path.read_text(encoding="utf-8")) if cards_path.exists() else []
     result = {"applied": apply, "bootstrap_exit": rc, "gate_issue": None, "started": False, "secrets_set": []}
+    lad = root / "org" / "ladder.json"  # written by bootstrap/ladder.py during the run above
+    if lad.exists():
+        lj = json.loads(lad.read_text(encoding="utf-8"))
+        doors += [{"door": "bootstrap-" + a["rung"], "ok": a["status"] == "ready", "reason": a["reason"]} for a in lj.get("attempts", [])]
+    doors.append({"door": "bootstrap", "ok": apply and rc == 0, "reason": ("applied" if apply else "dry run: missing " + ", ".join(missing)) + f"; exit {rc}"})
+    result["doors"] = doors
+    record_attempt(root, now, doors)
     if cards or missing:
         result["gate_issue"] = ensure_gate_issue(gh, cards, repo, missing, load_doors(root))
     if not apply or rc != 0:
@@ -201,7 +231,8 @@ def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, wor
     if ok:
         (root / STARTED).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     else:
-        (root / "org" / "start-attempt.json").write_text(json.dumps({**record, "health": health}, indent=2) + "\n", encoding="utf-8")
+        prev = json.loads((root / "org" / "start-attempt.json").read_text(encoding="utf-8"))
+        (root / "org" / "start-attempt.json").write_text(json.dumps({**prev, **record, "health": health}, indent=2) + "\n", encoding="utf-8")
     result["started"] = ok
     return result
 
