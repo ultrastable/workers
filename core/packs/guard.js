@@ -40,7 +40,7 @@ const norm = s => String(s ?? '').trim().toLowerCase();
 
 // deployRoute: the only way a class D pack acts. { send(req) -> { id } } backed by core/deploy (see core/deploy/packs-route.js).
 // A request cannot opt in or out of it: the route is chosen from the pack's class, held by the host, never read from the request.
-export function createGuard({ db, now = Date.now, config = {}, channels = {}, deployRoute = null }) {
+export function createGuard({ db, now = Date.now, config = {}, channels = {}, deployRoute = null, redact = x => x }) {
   const rungs = config.rungs || DEFAULT_RUNGS;
   const actRung = config.act_rung || 'delegated';
   const startRung = config.start_rung || rungs[0];
@@ -113,7 +113,7 @@ export function createGuard({ db, now = Date.now, config = {}, channels = {}, de
       const providerId = res && (res.id ?? res.providerId) != null ? String(res.id ?? res.providerId) : null;
       return { decision: 'sent', reason: null, providerId, id: await record(req, 'sent', null, providerId, hashes) };
     } catch (e) {
-      const reason = `delivery_failed: ${String(e.message).replace(/\s+/g, ' ').slice(0, 120)}`;
+      const reason = `delivery_failed: ${redact(String(e.message)).replace(/\s+/g, ' ').slice(0, 120)}`;
       return { decision: 'refused', reason, id: await record(req, 'refused', reason, null, hashes) };
     }
   }

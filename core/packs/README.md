@@ -51,7 +51,7 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | US-21-R06 every outbound action passes the guard | BUILT: the host gives loops only a frozen `boundGuard` and a sandboxed db | `createGuard.send` |
 | US-21-R07 independent kill switch | BUILT | `packs_switches` (`global`, `pack:<id>`, `channel:<name>`) |
 | US-21-R08 pack cannot change core or other packs | BUILT: loops get `sandboxDb` (writes only to `<id>` or `<id>_*`, `items`, `predictions`; no DDL, PRAGMA, registry, switches or consent tokens), a restricted ctx (no env or config) and a frozen bound guard; `register` scans pack source for escaping imports, fs, eval | `sandbox.js`, `sandbox.test.js` |
-| US-21-R09 secrets by presence only | BUILT for manifests (names only) and content (secret patterns refused, hashes stored); the host must keep values out of loop logs | `SECRET_PATTERNS` |
+| US-21-R09 secrets by presence only | BUILT: manifests name secrets only, content with secret patterns is refused, hashes are stored, and the host wrapper redacts secret values (declared names resolved in env, secret-looking settings, secret shapes; raw, URL-encoded and base64) from run rows, tick errors and notes, backlog item titles and delivery failure reasons | `SECRET_PATTERNS`, `redact.js`, `redact.test.js` |
 | US-21-R10 testable with fake ports | BUILT | `packs.test.js` |
 | US-21-R11 no tenant names in code or defaults | BUILT (hosts, account ids, configured `tenant_names`) | `validateManifest`, `core/test/no-qnfo.test.js` |
 | US-21-R12 autonomy ceiling by class | BUILT | `rungCeilings`, rung clamp in the guard |
