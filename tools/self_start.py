@@ -223,7 +223,39 @@ def watch_tick(run, http, env: dict, root: Path, now: dt.datetime) -> dict | Non
     return {"checked": True, "silent": True, "fallback": "alarm" if rc == 0 else f"bootstrap exit {rc}"}
 
 
-def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare", gh_api=None) -> dict:
+def publish_homepage(homepage, root: Path, repo: str) -> dict:
+    """OWNER-AUTH-1 (d): point the repository's homepage at the address the Worker was just deployed to, so the repository page links to
+    the dashboard. The address is an output read from org/started.json, never an input; the repository comes from the caller (GITHUB_REPOSITORY),
+    so it works for any clone. `homepage(repo, url)` is injected (gh repo edit --homepage). A failure is recorded in the started record, not raised."""
+    f = root / STARTED
+    try:
+        rec = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"set": False, "reason": "no org/started.json"}
+    url = str(rec.get("worker_url") or "").rstrip("/")
+    if not url.startswith("https://"):
+        return {"set": False, "reason": "no https worker_url in org/started.json"}
+    if rec.get("homepage") == url:
+        return {"set": True, "url": url, "already": True}
+    try:
+        ok = bool(homepage(repo, url))
+        reason = None if ok else "gh repo edit refused"
+    except Exception as e:
+        ok, reason = False, type(e).__name__
+    if ok:
+        rec["homepage"] = url
+        f.write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
+    return {"set": ok, "url": url, **({"reason": reason} if reason else {})}
+
+
+def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare", gh_api=None, homepage=None) -> dict:
+    result = _start(run, http, gh, env, root, repo, now, worker_dir, gh_api)
+    if homepage and result.get("started"):  # also on a later run: a failed first attempt is retried until it lands
+        result["homepage"] = publish_homepage(homepage, root, repo)
+    return result
+
+
+def _start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare", gh_api=None) -> dict:
     if (root / STARTED).exists():  # already started: nothing to do and nothing spent, except the silent-cron check
         return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "already": True, "tick_watch": watch_tick(run, http, env, root, now)}
     doors: list[dict] = []
@@ -290,7 +322,10 @@ def main(argv=None) -> int:
         out = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True)
         return json.loads(out.stdout)
 
-    r = start(run, http_json, Gh(a.repo), dict(os.environ), Path(a.root), a.repo, dt.datetime.now(dt.timezone.utc), gh_api=gh_api)
+    def homepage(repo, url):
+        return subprocess.run(["gh", "repo", "edit", repo, "--homepage", url], capture_output=True, text=True).returncode == 0
+
+    r = start(run, http_json, Gh(a.repo), dict(os.environ), Path(a.root), a.repo, dt.datetime.now(dt.timezone.utc), gh_api=gh_api, homepage=homepage)
     print(json.dumps({k: v for k, v in r.items()}, indent=2))
     return 0 if (r["bootstrap_exit"] == 0) else 1
 

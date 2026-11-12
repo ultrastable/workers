@@ -166,3 +166,43 @@ class SilentCronFallback(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Homepage(unittest.TestCase):
+    """OWNER-AUTH-1 (d): the repository homepage is set to the deployed Worker address, for any repository, by a fake gh."""
+    URL = "https://w-self.sub.workers.dev"
+
+    def deploy(self, root, repo, homepage, env=None):
+        def http(url, headers=None):
+            return {"result": {"subdomain": "sub"}} if "subdomain" in url else {"ok": True}
+        run = lambda cmd, cwd=None, input=None: SimpleNamespace(returncode=0, stdout="", stderr="")
+        return ss.start(run, http, FakeGh(), env or {"CLOUDFLARE_API_TOKEN": "t", "CLOUDFLARE_ACCOUNT_ID": "a"}, root, repo, NOW, homepage=homepage)
+
+    def test_after_a_deploy_the_homepage_is_set_for_the_given_repository(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls = make_root(d), []
+            r = self.deploy(root, "any-org/any-clone", lambda repo, url: calls.append((repo, url)) or True)
+            self.assertEqual(calls, [("any-org/any-clone", self.URL)])
+            self.assertTrue(r["homepage"]["set"])
+            self.assertEqual(json.loads((root / "org" / "started.json").read_text())["homepage"], self.URL)
+
+    def test_it_is_set_once_and_a_refusal_is_recorded_then_retried(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls = make_root(d), []
+            r = self.deploy(root, "o/r", lambda repo, url: calls.append(url) and False)
+            self.assertFalse(r["homepage"]["set"]); self.assertIn("refused", r["homepage"]["reason"])
+            r = ss.start(lambda *a, **k: None, lambda *a, **k: {}, FakeGh(), {}, root, "o/r", NOW, homepage=lambda repo, url: calls.append(url) or True)
+            self.assertTrue(r["homepage"]["set"]); self.assertEqual(len(calls), 2)
+            r = ss.start(lambda *a, **k: None, lambda *a, **k: {}, FakeGh(), {}, root, "o/r", NOW, homepage=lambda repo, url: calls.append(url) or True)
+            self.assertTrue(r["homepage"]["already"]); self.assertEqual(len(calls), 2)
+
+    def test_an_exception_from_gh_is_recorded_not_raised(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = make_root(d)
+            def boom(repo, url): raise OSError("gh missing")
+            self.assertEqual(self.deploy(root, "o/r", boom)["homepage"]["reason"], "OSError")
+
+    def test_no_address_means_nothing_is_set(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = make_root(d); (root / "org" / "started.json").write_text("{}")
+            self.assertFalse(ss.publish_homepage(lambda r, u: True, root, "o/r")["set"])
