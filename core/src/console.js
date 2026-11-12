@@ -5,8 +5,11 @@
 import { CONSOLE_HTML } from './console-ui.js';
 import { sha256Hex, verifyAccessJwt } from '../doors/index.js';
 import { listConnections, saveSecret, removeSecret } from './secrets-ui.js';
-import { firstRunDoor, doorStatus, page } from './first-run.js';
+import { firstRunDoor, doorStatus, page, SETUP } from './first-run.js';
 import { HELP_SECTIONS } from './help-data.js';
+import { readSession, canWrite } from '../auth/index.js';
+import { SESSION_COOKIE } from '../githubapp/signin.js';
+import { publicViewEnabled, renderPublicView, loadMeasures } from '../org/public-view.js';
 
 // Request categories that SCOPE.md puts outside the default product (opt-in Capability Packs only).
 export const OUT_OF_SCOPE = [
@@ -112,6 +115,17 @@ export async function handleConsole(request, env, { org, vault, doors, config, l
   const clock = typeof now === 'function' ? now : () => now;
   const access = doors?.access?.team_domain && doors?.access?.aud ? doors.access : null;
 
+  // OWNER-AUTH-1 (c): once GitHub sign-in is connected, the us_session cookie is the only sign-in path (CONSOLE_TOKEN and the first-run key stop working).
+  if (await githubSigninActive(vault, config)) {
+    const session = await readSession(decodeURIComponent(cookie(request, SESSION_COOKIE) || ''), { key: await vault.read('SESSION_KEY'), now: clock() });
+    const accessOk = access ? await verifyAccessJwt(request.headers.get('cf-access-jwt-assertion'), { ...access, fetch: fetchFn, now: clock() }) : false;
+    if (p === '/console/first-run') return Response.json({ error: 'not found' }, { status: 404 });
+    if (p === '/console/login') return Response.json({ error: 'keys are no longer used; sign in with GitHub at /console/github/signin' }, { status: 410 });
+    if (!canWrite(session) && !accessOk) return readOnlyView(request, { db: env.DB, config, session, clock });
+    const actor = session?.login || 'access';
+    return ownerRoutes(request, env, { org, vault, doors, config, l3, now: clock, envNames, confirm: true, actor });
+  }
+
   // Which door is open? A configured token, else an Access team, else the one-time first-run key (src/first-run.js).
   let issuedHash = null;
   if (!env.CONSOLE_TOKEN && !access) {
@@ -139,6 +153,15 @@ export async function handleConsole(request, env, { org, vault, doors, config, l
   if (!authed && access) authed = await verifyAccessJwt(request.headers.get('cf-access-jwt-assertion'), { ...access, fetch: fetchFn, now: clock() });
   if (!authed) return api ? Response.json({ error: 'sign in' }, { status: 401 }) : page(LOGIN(), 401);
 
+  return ownerRoutes(request, env, { org, vault, doors, config, l3, fetch: fetchFn, now: clock, envNames, confirm: false, actor: null });
+}
+
+/** The signed-in surface: the console page, its data and its write actions. With `confirm` (session mode) every write needs a
+ *  second step, body.confirm === true (the page asks "are you sure"), and each success is recorded with who did it. */
+async function ownerRoutes(request, env, { org, vault, doors, config, l3, fetch: fetchFn, now: clock, envNames, confirm, actor }) {
+  const url = new URL(request.url);
+  const p = url.pathname;
+  const isPost = request.method === 'POST';
   if (l3 && request.method === 'GET' && p.startsWith('/api/console/fleet/')) {
     const inner = new URL(request.url); inner.pathname = '/api/' + p.slice('/api/console/fleet/'.length);
     return (await l3.handle(new Request(inner, { method: 'GET' }))) || Response.json({ error: 'not found' }, { status: 404 });
@@ -156,6 +179,7 @@ export async function handleConsole(request, env, { org, vault, doors, config, l
     const origin = request.headers.get('origin');
     if (!origin || origin !== url.origin) return Response.json({ error: 'cross-origin request refused' }, { status: 403 });
     const body = await request.json().catch(() => ({}));
+    if (confirm && body.confirm !== true) return Response.json({ error: 'confirm required: press the button, then confirm' }, { status: 428 });
     let r;
     if (p === '/api/console/card') r = await resolveCard(env.DB, String(body.id || ''), String(body.choice || ''));
     else if (p === '/api/console/ask') r = await recordAsk(env.DB, body.text);
@@ -163,7 +187,32 @@ export async function handleConsole(request, env, { org, vault, doors, config, l
       r = await saveSecret(vault, body);
     } else if (p === '/api/console/secret/remove') r = await removeSecret(vault, body);
     else return Response.json({ error: 'not found' }, { status: 404 });
+    if (confirm && r.status === 200) await run(env.DB, `INSERT INTO console_actions (kind, ref, text) VALUES ('signed_action', ?, ?)`, p.replace('/api/console/', ''), actor);
     return Response.json(r.body, { status: r.status });
   }
   return Response.json({ error: 'not found' }, { status: 404 });
 }
+
+/** GitHub sign-in is on when the vault holds the App's OAuth credentials and the repository the role is read from is known.
+ *  config.console.github_signin === false switches it off. Until then the older doors keep a fresh installation reachable. */
+export async function githubSigninActive(vault, config) {
+  if (!vault || !config?.vcs?.repo || config?.console?.github_signin === false) return false;
+  try { return Boolean(await vault.has('GITHUB_APP_CLIENT_ID') && await vault.has('GITHUB_APP_CLIENT_SECRET')); } catch { return false; }
+}
+
+/** What anyone who is not an owner sees: the read-only dashboard when the owner turned the public view on, otherwise a sign-in
+ *  page (no session) or a refusal (a signed-in viewer). Every other path is refused. Reads only. */
+async function readOnlyView(request, { db, config, session, clock }) {
+  const url = new URL(request.url);
+  const p = url.pathname.replace(/\/+$/, '');
+  const api = p.startsWith('/api/');
+  const open = publicViewEnabled(config);
+  if (request.method === 'GET' && open && (p === '/console' || p === '/api/console/public')) {
+    const m = await loadMeasures({ db, now: clock(), config });
+    return p === '/api/console/public' ? Response.json(m, { headers: { 'cache-control': 'no-store' } }) : page(renderPublicView(m, { viewer: session?.login || null }));
+  }
+  if (api) return Response.json({ error: session ? 'owner only' : 'sign in' }, { status: session ? 403 : 401 });
+  if (session) return SETUP(`<h1>Read-only</h1><p>${esc(session.login)} can view this organization, not change it.</p>`, 403);
+  return SETUP('<h1>Sign in</h1><p><a href="/console/github/signin">Sign in with GitHub</a></p>', 401);
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
