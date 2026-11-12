@@ -1,0 +1,51 @@
+{
+  "id": "drafts",
+  "name": "Draft documents",
+  "version": "0.1.0",
+  "class": "C",
+  "scope": {
+    "does": [
+      "Keeps first drafts of plans, patent-style descriptions and legal-style documents that a person asked for, with every version stored",
+      "Stamps every draft with a banner saying it is a draft, not advice, and not yet used anywhere",
+      "Checks each draft has the sections its kind needs and no secret values, and refuses a draft that claims to be final, advice or already used",
+      "Flags drafts nobody has touched for a while so they are revised or closed"
+    ],
+    "does_not": [
+      "Give legal, patent or financial advice, or say a document is valid, enforceable or ready to use",
+      "Sign, send or submit any document anywhere: this pack has no outbound path",
+      "Mark a draft as used by anyone but the person who took it",
+      "Bypass the draft banner or the guard"
+    ]
+  },
+  "charter": {
+    "objective": "Turn what a person asked for into clearly marked first drafts they can take to a qualified professional, and never let a draft pass as final",
+    "primary_metric": {
+      "id": "drafts_versions_7d", "op": ">=", "target": 1,
+      "read_probe": "SELECT COUNT(*) AS value FROM drafts_versions WHERE created_at >= datetime('now', '-7 days')"
+    },
+    "guard_metrics": [
+      {
+        "id": "drafts_missing_banner", "op": "<=", "target": 0,
+        "read_probe": "SELECT COUNT(*) AS value FROM drafts_versions WHERE body NOT LIKE 'DRAFT, NOT FINAL.%'"
+      },
+      {
+        "id": "drafts_stale_open", "op": "<=", "target": 3,
+        "read_probe": "SELECT COUNT(*) AS value FROM drafts WHERE status = 'draft' AND updated_at < datetime('now', '-30 days')"
+      }
+    ]
+  },
+  "requires": {
+    "ports": ["drafts"],
+    "secrets": [],
+    "specs": ["US-SPEC-21", "US-SPEC-06"]
+  },
+  "loops": [
+    { "id": "stale", "every_ticks": 12, "entry": "./loops.js#stale", "outbound": false },
+    { "id": "metrics", "every_ticks": 6, "entry": "./loops.js#metrics", "outbound": false }
+  ],
+  "migrations": ["./migrations/0001_drafts.sql"],
+  "defaults": {
+    "stale_days": 14
+  },
+  "enable_gate": "Turn on Draft documents? It will keep first drafts of plans, patent-style descriptions and legal-style documents that you ask for, every version saved, each stamped as a draft that is not advice and has not been used anywhere. It cannot sign, send or submit anything, and it never says a document is valid or ready. Take a draft to a qualified professional before relying on it. It costs only the model calls you allow for writing, which can be none. Turn it off any time with one action."
+}
