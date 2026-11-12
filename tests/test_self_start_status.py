@@ -78,3 +78,21 @@ class Status(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GateShowsAttempts(unittest.TestCase):
+    def test_gate_issue_lists_what_each_door_did_and_stays_stable_between_runs(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls, gh = make_root(d), [], FakeGh()
+            ss.start(runner(root, calls), lambda *a, **k: {}, gh, {}, root, "o/r", NOW, gh_api=lambda p: {"check_runs": []})
+            body = gh._i[0]["body"]
+            self.assertIn("## What the system already tried", body)
+            self.assertIn("| workers-builds | no | no successful Workers Builds check run", body)
+            self.assertIn("| bootstrap-connect | no | no Cloudflare session |", body)
+            self.assertLess(body.index("What the system already tried"), body.index("Everything the bootstrapper recorded"))
+            ss.start(runner(root, calls), lambda *a, **k: {}, gh, {}, root, "o/r", NOW + dt.timedelta(hours=6), gh_api=lambda p: {"check_runs": []})
+            self.assertEqual([e[0] for e in gh.log], ["create"])  # identical body: no edit churn
+
+    def test_a_reason_containing_a_pipe_cannot_break_the_table(self):
+        body = ss.gate_issue_body([], "o/r", [], None, [{"door": "x", "ok": False, "reason": "a | b"}])
+        self.assertIn("| x | no | a / b |", body)
