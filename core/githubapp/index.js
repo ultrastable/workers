@@ -32,6 +32,7 @@ export function manifest(config = {}) {
     hook_attributes: { url: base + '/console/github/webhook', active: false },
     redirect_url: base + '/console/github/callback',
     setup_url: base + '/console/github/installed',
+    callback_urls: [base + '/console/github/signin/callback'],
     setup_on_update: true,
     public: false,
     default_permissions: perms,
@@ -151,6 +152,7 @@ export function createGithubApp({ vault, fetch, now = () => Date.now(), config =
     const by = 'github-app';
     const r1 = await vault.put('GITHUB_APP_ID', packId('app-id', j.id), { by });
     const r2 = await vault.put('GITHUB_APP_PRIVATE_KEY', j.pem, { by });
+    if (j.client_id && j.client_secret) { await vault.put('GITHUB_APP_CLIENT_ID', j.client_id, { by }); await vault.put('GITHUB_APP_CLIENT_SECRET', j.client_secret, { by }); }
     if (j.webhook_secret) await vault.put('GITHUB_APP_WEBHOOK_SECRET', j.webhook_secret, { by });
     if (r1.error || r2.error) return failed('The credentials could not be stored.', 500);
     const slug = String(j.slug || '').replace(/[^A-Za-z0-9-]/g, '');

@@ -15,6 +15,7 @@ import * as claims from '../claims/index.js';
 import { createRouter } from '../router/router.js';
 import { createRunner, runnerExtraSteps } from '../runner/index.js';
 import { createGithubVcs } from '../runner/vcs-github.js';
+import { createSignin } from '../githubapp/signin.js';
 import { createGithubApp, createInstallationTokenProvider, hasAppCredentials } from '../githubapp/index.js';
 import { describeExtraSteps, handle as describeHandle } from '../describe/index.js';
 import { createPacks } from '../packs/index.js';
@@ -130,6 +131,7 @@ export function createOrg({
       const ok = Boolean(last && last.steps_completed === last.steps_total);
       return Response.json({ ok, org: config.org_slug, last_tick: last || null }, { status: ok ? 200 : 503 });
     }
+    if (secrets && config.vcs?.repo && p.startsWith('/console/github/signin')) return createSignin({ vault: secrets, fetch: doFetch, now: clock, repo: config.vcs.repo })(request);
     if (githubApp && p.startsWith('/console/github/')) return githubApp(request, url.origin);
     if (p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console')) {
       const e = await mergedEnv();
