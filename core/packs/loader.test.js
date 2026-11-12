@@ -46,7 +46,7 @@ test('splitStatements respects strings and comments', () => {
 });
 
 test('checkMigrationStatement allows only the pack own objects', () => {
-  const ok = ['CREATE TABLE IF NOT EXISTS x_a (id INTEGER, guard_reason TEXT)', 'CREATE INDEX IF NOT EXISTS idx_x ON x_a(id)', 'ALTER TABLE x_a ADD COLUMN b TEXT', 'INSERT OR IGNORE INTO x_a VALUES (1)'];
+  const ok = ['CREATE TABLE IF NOT EXISTS x (id INTEGER)', 'CREATE TABLE IF NOT EXISTS x_a (id INTEGER, guard_reason TEXT)', 'CREATE INDEX IF NOT EXISTS idx_x ON x_a(id)', 'ALTER TABLE x_a ADD COLUMN b TEXT', 'INSERT OR IGNORE INTO x_a VALUES (1)'];
   for (const s of ok) assert.deepEqual(checkMigrationStatement(s, 'x'), [], s);
   const bad = ['CREATE TABLE y_a (id)', 'CREATE TABLE guard_ledger2 (id)', 'DROP TABLE x_a', 'DELETE FROM x_a', 'UPDATE guard_ledger SET decision = 1',
     'ALTER TABLE items ADD COLUMN z TEXT', 'CREATE INDEX i ON items(id)', 'CREATE TRIGGER x_t AFTER INSERT ON x_a BEGIN SELECT 1; END',

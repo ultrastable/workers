@@ -29,6 +29,7 @@ const NAME = '([A-Za-z_]\\w*)';
 export function checkMigrationStatement(stmt, packId) {
   const s = stripSql(stmt).trim();
   const own = `${packId}_`;
+  const owns = t => t === packId || t.startsWith(own);   // the pack id itself, or <id>_*
   if (/["`\[]/.test(s)) return ['quoted identifiers are not allowed'];
   const REF = '\\b(?:from|join|into|update|references|table|on)\\s+';
   if (new RegExp(`${REF}(?:(?:packs_|guard_|kernel_)\\w+|trust_ledger\\b|roles\\b)`, 'i').test(s)) return ['touches host tables'];
@@ -37,12 +38,12 @@ export function checkMigrationStatement(stmt, packId) {
     const kind = m[1].toLowerCase(), obj = m[2].toLowerCase();
     if (kind === 'index') {
       const on = s.match(/\bon\s+([A-Za-z_]\w*)/i);
-      return on && on[1].toLowerCase().startsWith(own) ? [] : [`index must be on a table named ${own}*`];
+      return on && owns(on[1].toLowerCase()) ? [] : [`index must be on a table named ${own}*`];
     }
-    return obj.startsWith(own) ? [] : [`${kind} "${obj}" must be named ${own}*`];
+    return owns(obj) ? [] : [`${kind} "${obj}" must be named ${own}*`];
   }
-  if ((m = s.match(new RegExp(`^alter\\s+table\\s+${NAME}`, 'i')))) return m[1].toLowerCase().startsWith(own) ? [] : [`alter table "${m[1]}" must be named ${own}*`];
-  if ((m = s.match(new RegExp(`^insert\\s+(?:or\\s+\\w+\\s+)?into\\s+${NAME}`, 'i')))) return m[1].toLowerCase().startsWith(own) ? [] : [`insert into "${m[1]}" must be named ${own}*`];
+  if ((m = s.match(new RegExp(`^alter\\s+table\\s+${NAME}`, 'i')))) return owns(m[1].toLowerCase()) ? [] : [`alter table "${m[1]}" must be named ${own}*`];
+  if ((m = s.match(new RegExp(`^insert\\s+(?:or\\s+\\w+\\s+)?into\\s+${NAME}`, 'i')))) return owns(m[1].toLowerCase()) ? [] : [`insert into "${m[1]}" must be named ${own}*`];
   return ['only CREATE TABLE/INDEX/VIEW, ALTER TABLE and INSERT on the pack own objects are allowed'];
 }
 
