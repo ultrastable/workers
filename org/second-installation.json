@@ -1,0 +1,24 @@
+{
+  "schema": "second-installation/1",
+  "phase": "P4",
+  "issue": "ultrastable/workers#47",
+  "status": "OFFLINE-PROVEN: the full run is tested against a fresh in-memory store; no live second account has run it yet",
+  "org": {
+    "org_slug": "second-org",
+    "tenant": "fresh organization, shares no code, account, store, token or route with the first installation",
+    "claim_ttl_minutes": 120,
+    "max_wip_per_role": 3,
+    "plus_share": 0.2
+  },
+  "bindings": { "TICK_TOKEN": "bound at install", "CONSOLE_TOKEN": "bound at install" },
+  "seed": {
+    "roles": [{ "id": "staff-1", "role": "staff", "tick_every": 1, "model": "m" }],
+    "items": [{ "id": "S2-1", "title": "publish the first page", "owner_role": "staff", "done_check": "page returns 200", "priority": 10, "status": "open" }]
+  },
+  "run": ["tick", "console", "core-module:claims", "core-module:describe"],
+  "live_proof": {
+    "needs": "a Cloudflare or Google Cloud account that is not the first installation's",
+    "command": "node agent-setup/verify.mjs <base-url>",
+    "closing_probe": "verify.mjs exits 0 against the second installation's public URL"
+  }
+}
