@@ -13,8 +13,7 @@ export async function inventoryLoop({ db, ctx, now, settings }) {
     let r;
     try { r = await deploy.reconcile(unit); } catch (e) { err++; continue; }        // a read error is not drift
     const consistent = r.status !== 'unlogged' ? 1 : 0;
-    await run(db, `INSERT INTO cloud_units (provider, unit, live_version, consistent, detail, checked_at) VALUES (?,?,?,?,?,?)
-      ON CONFLICT(provider, unit) DO UPDATE SET live_version = excluded.live_version, consistent = excluded.consistent, detail = excluded.detail, checked_at = excluded.checked_at`,
+    await run(db, `INSERT OR REPLACE INTO cloud_units (provider, unit, live_version, consistent, detail, checked_at) VALUES (?,?,?,?,?,?)`,
       provider, unit, r.live ?? null, consistent, r.status, iso(now()));
     if (consistent) ok++;
     else {
