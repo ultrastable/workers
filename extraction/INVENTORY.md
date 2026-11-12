@@ -41,7 +41,7 @@ Legend: BUILT = generic module exists here with tests. PLANNED = target and orde
 | `.github/workflows/` (77): 7 core workflows in boundary.json | BUILT as manual-trigger templates under `adapters/github/workflows/`; no scheduled workflows (Actions budget rule); lint-checked by test |
 | `migrations/` (2221 files, 21 MB) | Not copied. The 22 core tables in boundary.json are re-derived as per-module migrations (`core/*/migrations`), idempotent and tenant-free |
 | `_shared/` (UI helpers, voice, design system, paper formatting) | App-side and QNFO-styled: not extracted. The console has its own UI |
-| `AGENTS.md`, `agents/` roles, `docs/DOCTRINE-KERNEL.md`, `docs/AUTONOMOUS-OPERATION-DOCTRINE.md` | BUILT as the generic policy pack: `agents/`, `autonomy/policy.json`, `docs/seed.md` (P1). QNFO owner directives stay QNFO |
+| `AGENTS.md`, `agents/` roles, docs/DOCTRINE-KERNEL.md, docs/AUTONOMOUS-OPERATION-DOCTRINE.md | BUILT as the generic policy pack: `agents/`, `autonomy/policy.json`, `docs/seed.md` (P1). QNFO owner directives stay QNFO |
 | `product/` (claims page data) | PLANNED: product claims feed on the product's own host (issue #10 in the system of record) |
 | 12 `app` workers (research, idea-hub, outreach, email, social, pdf, gateway, ...) | Stay in QNFO. Not product |
 | 8 `personal` workers and `docs/` (business plan, career, closeouts, handoffs) | Never copied. Private to the owner |

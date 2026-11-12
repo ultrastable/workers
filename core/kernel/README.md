@@ -11,9 +11,9 @@ import { L2_EXTRA_STEPS, MIGRATIONS_DIR } from './index.js';
 await runTick(db, { config, extraSteps: L2_EXTRA_STEPS });   // L1 steps, then one 'l2' step
 ```
 
-`extraSteps` is the one backward-compatible hook added to `tick.js` (`[{ name, run(db, ctx) }]`, guarded like any step; omitted means the seven L1 steps). `runL2(db, ctx)` runs nine guarded sub-steps in order: `read_metrics`, `risk_snapshot`, `detectors`, `allocate`, `focus`, `decisions`, `remedies`, `remediate`, `lifecycle`. Each writes a `kernel_step_evidence` row.
+`extraSteps` is the one backward-compatible hook added to `core/src/tick.js` (`[{ name, run(db, ctx) }]`, guarded like any step; omitted means the seven L1 steps). `runL2(db, ctx)` runs nine guarded sub-steps in order: `read_metrics`, `risk_snapshot`, `detectors`, `allocate`, `focus`, `decisions`, `remedies`, `remediate`, `lifecycle`. Each writes a `kernel_step_evidence` row.
 
-Configuration (`config.kernel`): `enabled` (false: L2 does nothing), `manager_ops` (false: measurement and detectors keep running, allocation, focus, decisions, remedies, remediation and gate filing stop), `slots` (T, default 25), `high_priority_max` (default 10), `guard_tolerance`. Conventions: a program's items carry `items.project = <program id>` or the id of a kernel project in that program. Migrations: `migrations/0001_kernel.sql`, `0002_lifecycle.sql` (apply after the seed migrations; idempotent).
+Configuration (`config.kernel`): `enabled` (false: L2 does nothing), `manager_ops` (false: measurement and detectors keep running, allocation, focus, decisions, remedies, remediation and gate filing stop), `slots` (T, default 25), `high_priority_max` (default 10), `guard_tolerance`. Conventions: a program's items carry `items.project = <program id>` or the id of a kernel project in that program. Migrations: `core/kernel/migrations/0001_kernel.sql`, `core/kernel/migrations/0002_lifecycle.sql` (apply after the seed migrations; idempotent).
 
 ## Requirement status
 
@@ -58,7 +58,7 @@ BUILT means implemented and covered by a passing test in this directory. Nothing
 | US-15-R06 change after a gate is a change request with revert path | BUILT | `amendArtifact`, `decideChangeRequest` |
 | US-15-R07 reviewer differs from doer (agent, and model family when both known) | BUILT | `reviewArtifact`, re-checked by `checkGate` |
 | US-15-R11 disposition on leaving the active set | BUILT | seed reconcile; G3 checks it per project |
-| US-15 s8 tables `phases`, `artifacts`, `change_requests`, `risks`, `lessons` | BUILT | `0002_lifecycle.sql` |
+| US-15 s8 tables `phases`, `artifacts`, `change_requests`, `risks`, `lessons` | BUILT | `core/kernel/migrations/0002_lifecycle.sql` |
 | US-15 A-CLO-3 lesson filed into the plus queue | BUILT | `addLesson` |
 | US-15 s7 tick files missing gate artifacts | BUILT | `lifecycleGaps` |
 | US-15-T1, T2, T3, T6 | BUILT | `lifecycle.test.js` |
