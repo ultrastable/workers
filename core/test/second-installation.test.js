@@ -65,6 +65,6 @@ test('fresh org runs tick, console, claims and describe end to end', async () =>
 
 test('separation: the descriptor carries no first-installation identifier', () => {
   const s = readFileSync(root('org/second-installation.json'), 'utf8');
-  const banned = new RegExp(['q', 'nfo|quniverse|rwnq8|edb167b7'].join(''), 'i');
+  const banned = new RegExp(['q' + 'n' + 'f' + 'o', 'quni' + 'verse', 'rwn' + 'q8', 'edb167' + 'b7'].join('|'), 'i');
   assert.ok(!banned.test(s));
 });
