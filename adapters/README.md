@@ -5,7 +5,7 @@ The portable core is [`../core/src/tick.js`](../core/src/tick.js): pure logic ov
 | Adapter | Where | Scheduler | Store | Status |
 |---|---|---|---|---|
 | Cloudflare | [`cloudflare/`](cloudflare/) | Worker cron trigger | D1 | First adapter. Runs the fleet for QNFO; template tested; no `--apply` on a fresh account yet |
-| Google Cloud | [`gcp/`](gcp/) | Cloud Scheduler to Cloud Run `POST /tick` | SQLite on a volume now; Cloud SQL or Firestore later | Skeleton, 2 tests, deploy script unrun |
+| Google Cloud | [`gcp/`](gcp/) | Cloud Scheduler to Cloud Run `POST /tick` | SQLite on a volume now; Cloud SQL or Firestore later | Skeleton; 13 tests incl. the port contract (`gcp/test/ports.test.js`); deploy script unrun |
 | SQLite handle | [`sqlite/`](sqlite/) | none | `node:sqlite` behind the D1 interface | Shared by GCP and tests |
 
 ## Adding an adapter (what Google Cloud follows)
