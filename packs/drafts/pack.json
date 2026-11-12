@@ -30,7 +30,7 @@
       },
       {
         "id": "drafts_stale_open", "op": "<=", "target": 3,
-        "read_probe": "SELECT COUNT(*) AS value FROM drafts WHERE status = 'draft' AND updated_at < datetime('now', '-30 days')"
+        "read_probe": "SELECT COUNT(*) AS value FROM drafts_items WHERE status = 'draft' AND updated_at < datetime('now', '-30 days')"
       }
     ]
   },

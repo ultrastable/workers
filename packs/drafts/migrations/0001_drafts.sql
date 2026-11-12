@@ -2,7 +2,7 @@
 -- Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 -- Drafts pack tables (US-SPEC-21 class C). Idempotent. Draft-only: nothing here is ever sent.
 
-CREATE TABLE IF NOT EXISTS drafts (
+CREATE TABLE IF NOT EXISTS drafts_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   idem_key TEXT UNIQUE,
   kind TEXT NOT NULL CHECK (kind IN ('plan','patent','legal')),

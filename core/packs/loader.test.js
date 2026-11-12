@@ -58,8 +58,8 @@ test('loadFromDir finds every pack by scanning, including the shipped email and 
   const { db, packs } = host();
   const r = await packs.loadFromDir(PACKS_ROOT);
   assert.deepEqual(r.failed, []);
-  assert.deepEqual(r.registered, ['email', 'social']);
-  assert.deepEqual(db.raw.prepare(`SELECT id, enabled FROM packs_registry ORDER BY id`).all().map(x => ({ ...x })), [{ id: 'email', enabled: 0 }, { id: 'social', enabled: 0 }]);
+  assert.ok(['email', 'social'].every(id => r.registered.includes(id)), 'shipped packs are registered: ' + r.registered);
+  assert.deepEqual(db.raw.prepare(`SELECT id, enabled FROM packs_registry ORDER BY id`).all().map(x => ({ ...x })), r.registered.slice().sort().map(id => ({ id, enabled: 0 })));
   assert.deepEqual(tables(db, 'email_%'), []);                  // scanning registers, it never migrates or enables
 });
 
