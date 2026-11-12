@@ -1,11 +1,13 @@
 // The launcher itself: one Worker, no database, no stored data. Runs on the Workers Free plan.
 // Deploy with `npx wrangler deploy` from apps/launcher after `node build.mjs`. Abuse controls (a rate-limit binding and a
-// Turnstile secret) are optional hooks in src/index.js and are NOT configured here yet: see README.
+// Turnstile secret) are hooks in src/index.js: RATE_LIMITER is configured below; Turnstile needs the TURNSTILE_SECRET secret set at deploy.
 {
   "name": "ultrastable-launcher",
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   "observability": { "enabled": false },
-  "limits": { "cpu_ms": 50, "subrequests": 12 }
+  "limits": { "cpu_ms": 50, "subrequests": 12 },
+  // Per-visitor abuse limit (US-19-R09): 5 provisioning attempts per 60 s. Read as env.RATE_LIMITER in src/index.js.
+  "ratelimits": [{ "name": "RATE_LIMITER", "namespace_id": "1901", "simple": { "limit": 5, "period": 60 } }]
 }
