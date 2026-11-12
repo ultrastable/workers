@@ -9,4 +9,4 @@ A person with no terminal opens one page, says what they want, ticks two agreeme
 
 Tests: `node --test --no-warnings apps/launcher/test/*.test.mjs` (set `ULTRASTABLE_BUILD_TEST=1` to also build the bundle; slow, release builds only).
 
-Not yet built: Turnstile and rate-limit bindings (hooks exist, bindings are not configured), release bundle publishing, the claim-time heartbeat.
+Rate-limit binding is configured in `wrangler.template.jsonc`. Not yet built: Turnstile secret (hook exists, set `TURNSTILE_SECRET` at deploy), hosting on a permanent account, release bundle publishing, the claim-time heartbeat.
