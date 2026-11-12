@@ -7,6 +7,7 @@ Branch protection is a paid feature on private repositories, so the rule is code
 merged before its tests had run). Every agent and person merges through this tool; it refuses, and says why, unless:
 
   - the pull request is not a draft and has no merge conflict, and
+  - the `contract` job of the `self-hosting` workflow concluded `success` on the head commit (every pull request, docs-only included), and
   - the `test` job of the `ci` workflow concluded `success` on the pull request's head commit, or every changed file is
     on the docs-only list that the workflow skips (then there is nothing to run).
 
@@ -36,22 +37,30 @@ class Gh:
         j = self._run("pr", "view", str(n), "-R", self.repo, "--json", "isDraft,mergeable,headRefOid,files,state")
         return json.loads(j)
 
-    def test_conclusion(self, sha):
+    def check_conclusion(self, sha, name):
         j = self._run("api", f"repos/{self.repo}/commits/{sha}/check-runs", "--jq", ".check_runs")
-        runs = [r for r in json.loads(j) if r["name"] == "test"]
-        return runs[0]["conclusion"] if runs and runs[0]["status"] == "completed" else None
+        runs = [r for r in json.loads(j) if r["name"] == name]
+        if not runs:
+            return None
+        newest = max(runs, key=lambda r: r.get("started_at") or "")
+        return newest["conclusion"] if newest["status"] == "completed" else None
+
+    def test_conclusion(self, sha):
+        return self.check_conclusion(sha, "test")
 
     def merge(self, n):
         self._run("pr", "merge", str(n), "-R", self.repo, "--squash", "--delete-branch")
 
 
-def decide(pr: dict, test_conclusion: str | None) -> tuple[bool, str]:
+def decide(pr: dict, test_conclusion: str | None, contract_conclusion: str | None = "success") -> tuple[bool, str]:
     if pr["state"] != "OPEN":
         return False, f"pull request is {pr['state']}"
     if pr["isDraft"]:
         return False, "pull request is still a draft"
     if pr["mergeable"] == "CONFLICTING":
         return False, "merge conflict: rebase on main and run the tests again"
+    if contract_conclusion != "success":  # F-002: the `contract` check (self-hosting record) is required on every pull request, docs-only included
+        return False, "the contract check " + ("has not completed" if contract_conclusion is None else f"concluded {contract_conclusion}") + " on the head commit"
     paths = [f["path"] for f in pr["files"]]
     if paths and all(any(fnmatch.fnmatch(p, g) for g in DOCS_ONLY) for p in paths):
         return True, "docs-only change: the test job is skipped by design"
@@ -70,7 +79,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     gh = Gh(a.repo)
     pr = gh.pr(a.pr)
-    ok, why = decide(pr, gh.test_conclusion(pr["headRefOid"]))
+    ok, why = decide(pr, gh.test_conclusion(pr["headRefOid"]), gh.check_conclusion(pr["headRefOid"], "contract"))
     print(("MERGE" if ok else "REFUSE") + ": " + why)
     if ok and a.apply:
         gh.merge(a.pr)
