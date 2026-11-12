@@ -1,10 +1,15 @@
 // Rendered to wrangler.jsonc by bootstrap/bootstrap.py. Edit the template, not the output.
+// Tick: a cron trigger where the account allows one; otherwise (tick_mode "alarm", bootstrap/ladder.py renders it)
+// the Heartbeat Durable Object alarm ticks the Worker with no cron and no outside credential.
 {
   "name": "{worker_name}",
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "triggers": { "crons": ["{tick_cron}"] },
+  "vars": { "TICK_MODE": "{tick_mode}" },
+  "durable_objects": { "bindings": [{ "name": "HEARTBEAT", "class_name": "Heartbeat" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Heartbeat"] }],
   "d1_databases": [
     { "binding": "DB", "database_name": "{d1_database}", "database_id": "{d1_database_id}", "migrations_dir": "migrations" }
   ],
