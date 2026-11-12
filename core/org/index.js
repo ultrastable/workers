@@ -28,6 +28,8 @@ import { createAgents } from '../agents/index.js';
 import { createContainers } from '../containers/index.js';
 import { createInfra, heartbeat } from '../infra/index.js';
 import { createElicit } from '../elicit/index.js';
+import { guardSteps, seedBacklog } from '../runner/selfdoer.js';
+import { handlePublicMetrics } from './public-metrics.js';
 
 export { MODULES, moduleList } from './modules.js';
 
@@ -99,7 +101,9 @@ export function createOrg({
     if (need.length) return [{ name: 'runner_needs', run: async (_db, ctx) => { await fileRunnerCards(need); ctx.notes.push(`runner skipped: needs ${need.join(', ')}`); } }];
     const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null });
     const v = vcs || createGithubVcs({ fetch: doFetch, repo: config.vcs.repo, base: config.vcs.base || 'main', env, tokenEnv: config.vcs?.token_env || 'VCS_TOKEN', ...(!env[config.vcs?.token_env || 'VCS_TOKEN'] && appReady && tokenProvider ? { tokenProvider } : {}) });
-    return runnerExtraSteps(createRunner({ db, now: clock, config, env, router: r, claims, vcs: v }));
+    const steps = runnerExtraSteps(createRunner({ db, now: clock, config, env, router: r, claims, vcs: v }));
+    // Self-hosting (issue #13): an outer spend cap around every runner step, on top of the router's own caps.
+    return on('selfdoer') ? guardSteps(steps, { db, now: clock, caps: config.selfdoer.caps || {} }) : steps;
   }
 
   // Opt-in modules: each is off unless config.<name>.enabled === true; its ports come from the injections above.
@@ -153,6 +157,13 @@ export function createOrg({
       run: async (d, ctx) => { for (const s of await packs.packSteps()) await s.run(d, ctx); }, // each pack step guards and records its own failure
     });
     steps.push(...runnerSteps(env_));
+    // Self-hosting backlog: the specification backlog (tools/spec_backlog.py --json) and a target map, both read through readFile.
+    if (on('selfdoer') && readFile && config.selfdoer.backlog_path) steps.push({ name: 'selfdoer_seed', run: async (_db, ctx) => {
+      const items = JSON.parse(await readFile(config.selfdoer.backlog_path));
+      const targets = config.selfdoer.targets_path ? JSON.parse(await readFile(config.selfdoer.targets_path)) : {};
+      const r = await seedBacklog(db, Array.isArray(items) ? items : [], targets);
+      ctx.notes.push(`selfdoer_seed: ${r.seeded} seeded (${r.ready} ready, ${r.open} open), ${r.existing} already present`);
+    } });
     // Opt-in loops, after the runner so they never delay it. Each is its own guarded step.
     if (on('steward') && sinks.length) steps.push({ name: 'steward', run: async (_db, ctx) => { const r = await stewardRun({ db, now: clock, config: config.steward, sinks }); ctx.notes.push(`steward: ${r.synced} synced, ${r.failed} failed, ${r.unplaced.length} unplaced, ${r.filed} filed`); } });
     if (on('ownerwatch')) steps.push({ name: 'ownerwatch', run: async (_db, ctx) => { const r = await watchOwnerSteps({ db, now: clock, config: config.ownerwatch, env: presence(env_), fetch: doFetch }); ctx.notes.push(`ownerwatch: ${JSON.stringify(r)}`); } });
@@ -195,6 +206,7 @@ export function createOrg({
       const r = await createInfra({ routes: infraRoutes(), env: e, db, now: clock, config: config.infra, checks }).dispatch(request);
       if (r) return r;
     }
+    if (on('public_metrics')) { const r = await handlePublicMetrics(request, { db, now: clock(), config }); if (r) return r; }
     if (ROUTES.has(p.replace(/\/+$/, '') || '/')) {
       return describeHandle(request, { db, now: clock(), specStatus: describeSpec, packs: await describePacks(), scope: describeScope, compose, voiceRules: describeVoice });
     }

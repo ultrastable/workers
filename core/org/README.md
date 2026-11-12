@@ -79,3 +79,7 @@ Off unless `config.<name>.enabled === true`; the default step list above is unch
 
 Migrations for steward runs, agent approvals, containers, infra and waste are appended at the end of `modules.js`.
 `tools/main_integration_guard.py` tests several PR heads merged together onto main and names a failing pair.
+
+## Self-hosting loops (issue #13)
+
+Opt-in, offline-tested in `core/test/self-doer.test.js`. `config.selfdoer = { enabled, backlog_path, targets_path, caps: { daily_usd, monthly_usd } }` adds a `selfdoer_seed` step (reads the backlog JSON and a `{ <item id>: { target, test } }` map through `readFile`; items without a target are `blocked` until the map names one) and wraps the runner steps in an outer spend cap: unset caps mean no paid work. `config.public_metrics.enabled` serves `GET /public/metrics` and `/public/metrics.json` (five aggregates, null with a reason when unmeasured; `org` keys `spec_remaining` and `agent_prs_merged` carry what the database cannot know).

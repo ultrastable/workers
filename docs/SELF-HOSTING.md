@@ -114,6 +114,6 @@ The first week is supervised, with autonomy at zero:
 | `tools/spec_backlog.py` | BUILT; 5 tests |
 | Bootstrap `--idea` / `--config`; Capability Packs for patent, business, outreach and research cases | BUILT; 4 tests |
 | Account, secrets, `--apply` | NOT DONE (owner steps above) |
-| Doer runner (agents that actually write the pull requests) | PLANNED: next build |
-| Read-only public metrics view (`tools/public_metrics.py`: remaining, agent PRs, predictions, spend, autonomy; JSON and static HTML) | BUILT; 6 tests; publishing it from the Worker needs the live account |
+| Doer runner (agents that actually write the pull requests) | BUILT as opt-in code: `core/runner/selfdoer.js` (backlog seeding from `tools/spec_backlog.py --json` plus a target map, outer daily and monthly spend caps), wired by `config.selfdoer` in `core/org`; tested offline in `core/test/self-doer.test.js`; never run live |
+| Read-only public metrics view (`tools/public_metrics.py`: remaining, agent PRs, predictions, spend, autonomy; JSON and static HTML) | BUILT; 6 tests; served from the Worker at `/public/metrics` and `/public/metrics.json` when `config.public_metrics.enabled` (`core/org/public-metrics.js`, tested offline); turning it on for the live organization needs the live account |
 | Gateway spend limit, prepaid credit | NOT DONE (owner step) |
