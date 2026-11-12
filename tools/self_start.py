@@ -22,6 +22,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -124,12 +125,56 @@ def detect_existing(http, env: dict, root: Path, now: dt.datetime) -> bool:
     return True
 
 
-def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare") -> dict:
+WORKERS_URL = re.compile(r"https://[a-z0-9][a-z0-9.-]*\.workers\.dev", re.I)
+PREVIEW_HOST = re.compile(r"^https://[0-9a-f]{8}-", re.I)  # per-version preview aliases are not the production address
+
+
+def builds_url(check_runs: list[dict]) -> str | None:
+    """The production workers.dev address a successful Workers Builds check run reports, or None. Reads GitHub only: no token of ours."""
+    for c in check_runs:
+        if "workers builds" not in (c.get("name") or "").lower():
+            continue
+        if c.get("status") != "completed" or c.get("conclusion") != "success":
+            continue
+        out = c.get("output") or {}
+        text = " ".join(str(x or "") for x in (out.get("title"), out.get("summary"), out.get("text"), c.get("details_url")))
+        urls = [u.rstrip(".").lower() for u in WORKERS_URL.findall(text)]
+        urls = [u for u in urls if not PREVIEW_HOST.match(u)]
+        if urls:
+            return urls[0]
+    return None
+
+
+def detect_builds(http, gh_api, repo: str, root: Path, now: dt.datetime) -> bool:
+    """Door: a Workers Builds git-import deployment (Cloudflare dashboard, Import a repository). Cloudflare reports each build as a
+    check run on the commit, so the address is read from GitHub with no Cloudflare token. If /health answers ok, record the start."""
+    try:
+        runs = (gh_api(f"repos/{repo}/commits/main/check-runs?per_page=100") or {}).get("check_runs", [])
+    except Exception:
+        return False
+    url = builds_url(runs)
+    if not url:
+        return False
+    try:
+        health = http(url + "/health")
+    except Exception:
+        return False
+    if not (health and health.get("ok")):
+        return False
+    (root / "org").mkdir(exist_ok=True)
+    rec = json.dumps({"at": now.isoformat(), "worker_url": url, "health_ok": True, "via": "workers-builds"}, indent=2)
+    (root / STARTED).write_text(rec + chr(10), encoding="utf-8")
+    return True
+
+
+def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare", gh_api=None) -> dict:
     if (root / STARTED).exists():  # already started: nothing to do, nothing spent
         return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "already": True}
     detected = detect_existing(http, env, root, now)
     if detected:  # a deployment made by another door (dashboard git import, launcher claim): no token needed to verify it
         return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "via": "existing-deployment"}
+    if gh_api and detect_builds(http, gh_api, repo, root, now):  # git import by Workers Builds: no token needed
+        return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "via": "workers-builds"}
     missing = [n for n in REQUIRED_TO_APPLY if not env.get(n)]
     apply = not missing
     rc = run_bootstrap(run, root, apply)
@@ -172,7 +217,11 @@ def main(argv=None) -> int:
     def run(cmd, cwd=None, input=None):
         return subprocess.run(cmd, cwd=cwd, input=input, text=True, capture_output=True)
 
-    r = start(run, http_json, Gh(a.repo), dict(os.environ), Path(a.root), a.repo, dt.datetime.now(dt.timezone.utc))
+    def gh_api(path):
+        out = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True)
+        return json.loads(out.stdout)
+
+    r = start(run, http_json, Gh(a.repo), dict(os.environ), Path(a.root), a.repo, dt.datetime.now(dt.timezone.utc), gh_api=gh_api)
     print(json.dumps({k: v for k, v in r.items()}, indent=2))
     return 0 if (r["bootstrap_exit"] == 0) else 1
 
