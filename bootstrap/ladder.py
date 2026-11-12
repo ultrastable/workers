@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 
 ACCOUNT_ID = re.compile(r"\b[0-9a-f]{32}\b")
+DO_RECONCILE = re.compile(r"provisioned_class_missing_from_config|Durable Object exports reconciliation", re.I)
 CRON_REFUSAL = re.compile(r"10072|cron triggers?|cron_trigger|triggers? (?:are )?not (?:allowed|supported)|maximum number of cron", re.I)
 
 
@@ -31,11 +32,19 @@ def parse_whoami(text: str) -> dict:
     return {"logged_in": logged, "method": method if logged else None, "accounts": sorted(set(ACCOUNT_ID.findall(low)))}
 
 
+def target_account(runtime: dict | None, env: dict) -> str | None:
+    """The one Cloudflare account this run may deploy into: the org config's runtime.account_id, else ULTRASTABLE_TARGET_ACCOUNT_ID.
+    None means no target is configured (the guard is then recorded as not enforced). A malformed value is returned as-is so it matches
+    nothing and every account is refused, never silently ignored."""
+    v = ((runtime or {}).get("account_id") or env.get("ULTRASTABLE_TARGET_ACCOUNT_ID") or "").strip().lower()
+    return v or None
+
+
 def _attempt(rung: str, status: str, reason: str, **extra) -> dict:
     return {"rung": rung, "status": status, "reason": reason, **extra}
 
 
-def rung_connect(run, env: dict, wrangler: list[str], interactive: bool = False) -> dict:
+def rung_connect(run, env: dict, wrangler: list[str], interactive: bool = False, target: str | None = None) -> dict:
     """Rung 1: a Wrangler OAuth session. With no session and `interactive`, start `wrangler login` (the person clicks Allow)."""
     if env.get("CLOUDFLARE_API_TOKEN"):
         return _attempt("connect", "skipped", "a token is already set, so the connect step is not needed (rung scoped-token applies)")
@@ -51,9 +60,15 @@ def rung_connect(run, env: dict, wrangler: list[str], interactive: bool = False)
     if not info["logged_in"]:
         return _attempt("connect", "needs_click", "no Cloudflare session; run `npx wrangler login` and click Allow once (nothing is created or pasted)")
     accounts = info["accounts"]
+    if target:  # account guard (issue #167): the session must reach the intended account; any other is refused, never used
+        if target not in accounts:
+            return _attempt("connect", "failed", f"refused: the Wrangler session reaches {len(accounts)} account(s) and none is the configured target account {target}; nothing was deployed")
+        accounts = [target]
     want = env.get("CLOUDFLARE_ACCOUNT_ID")
     if want and want in accounts:
         accounts = [want]
+    elif want and accounts:
+        return _attempt("connect", "failed", f"refused: CLOUDFLARE_ACCOUNT_ID {want} is not reachable by this session")
     if len(accounts) != 1:
         n = len(accounts)
         return _attempt("connect", "failed", f"signed in, but {n} accounts are reachable; set CLOUDFLARE_ACCOUNT_ID to one of them" if n else "signed in, but no account id was reported")
@@ -64,22 +79,25 @@ def rung_temporary() -> dict:
     return _attempt("temporary", "skipped", "temporary accounts are created by apps/launcher (it deploys with the alarm tick); this script cannot sign a person in")
 
 
-def rung_token(env: dict) -> dict:
+def rung_token(env: dict, target: str | None = None) -> dict:
+    have = (env.get("CLOUDFLARE_ACCOUNT_ID") or "").strip().lower()
+    if target and have and have != target:
+        return _attempt("scoped-token", "failed", f"refused: CLOUDFLARE_ACCOUNT_ID {have} is not the configured target account {target}")
     missing = [n for n in ("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID") if not env.get(n)]
     if missing:
         return _attempt("scoped-token", "unavailable", "not set: " + ", ".join(missing))
     return _attempt("scoped-token", "ready", "scoped token and account id are set", env={})
 
 
-def run_ladder(run, env: dict, wrangler_available: bool = True, wrangler: list[str] | None = None, interactive: bool = False) -> dict:
+def run_ladder(run, env: dict, wrangler_available: bool = True, wrangler: list[str] | None = None, interactive: bool = False, target: str | None = None) -> dict:
     """Try the rungs in order. Returns {route, env, tick_mode, attempts}; env holds only non-secret extras (the account id)."""
     wr = wrangler or ["npx", "wrangler"]
     attempts: list[dict] = []
     route, extra = None, {}
     steps = [
-        ("connect", lambda: rung_connect(run, env, wr, interactive) if wrangler_available else _attempt("connect", "unavailable", "wrangler is not installed here")),
+        ("connect", lambda: rung_connect(run, env, wr, interactive, target) if wrangler_available else _attempt("connect", "unavailable", "wrangler is not installed here")),
         ("temporary", rung_temporary),
-        ("scoped-token", lambda: rung_token(env)),
+        ("scoped-token", lambda: rung_token(env, target)),
     ]
     for name, fn in steps:
         if route:
@@ -89,7 +107,7 @@ def run_ladder(run, env: dict, wrangler_available: bool = True, wrangler: list[s
         attempts.append(a)
         if a["status"] == "ready":
             route, extra = name, a.get("env", {})
-    return {"route": route, "env": extra, "tick_mode": "cron", "attempts": attempts}
+    return {"route": route, "env": extra, "tick_mode": "cron", "account_guard": {"target": target, "enforced": bool(target)}, "attempts": attempts}
 
 
 def render_wrangler(text: str, tick_mode: str) -> str:
@@ -105,6 +123,39 @@ def render_wrangler(text: str, tick_mode: str) -> str:
 def is_cron_refusal(message: str) -> bool:
     """Did a deploy fail because the account refuses cron triggers (a temporary account, or the Free-plan limit)?"""
     return bool(CRON_REFUSAL.search(message or ""))
+
+
+def is_heartbeat_reconcile_failure(message: str) -> bool:
+    """Did a redeploy fail on the Durable Object class reconcile (provisioned_class_missing_from_config, live trial 2026-11-12)?"""
+    return bool(DO_RECONCILE.search(message or ""))
+
+
+def cron_period_minutes(cron: str | None) -> int:
+    """Minutes between ticks for the simple crons the template uses (`*/N * * * *`, `M */H * * *`); 60 when unknown."""
+    parts = (cron or "").split()
+    if len(parts) == 5:
+        m = re.fullmatch(r"\*/(\d+)", parts[0])
+        if m and int(m.group(1)) > 0:
+            return int(m.group(1))
+        h = re.fullmatch(r"\*/(\d+)", parts[1])
+        if h and int(h.group(1)) > 0:
+            return int(h.group(1)) * 60
+    return 60
+
+
+def cron_silent(health: dict | None, deployed_at: str, now, cron: str | None, grace_periods: int = 2, floor_minutes: int = 15) -> bool:
+    """True when a cron-mode Worker answers /health but no tick has run `grace_periods` periods (floor `floor_minutes`) after the deploy:
+    the cron registered and never fired (live trial 2026-11-12), so the caller falls back to the Durable Object alarm."""
+    import datetime as dt
+    if not isinstance(health, dict) or not health.get("ok") or health.get("last_tick"):
+        return False
+    try:
+        t0 = dt.datetime.fromisoformat(deployed_at)
+    except (TypeError, ValueError):
+        return False
+    if t0.tzinfo is None:
+        t0 = t0.replace(tzinfo=dt.timezone.utc)
+    return now >= t0 + dt.timedelta(minutes=max(cron_period_minutes(cron) * grace_periods, floor_minutes))
 
 
 def gate_card(result: dict) -> dict | None:

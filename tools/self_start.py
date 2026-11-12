@@ -28,6 +28,9 @@ import sys
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bootstrap"))
+import ladder  # noqa: E402  (cron_silent: the alarm fallback)
+
 TITLE = "GATE: start Ultrastable on Ultrastable"
 REQUIRED_TO_APPLY = ("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID")
 # repository secret name -> Worker secret name
@@ -80,8 +83,10 @@ def ensure_gate_issue(gh, cards, repo, missing_apply, doors=None, tried=None):
     return gh.create(f"{TITLE} ({len(cards)} owner steps)", body), "created"
 
 
-def run_bootstrap(run, root: Path, apply: bool) -> int:
+def run_bootstrap(run, root: Path, apply: bool, tick_mode: str | None = None) -> int:
     cmd = [sys.executable, "bootstrap/bootstrap.py", "--apply" if apply else "--dry-run", "--idea", "self/IDEA.md", "--config", "self/ultrastable.json"]
+    if tick_mode:
+        cmd += ["--tick-mode", tick_mode]
     return run(cmd, cwd=root).returncode
 
 
@@ -191,9 +196,36 @@ def record_attempt(root: Path, now: dt.datetime, doors: list[dict]) -> None:
     f.write_text(json.dumps(rec, indent=2) + chr(10), encoding="utf-8")
 
 
+def watch_tick(run, http, env: dict, root: Path, now: dt.datetime) -> dict | None:
+    """Silent-cron fallback (issue #167). A Worker deployed in cron mode that answers /health but has run no tick after two periods
+    (the cron registered and never fired, live trial 2026-11-12) is redeployed ticking from its Durable Object alarm, once.
+    Reads org/started.json (written on apply with worker_url, tick_mode, tick_cron); a record without them is left alone."""
+    f = root / STARTED
+    try:
+        rec = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    url = rec.get("worker_url")
+    if rec.get("tick_mode") != "cron" or not url or rec.get("fallback"):
+        return None
+    try:
+        health = http(url.rstrip("/") + "/health")
+    except Exception as e:
+        return {"checked": False, "reason": type(e).__name__}
+    if not ladder.cron_silent(health, rec.get("at", ""), now, rec.get("tick_cron")):
+        return {"checked": True, "silent": False}
+    if [n for n in REQUIRED_TO_APPLY if not env.get(n)]:
+        return {"checked": True, "silent": True, "fallback": "no deploy credentials in this run; the next run retries"}
+    rc = run_bootstrap(run, root, True, "alarm")
+    if rc == 0:
+        rec.update({"tick_mode": "alarm", "fallback": {"from": "cron", "reason": "no tick observed", "at": now.isoformat()}})
+        f.write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
+    return {"checked": True, "silent": True, "fallback": "alarm" if rc == 0 else f"bootstrap exit {rc}"}
+
+
 def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, worker_dir="adapters/cloudflare", gh_api=None) -> dict:
-    if (root / STARTED).exists():  # already started: nothing to do, nothing spent
-        return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "already": True}
+    if (root / STARTED).exists():  # already started: nothing to do and nothing spent, except the silent-cron check
+        return {"applied": False, "bootstrap_exit": 0, "gate_issue": None, "started": True, "secrets_set": [], "already": True, "tick_watch": watch_tick(run, http, env, root, now)}
     doors: list[dict] = []
     detected = detect_existing(http, env, root, now, doors)
     if detected:  # a deployment made by another door (dashboard git import, launcher claim): no token needed to verify it
@@ -230,7 +262,9 @@ def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, wor
         except Exception as e:  # a failed probe is recorded, never swallowed
             health = {"error": type(e).__name__}
     ok = bool(health and health.get("ok"))
-    record = {"at": now.isoformat(), "worker": name, "health_ok": ok, "secrets_set": result["secrets_set"], "applied": True}
+    tick_mode = "alarm" if (lad.exists() and json.loads(lad.read_text(encoding="utf-8")).get("tick_mode") == "alarm") else cfg["runtime"].get("tick_mode", "cron")
+    record = {"at": now.isoformat(), "worker": name, "health_ok": ok, "secrets_set": result["secrets_set"], "applied": True,
+              "worker_url": url, "tick_mode": tick_mode, "tick_cron": cfg["runtime"].get("tick_cron")}
     (root / "org").mkdir(exist_ok=True)
     if ok:
         (root / STARTED).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")

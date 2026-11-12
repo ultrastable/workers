@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 # Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-import json, os, shutil, sys, tempfile, unittest
+import json, os, shutil, subprocess, sys, tempfile, unittest
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "bootstrap"))
@@ -42,11 +42,32 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(bs.validate_policy(p))
 
 
-class BootTests(unittest.TestCase):
+CREDENTIAL_ENV = ("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "ANTHROPIC_API_KEY", "GITHUB_TOKEN", "GH_TOKEN", "ORG_ADMIN_TOKEN", "GH_ORG_TOKEN",
+                  "ULTRASTABLE_TARGET_ACCOUNT_ID", "ULTRASTABLE_CONSOLE_TOKEN")
+
+
+def no_session(cmd, env=None, timeout=None):
+    """A machine with no Wrangler login: what `wrangler whoami` says. Keeps the tests hermetic on a machine that has a real session."""
+    return subprocess.CompletedProcess(cmd, 0, "You are not authenticated. Please run `wrangler login`.", "")
+
+
+class Hermetic(unittest.TestCase):
+    """No real credentials, wrangler session or gh login is ever consulted: env is scrubbed, wrangler and gh are stubbed."""
+
+    def setUp(self):
+        from unittest import mock
+        patchers = [mock.patch.dict(os.environ), mock.patch.object(bs.Boot, "run_cmd", lambda self, cmd, env=None, timeout=None: no_session(cmd, env, timeout)),
+                    mock.patch.object(bs.Boot, "_gh_admin_org", staticmethod(lambda: False))]
+        for p in patchers:
+            p.start()
+            self.addCleanup(p.stop)
+        for k in CREDENTIAL_ENV:
+            os.environ.pop(k, None)
+
+
+class BootTests(Hermetic):
     def boot(self, tmp: Path, env=None):
         copy_seed(tmp)
-        for k in ("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "ANTHROPIC_API_KEY", "GITHUB_TOKEN"):
-            os.environ.pop(k, None)
         os.environ.update(env or {})
         return bs.main(["--root", str(tmp), "--dry-run"])
 
