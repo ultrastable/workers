@@ -152,7 +152,7 @@ test('secret save returns no value, later reads never contain it, bad names and 
   const text = await after.text();
   assert.ok(!text.includes(SECRET));
   const c = JSON.parse(text).connections.find(x => x.name === 'ANTHROPIC_API_KEY');
-  assert.equal(c.present, true); assert.ok(c.set_at); assert.deepEqual(Object.keys(c).sort(), ['label', 'name', 'present', 'set_at']);
+  assert.equal(c.present, true); assert.ok(c.set_at); assert.deepEqual(Object.keys(c).sort(), ['help', 'label', 'name', 'present', 'set_at', 'source']);
   const page = await (await handleConsole(new Request(U + '/console', { headers: { cookie } }), env, o)).text();
   assert.ok(!page.includes(SECRET)); assert.match(page, /Connect/);
   // unauthenticated write refused
