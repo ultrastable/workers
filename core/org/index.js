@@ -9,6 +9,7 @@ import { runTick } from '../src/tick.js';
 import { handleConsole } from '../src/console.js';
 import { createVault } from '../vault/index.js';
 import { sweepFirstRun } from '../doors/index.js';
+import { createConsoleL3 } from '../console-l3/index.js';
 import { L2_EXTRA_STEPS } from '../kernel/index.js';
 import * as claims from '../claims/index.js';
 import { createRouter } from '../router/router.js';
@@ -61,6 +62,7 @@ export function createOrg({
   let appReady = false; // refreshed at the start of each tick: do the vault's GitHub App credentials exist
   const tokenProvider = secrets ? createInstallationTokenProvider({ vault: secrets, fetch: doFetch, now: clock }) : null;
   const githubApp = secrets ? (request, origin) => createGithubApp({ vault: secrets, fetch: doFetch, now: clock, consoleToken: env.CONSOLE_TOKEN, config: { org: config.vcs?.repo?.split('/')[0], ...(config.githubapp || {}), baseUrl: config.githubapp?.baseUrl || origin } })(request) : null;
+  const l3 = createConsoleL3({ db, now: clock, config: { version: config.version } });
   const describeScope = scope || dcfg.scope || {};
   const describeVoice = voiceRules || dcfg.voice_rules || {};
   const describeSpec = specStatus || dcfg.spec_status || null;
@@ -131,7 +133,7 @@ export function createOrg({
     if (githubApp && p.startsWith('/console/github/')) return githubApp(request, url.origin);
     if (p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console')) {
       const e = await mergedEnv();
-      return handleConsole(request, { DB: db, CONSOLE_TOKEN: e.CONSOLE_TOKEN }, { org: config.org_slug, vault: vaultStore, doors: config.doors, config, fetch: doFetch, now: clock, envNames: presence(e) });
+      return handleConsole(request, { DB: db, CONSOLE_TOKEN: e.CONSOLE_TOKEN }, { org: config.org_slug, vault: vaultStore, doors: config.doors, config, l3, fetch: doFetch, now: clock, envNames: presence(e) });
     }
     if (ROUTES.has(p.replace(/\/+$/, '') || '/')) {
       return describeHandle(request, { db, now: clock(), specStatus: describeSpec, packs: await describePacks(), scope: describeScope, compose, voiceRules: describeVoice });

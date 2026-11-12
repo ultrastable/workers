@@ -102,8 +102,8 @@ const LOGIN = (msg = '') => `<!doctype html><meta charset=utf-8><meta name=viewp
 <form method=post action=/console/login><label>Access key<br><input name=key type=password autocomplete=current-password style="width:100%;padding:.6rem;margin:.4rem 0"></label><button style="padding:.6rem 1rem">Open</button></form></body>`;
 
 /** Route /console and /api/console/*. Returns null when the path is not ours.
- *  opts: { org, vault, doors (config.doors; omit = no first-run door), config (router providers name the keys to offer), fetch, now, envNames } */
-export async function handleConsole(request, env, { org, vault, doors, config, fetch: fetchFn, now = () => Date.now(), envNames = {} } = {}) {
+ *  opts: { org, vault, doors (config.doors; omit = no first-run door), config (router providers name the keys to offer), l3 (console-l3 handle; serves /api/console/fleet/{state,digest,report-card}), fetch, now, envNames } */
+export async function handleConsole(request, env, { org, vault, doors, config, l3, fetch: fetchFn, now = () => Date.now(), envNames = {} } = {}) {
   const url = new URL(request.url);
   const p = url.pathname;
   if (!(p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console'))) return null;
@@ -139,6 +139,10 @@ export async function handleConsole(request, env, { org, vault, doors, config, f
   if (!authed && access) authed = await verifyAccessJwt(request.headers.get('cf-access-jwt-assertion'), { ...access, fetch: fetchFn, now: clock() });
   if (!authed) return api ? Response.json({ error: 'sign in' }, { status: 401 }) : page(LOGIN(), 401);
 
+  if (l3 && request.method === 'GET' && p.startsWith('/api/console/fleet/')) {
+    const inner = new URL(request.url); inner.pathname = '/api/' + p.slice('/api/console/fleet/'.length);
+    return (await l3.handle(new Request(inner, { method: 'GET' }))) || Response.json({ error: 'not found' }, { status: 404 });
+  }
   if (request.method === 'GET' && (p === '/console' || p === '/console/')) return page(CONSOLE_HTML);
   if (request.method === 'GET' && p === '/api/console') {
     const body = await buildConsole(env.DB, { org });
