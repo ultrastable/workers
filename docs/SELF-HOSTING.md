@@ -115,5 +115,5 @@ The first week is supervised, with autonomy at zero:
 | Bootstrap `--idea` / `--config`; Capability Packs for patent, business, outreach and research cases | BUILT; 4 tests |
 | Account, secrets, `--apply` | NOT DONE (owner steps above) |
 | Doer runner (agents that actually write the pull requests) | PLANNED: next build |
-| Read-only public metrics view | PLANNED |
+| Read-only public metrics view (`tools/public_metrics.py`: remaining, agent PRs, predictions, spend, autonomy; JSON and static HTML) | BUILT; 6 tests; publishing it from the Worker needs the live account |
 | Gateway spend limit, prepaid credit | NOT DONE (owner step) |
