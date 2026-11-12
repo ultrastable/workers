@@ -20,6 +20,13 @@ import { describeExtraSteps, handle as describeHandle } from '../describe/index.
 import { createPacks } from '../packs/index.js';
 import { sweep as yieldSweep } from '../yield/index.js';
 import { sweep as docgateSweep } from '../docgate/index.js';
+import { steward as stewardRun, rollup as stewardRollup } from '../steward/index.js';
+import { wasteRun } from '../waste/index.js';
+import { watchOwnerSteps } from '../runner/ownerwatch.js';
+import { createAgents } from '../agents/index.js';
+import { createContainers } from '../containers/index.js';
+import { createInfra, heartbeat } from '../infra/index.js';
+import { createElicit } from '../elicit/index.js';
 
 export { MODULES, moduleList } from './modules.js';
 
@@ -50,6 +57,7 @@ const iso = ms => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
 export function createOrg({
   db, env = {}, config = {}, fetch, now = () => Date.now(), readFile,
   vcs, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
+  sinks = [], gauges = {}, executors = [], agentDefs = {}, hooks = {}, routes = [], checks = {}, stepRuns,
 } = {}) {
   const vaultStore = vault || createVault({ db });
   // The env the modules see: real env values win, a vault secret fills a missing name. Never logged or stored.
@@ -93,6 +101,36 @@ export function createOrg({
     return runnerExtraSteps(createRunner({ db, now: clock, config, env, router: r, claims, vcs: v }));
   }
 
+  // Opt-in modules: each is off unless config.<name>.enabled === true; its ports come from the injections above.
+  const on = name => config[name]?.enabled === true;
+  let built = null; // built on first use, so an agents flag without router config costs nothing until a turn runs
+  const lazyRouter = { call: (...a) => (built ||= createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null })).call(...a) };
+  const agents = on('agents')
+    ? createAgents({ db, router: router || lazyRouter, now: clock, config: config.agents, hooks })
+    : null;
+  if (agents) for (const [name, def] of Object.entries(agentDefs)) agents.define(name, def);
+  const elicit = on('elicit') ? createElicit({ db, now: clock, config: config.elicit }) : null;
+  const containersFor = e => (on('containers') && executors.length
+    ? createContainers({ db, now: clock, config: config.containers, executors, secrets: (config.containers.secret_env || []).map(n => e[n]).filter(Boolean) }) : null);
+  const infraRoutes = () => {
+    const r = [...routes];
+    if (agents) r.push({ prefix: '/api/agents', methods: ['POST'], tokenEnv: 'CONSOLE_TOKEN', handler: async request => {
+      const m = new URL(request.url).pathname.match(/^\/api\/agents\/([a-z][a-z0-9-]*)\/turn$/);
+      if (!m) return Response.json({ error: 'not found' }, { status: 404 });
+      let body; try { body = await request.json(); } catch { return Response.json({ error: 'json body required' }, { status: 400 }); }
+      if (!body || typeof body.session !== 'string' || typeof body.text !== 'string') return Response.json({ error: 'session and text required' }, { status: 400 });
+      return Response.json(await agents.turn(m[1], body.session, body.text));
+    } });
+    if (elicit) r.push({ prefix: '/api/elicit', methods: ['GET'], tokenEnv: 'CONSOLE_TOKEN', handler: async request => {
+      const u = new URL(request.url), project = u.searchParams.get('project');
+      if (!project) return Response.json({ error: 'project required' }, { status: 400 });
+      if (u.pathname === '/api/elicit/readiness') return Response.json(await elicit.readiness(project));
+      if (u.pathname === '/api/elicit/asks') return Response.json(await elicit.nextAsks(project));
+      return Response.json({ error: 'not found' }, { status: 404 });
+    } });
+    return r;
+  };
+
   const cctx = () => ({ db, now: clock, config: config.claims || {} });
   const defaultOutputs = async days => (await db.prepare(`SELECT COUNT(*) AS n FROM items WHERE status = 'done' AND updated_at >= ?`).bind(iso(clock() - days * 86400e3)).first()).n;
 
@@ -103,7 +141,10 @@ export function createOrg({
       { name: 'claims_reap', run: async (_db, ctx) => { const r = await claims.reapExpired(cctx()); ctx.notes.push(`claims reaped: ${JSON.stringify(r)}`); } },
       { name: 'claims_release_terminal', run: async (_db, ctx) => { const r = await claims.releaseTerminal(cctx()); ctx.notes.push(`claims released on terminal items: ${JSON.stringify(r)}`); } },
       { name: 'describe', run: async (d, ctx) => describeExtraSteps({ fetch: doFetch, readFile, specStatus: describeSpec, packs: await describePacks(), scope: describeScope, compose, voiceRules: describeVoice })[0].run(d, ctx) },
-      { name: 'yield', run: async (_db, ctx) => { const r = await yieldSweep({ db, now: clock, config: config.yield || {}, outputs: outputs || defaultOutputs }); ctx.notes.push(`yield: ${r.filed} filed, ${r.closed} closed`); } },
+      // waste (opt-in) runs the same yield sweep and then the gauge rules, so it replaces the yield step rather than doubling it.
+      on('waste')
+        ? { name: 'waste', run: async (_db, ctx) => { const r = await wasteRun({ db, now: clock, config: { ...(config.yield || {}), ...config.waste }, outputs: outputs || defaultOutputs, gauges }); ctx.notes.push(`waste: ${r.filed} filed, ${r.closed} closed, ${r.gauge_findings} gauge findings`); } }
+        : { name: 'yield', run: async (_db, ctx) => { const r = await yieldSweep({ db, now: clock, config: config.yield || {}, outputs: outputs || defaultOutputs }); ctx.notes.push(`yield: ${r.filed} filed, ${r.closed} closed`); } },
     ];
     if (store) steps.push({ name: 'docgate', run: async (_db, ctx) => { const r = await docgateSweep({ db, now: clock, config: config.docgate || {}, store }); ctx.notes.push(`docgate: ${JSON.stringify(r)}`); } });
     steps.push({
@@ -111,6 +152,18 @@ export function createOrg({
       run: async (d, ctx) => { for (const s of await packs.packSteps()) await s.run(d, ctx); }, // each pack step guards and records its own failure
     });
     steps.push(...runnerSteps(env_));
+    // Opt-in loops, after the runner so they never delay it. Each is its own guarded step.
+    if (on('steward') && sinks.length) steps.push({ name: 'steward', run: async (_db, ctx) => { const r = await stewardRun({ db, now: clock, config: config.steward, sinks }); ctx.notes.push(`steward: ${r.synced} synced, ${r.failed} failed, ${r.unplaced.length} unplaced, ${r.filed} filed`); } });
+    if (on('ownerwatch')) steps.push({ name: 'ownerwatch', run: async (_db, ctx) => { const r = await watchOwnerSteps({ db, now: clock, config: config.ownerwatch, env: presence(env_), fetch: doFetch }); ctx.notes.push(`ownerwatch: ${JSON.stringify(r)}`); } });
+    const containers = containersFor(env_);
+    if (containers) steps.push({ name: 'containers', run: async (_db, ctx) => { const reaped = await containers.reap(); const ran = await containers.runNext(); ctx.notes.push(`containers: reaped ${JSON.stringify(reaped)}, ran ${ran ? ran.status || ran.skipped : 'none'}`); } });
+    if (agents) steps.push({ name: 'agents', run: async (_db, ctx) => { await agents.expire(); ctx.notes.push('agents: expired approvals swept'); } });
+    if (elicit) steps.push({ name: 'elicit', run: async (_db, ctx) => {
+      let n = 0; for (const r of (await db.prepare(`SELECT DISTINCT project FROM elicit_needs WHERE state='asked'`).all()).results || []) n += await elicit.expire(r.project);
+      ctx.notes.push(`elicit: ${n} asks defaulted on timeout`);
+    } });
+    if (on('console_l3') && typeof stepRuns === 'function') steps.push({ name: 'console_l3', run: async (_db, ctx) => { const f = await l3.sweepStepBudgets(await stepRuns()); ctx.notes.push(`console_l3: ${f.length} step-budget findings`); } });
+    if (on('infra')) steps.push({ name: 'infra', run: async (_db, ctx) => { await heartbeat({ db, now: clock }, 'tick', config.infra.tick_every_minutes ?? null); ctx.notes.push('infra: tick heartbeat recorded'); } });
     return steps;
   }
 
@@ -135,11 +188,16 @@ export function createOrg({
       const e = await mergedEnv();
       return handleConsole(request, { DB: db, CONSOLE_TOKEN: e.CONSOLE_TOKEN }, { org: config.org_slug, vault: vaultStore, doors: config.doors, config, l3, fetch: doFetch, now: clock, envNames: presence(e) });
     }
+    if (on('infra') && (p === '/health/deep' || p.startsWith('/api/agents') || p.startsWith('/api/elicit') || routes.some(r => p.startsWith(r.prefix)))) {
+      const e = await mergedEnv();
+      const r = await createInfra({ routes: infraRoutes(), env: e, db, now: clock, config: config.infra, checks }).dispatch(request);
+      if (r) return r;
+    }
     if (ROUTES.has(p.replace(/\/+$/, '') || '/')) {
       return describeHandle(request, { db, now: clock(), specStatus: describeSpec, packs: await describePacks(), scope: describeScope, compose, voiceRules: describeVoice });
     }
     return null;
   }
 
-  return { extraSteps, tick, handle, packs };
+  return { extraSteps, tick, handle, packs, agents, elicit, stewardRollup: () => stewardRollup({ db }) };
 }

@@ -22,6 +22,13 @@ export const MODULES = [
   { id: 'doors', dir: 'core/doors/migrations' }, // last, so earlier migration numbers never shift
   { id: 'elicit', dir: 'core/elicit/migrations' },
   { id: 'console_l3', dir: 'core/console-l3/migrations' },
+  // The steward and agents tables the adapter directories above lack (steward_runs, agents_approvals), then the two modules
+  // nothing started before. Appended last so earlier migration numbers never shift; every statement is IF NOT EXISTS.
+  { id: 'stewardruns', dir: 'core/steward/migrations' },
+  { id: 'agentsapprovals', dir: 'core/agents/migrations' },
+  { id: 'containers', dir: 'core/containers/migrations' },
+  { id: 'infra', dir: 'core/infra/migrations' },
+  { id: 'waste', dir: 'core/waste/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.
