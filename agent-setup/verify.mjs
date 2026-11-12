@@ -62,5 +62,5 @@ if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || proce
   if (!base) { console.error('usage: node agent-setup/verify.mjs <base-url> [--wait <seconds>]'); process.exit(2); }
   const result = await verify(base, { waitSeconds: w >= 0 ? Number(args[w + 1]) || 0 : 0 });
   console.log(JSON.stringify(result, null, 2));
-  process.exit(result.ok ? 0 : 1);
+  process.exitCode = result.ok ? 0 : 1; // not process.exit(): it aborts with a libuv assertion on Windows while sockets close
 }
