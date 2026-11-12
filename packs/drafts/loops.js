@@ -10,7 +10,7 @@ const ROLE = 'pack-manager-drafts', PROJECT = 'pack-drafts';
 export async function stale({ db, ctx, now, settings = {} }) {
   const days = settings.stale_days ?? 14;
   let n = 0;
-  for (const d of await all(db, `SELECT id, title FROM drafts WHERE status = 'draft' AND updated_at < ?`, iso(now() - days * 86400e3))) {
+  for (const d of await all(db, `SELECT id, title FROM drafts_items WHERE status = 'draft' AND updated_at < ?`, iso(now() - days * 86400e3))) {
     if (await ensureItem(db, { id: `DRAFTSTALE-${d.id}`, title: `Draft ${d.id} "${d.title.slice(0, 60)}" untouched for ${days} days`, owner_role: ROLE,
       done_check: `draft ${d.id} is revised, taken or closed`, priority: 0, project: PROJECT })) n++;
   }
@@ -21,8 +21,8 @@ export async function metrics({ db, ctx, now, settings = {} }) {
   const t = now(), days = settings.stale_days ?? 14;
   const n = async (sql, ...a) => (await first(db, sql, ...a)).n;
   const row = {
-    open: await n(`SELECT COUNT(*) AS n FROM drafts WHERE status = 'draft'`),
-    stale: await n(`SELECT COUNT(*) AS n FROM drafts WHERE status = 'draft' AND updated_at < ?`, iso(t - days * 86400e3)),
+    open: await n(`SELECT COUNT(*) AS n FROM drafts_items WHERE status = 'draft'`),
+    stale: await n(`SELECT COUNT(*) AS n FROM drafts_items WHERE status = 'draft' AND updated_at < ?`, iso(t - days * 86400e3)),
     versions: await n(`SELECT COUNT(*) AS n FROM drafts_versions WHERE created_at >= ?`, iso(t - 7 * 86400e3)),
   };
   await run(db, `INSERT INTO drafts_metrics (at, open_drafts, stale, versions_7d) VALUES (?,?,?,?)`, iso(t), row.open, row.stale, row.versions);

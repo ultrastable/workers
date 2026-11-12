@@ -38,7 +38,7 @@ export function checkDraft({ kind, title, body }) {
 
 export async function createDraft({ db, now = Date.now, kind, title, body, author = 'pack', idempotencyKey = null }) {
   if (idempotencyKey) {
-    const ex = await first(db, `SELECT id FROM drafts WHERE idem_key = ?`, idempotencyKey);
+    const ex = await first(db, `SELECT id FROM drafts_items WHERE idem_key = ?`, idempotencyKey);
     if (ex) return { created: false, duplicate: true, id: ex.id };
   }
   const res = checkDraft({ kind, title, body });
@@ -47,14 +47,14 @@ export async function createDraft({ db, now = Date.now, kind, title, body, autho
     return { created: false, violations: res.violations };
   }
   const t = iso(now()), stamped = stamp(body);
-  const r = await run(db, `INSERT INTO drafts (idem_key, kind, title, created_at, updated_at) VALUES (?,?,?,?,?)`, idempotencyKey, kind, title.trim(), t, t);
+  const r = await run(db, `INSERT INTO drafts_items (idem_key, kind, title, created_at, updated_at) VALUES (?,?,?,?,?)`, idempotencyKey, kind, title.trim(), t, t);
   const id = r.meta.last_row_id;
   await run(db, `INSERT INTO drafts_versions (draft_id, version, body, body_sha256, author, created_at) VALUES (?,?,?,?,?,?)`, id, 1, stamped, await sha256(stamped), author, t);
   return { created: true, id, version: 1 };
 }
 
 export async function reviseDraft({ db, now = Date.now, id, body, author = 'pack' }) {
-  const d = await first(db, `SELECT * FROM drafts WHERE id = ?`, id);
+  const d = await first(db, `SELECT * FROM drafts_items WHERE id = ?`, id);
   if (!d) return { revised: false, reason: 'not_found' };
   if (d.status !== 'draft') return { revised: false, reason: `status_${d.status}` };
   const res = checkDraft({ kind: d.kind, title: d.title, body });
@@ -67,22 +67,22 @@ export async function reviseDraft({ db, now = Date.now, id, body, author = 'pack
   if (last && last.body_sha256 === hash) return { revised: false, reason: 'unchanged', version: d.version };
   const v = d.version + 1, t = iso(now());
   await run(db, `INSERT INTO drafts_versions (draft_id, version, body, body_sha256, author, created_at) VALUES (?,?,?,?,?,?)`, id, v, stamped, hash, author, t);
-  await run(db, `UPDATE drafts SET version = ?, updated_at = ? WHERE id = ?`, v, t, id);
+  await run(db, `UPDATE drafts_items SET version = ?, updated_at = ? WHERE id = ?`, v, t, id);
   return { revised: true, version: v };
 }
 
 // Only a person's own act: records that they took the draft elsewhere. The pack itself never marks a draft used.
 export async function markTaken({ db, now = Date.now, id, by }) {
   if (!String(by ?? '').trim()) return { ok: false, reason: 'by_required' };
-  const r = await run(db, `UPDATE drafts SET status = 'taken', taken_by = ?, updated_at = ? WHERE id = ? AND status = 'draft'`, by, iso(now()), id);
+  const r = await run(db, `UPDATE drafts_items SET status = 'taken', taken_by = ?, updated_at = ? WHERE id = ? AND status = 'draft'`, by, iso(now()), id);
   return { ok: (r.meta.changes ?? 0) === 1 };
 }
 export async function closeDraft({ db, now = Date.now, id }) {
-  const r = await run(db, `UPDATE drafts SET status = 'closed', updated_at = ? WHERE id = ? AND status = 'draft'`, iso(now()), id);
+  const r = await run(db, `UPDATE drafts_items SET status = 'closed', updated_at = ? WHERE id = ? AND status = 'draft'`, iso(now()), id);
   return { ok: (r.meta.changes ?? 0) === 1 };
 }
 export const getDraft = async ({ db, id }) => {
-  const d = await first(db, `SELECT * FROM drafts WHERE id = ?`, id);
+  const d = await first(db, `SELECT * FROM drafts_items WHERE id = ?`, id);
   return d && { ...d, body: (await first(db, `SELECT body FROM drafts_versions WHERE draft_id = ? AND version = ?`, id, d.version)).body };
 };
-export const listDrafts = ({ db, status = 'draft' }) => all(db, `SELECT id, kind, title, status, version, updated_at FROM drafts WHERE status = ? ORDER BY id`, status);
+export const listDrafts = ({ db, status = 'draft' }) => all(db, `SELECT id, kind, title, status, version, updated_at FROM drafts_items WHERE status = ? ORDER BY id`, status);
