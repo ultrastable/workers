@@ -1,0 +1,80 @@
+{
+  "schema": "bootstrap-live-trial/1",
+  "issue": "ultrastable/workers#22",
+  "date": "2026-11-12",
+  "status": "PASSED in alarm tick mode: bootstrap --apply (no manual edits of the rendered config) reached verify.mjs exit 0. Cron tick mode did NOT tick in the window observed (see findings).",
+  "account": "quniverse (reference account; throwaway resources only)",
+  "command": "python bootstrap/bootstrap.py --apply --idea self/IDEA.md --config <trial config: self/ultrastable.json with worker_name and d1_database ultrastable-trial-20261112, tick_mode alarm> --out <scratch>",
+  "worker": "ultrastable-trial-20261112",
+  "d1_database": "ultrastable-trial-20261112",
+  "exposure": "workers.dev subdomain enabled by API for the probe window only (about 10 minutes); console token generated and set with `wrangler secret put` on stdin, never printed; workers.dev disabled by deleting the Worker",
+  "provision_stage": "ok: D1 migrated (24 migration files, 158 schema objects) and seeded (62 queries, 14 roles rows), Worker deployed (tick: alarm, route: scoped-token)",
+  "first_tick": "tick 1 at 2026-11-12 19:00:58, 13/13 steps, about 10 minutes after arming (TICK_EVERY_MS = 10 min)",
+  "verify": {
+    "command": "node agent-setup/verify.mjs https://ultrastable-trial-20261112.<account subdomain>.workers.dev",
+    "exit": 0,
+    "ok": true,
+    "checks": [
+      {
+        "name": "health answers with the Worker JSON",
+        "ok": true,
+        "detail": "status 200"
+      },
+      {
+        "name": "a complete tick has run",
+        "ok": true,
+        "detail": "{\"ok\":true,\"last_tick\":{\"id\":1,\"steps\":\"13/13\"}}"
+      },
+      {
+        "name": "console page refuses anonymous visitors",
+        "ok": true,
+        "detail": "status 401"
+      },
+      {
+        "name": "console data refuses anonymous visitors",
+        "ok": true,
+        "detail": "status 401"
+      },
+      {
+        "name": "console refusal leaks no data",
+        "ok": true,
+        "detail": "{\"error\":\"sign in\"}"
+      },
+      {
+        "name": "anonymous cross-origin write refused",
+        "ok": true,
+        "detail": "status 401"
+      },
+      {
+        "name": "page sends a content security policy",
+        "ok": true,
+        "detail": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-"
+      },
+      {
+        "name": "page is not cacheable",
+        "ok": true,
+        "detail": "no-store"
+      },
+      {
+        "name": "tick endpoint is not open to anonymous callers",
+        "ok": true,
+        "detail": "status 404"
+      }
+    ]
+  },
+  "findings": [
+    "Windows: bootstrap.py ran `npx` by bare name; CreateProcess does not find npx.CMD (FileNotFoundError at provision). Fixed: resolve with shutil.which in run() and run_cmd().",
+    "wrangler 4.118 crashed natively mid-provision on this machine (exit 3221226505 = 0xC0000409 libuv teardown after the work finished; exit 134 = V8 out of memory). Provisioning steps are idempotent; run() now retries a native crash twice.",
+    "Worker failed validation on upload: Uncaught TypeError: Invalid URL string at core/kernel/index.js:17 (error 10021). import.meta.url is not a URL inside a deployed Worker; MIGRATIONS_DIR (kernel, packs) and CORE_DIR (packs/sandbox) now guard it. The deployed Worker could not have started before this fix.",
+    "verify.mjs 'tick endpoint is not open' failed: POST /tick returned 200 from the catch-all 'ultrastable worker' body. It was a fall-through, not a tick, but is indistinguishable from an open endpoint to a probe. The catch-all now answers 404.",
+    "Cron mode did not tick: schedule '* * * * *' was registered (schedules API) for about 9 minutes with 0 scheduled invocations (GraphQL workersInvocationsAdaptive eventType=scheduled returned [] account-wide for 20 minutes) and tick_runs stayed empty. The ladder only falls back to alarm when a deploy REFUSES cron, not when cron silently never fires. The trial passed in alarm mode (tick_mode: alarm in the org config; bootstrap.py now renders it).",
+    "Redeploying an existing Worker with changed triggers failed server-side: Durable Object exports reconciliation failed [provisioned_class_missing_from_config] class 'Heartbeat' (wrangler 4.118 and 4.161). A delete and fresh deploy succeeded. Not fixed here; migrations v1 / new_sqlite_classes does not satisfy the reconcile on redeploy. Follow-up needed."
+  ],
+  "teardown": {
+    "worker_deleted": true,
+    "d1_deleted": true,
+    "remaining_resources_named_trial_or_second": [],
+    "probe_after_teardown": "GET /health -> 404 (no Worker)"
+  },
+  "not_proven": "A trial on a temporary (no-account) Cloudflare account with --temporary flags; that path was not run (it needs the launcher). Cron-mode ticking."
+}

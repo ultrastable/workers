@@ -11,7 +11,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const CORE_DIR = fileURLToPath(new URL('../', import.meta.url));
+const CORE_DIR = (() => { try { return fileURLToPath(new URL('../', import.meta.url)); } catch { return null; } })(); // not a URL inside a deployed Worker (error 10021)
 export const SHARED_WRITE_TABLES = ['items', 'predictions'];
 const NO_ACCESS = /\b(packs_registry|packs_switches|guard_consent)\b/i;
 const DDL = /^\s*(create|drop|alter|pragma|attach|detach|vacuum|reindex|analyze)\b|\bload_extension\b/i;
