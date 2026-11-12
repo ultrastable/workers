@@ -10,11 +10,13 @@ import { registerProgram } from '../kernel/programs.js';
 import { registerMetric } from '../kernel/metrics.js';
 import { recordDecision } from '../kernel/decisions.js';
 import { validateManifest, parseEntry } from './manifest.js';
+import { sandboxDb, sandboxCtx, freezeGuard, scanPackSource } from './sandbox.js';
 import { createGuard, sha256, setSwitch, engagedSwitches, rungCeilings, DEFAULT_RUNGS } from './guard.js';
 
 export * from './manifest.js';
 export * from './guard.js';
 export { assertCoreImportsNoPacks } from './static-check.js';
+export * from './sandbox.js';
 export const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations/', import.meta.url));
 
 export function loadManifest(dir) { return JSON.parse(readFileSync(path.join(dir, 'pack.json'), 'utf8')); }
@@ -40,6 +42,7 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
   // US-21-R02: validate at load. A pack that fails is not stored at all.
   async function register(manifest, { dir = null } = {}) {
     const errors = validateManifest(manifest, { tenantNames: config.tenant_names || [], readProbeCheck: assertReadOnly });
+    if (dir) errors.push(...scanPackSource(dir));
     if (errors.length) return { ok: false, errors };
     const hash = await sha256(stable(manifest));
     const cur = await row(manifest.id);
@@ -119,7 +122,7 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
               const mod = await importer(path.resolve(r.source_dir, en.module));
               const fn = mod[en.export];
               if (typeof fn !== 'function') throw new Error(`entry ${loop.entry} is not a function`);
-              await withTimeout(fn({ db, ctx, now, pack: m, settings: config.packs?.[m.id] || {}, guard: boundGuard(m.id) }), timeoutMs);
+              await withTimeout(fn({ db: sandboxDb(db, m.id), ctx: sandboxCtx(ctx), now, pack: m, settings: config.packs?.[m.id] || {}, guard: boundGuard(m.id) }), timeoutMs);
               await record(m.id, loop.id, ctx.tickId, 'ok', null, now() - started);
             } catch (e) {
               await record(m.id, loop.id, ctx.tickId, e.timeout ? 'timeout' : 'error', e.message, now() - started);
@@ -137,15 +140,15 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
 
   // A pack only ever gets a guard bound to its own id: it cannot send as another pack (US-21-R08).
   function boundGuard(packId) {
-    return {
+    return freezeGuard({
       send: req => guard.send({ ...req, pack: packId }),
       consent: {
         request: a => guard.consent.request({ ...a, pack: packId }), grant: a => guard.consent.grant({ ...a, pack: packId }),
         confirm: t => guard.consent.confirm(t), revoke: a => guard.consent.revoke(a),
       },
-      unsubscribe: guard.unsubscribe, suppress: guard.suppress,
+      unsubscribe: a => guard.unsubscribe(a), suppress: a => guard.suppress(a),
       stats: () => guard.stats(packId),
-    };
+    });
   }
 
   return {
