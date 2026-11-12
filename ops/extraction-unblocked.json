@@ -1,0 +1,60 @@
+{
+  "register": "extraction-unblocked",
+  "source_issue": 99,
+  "carried_from": 93,
+  "owner_role": "operations",
+  "trigger": "Cloudflare account bootstrapped (BS-3 in the roadmap) or the product host exists",
+  "items": [
+    {
+      "id": "claims-feed",
+      "item": "Product claims feed (issue #10 in the system of record)",
+      "blocker": "needs the product's own host",
+      "blocker_kind": "product_host",
+      "closing_probe": "claims page serves the seven claim probes live",
+      "probe": { "kind": "http_claims", "expect_claims": 7, "url_config": "product_host" },
+      "next_action": "serve core/describe seed-claims.json at /claims on the product host once it exists",
+      "disposition": "blocked"
+    },
+    {
+      "id": "agents-do-wrapper",
+      "item": "Durable Object wrapper for adapters/cloudflare/agents",
+      "blocker": "needs a live Cloudflare account to prove",
+      "blocker_kind": "cloudflare_account",
+      "closing_probe": "a deployed agent answers one turn",
+      "probe": { "kind": "http_turn", "path": "/agents/turn", "expect": "ok" },
+      "next_action": "wrap core/agents createAgents in a Durable Object class and deploy it with the bootstrapper",
+      "disposition": "blocked"
+    },
+    {
+      "id": "containers-image",
+      "item": "Container image and binding for adapters/cloudflare/containers",
+      "blocker": "needs a live Cloudflare account",
+      "blocker_kind": "cloudflare_account",
+      "closing_probe": "executor runs a job in a real container",
+      "probe": { "kind": "job_done", "module": "core/containers", "expect_status": "done" },
+      "next_action": "build the image, bind it, register the binding as an executor of core/containers",
+      "disposition": "blocked"
+    },
+    {
+      "id": "github-pull-sync",
+      "item": "Pull-direction GitHub sync (edits back into items) in adapters/github",
+      "blocker": "design decision on conflict rule",
+      "blocker_kind": "design_default",
+      "default_in_effect": "tracker wins on title and body, the item ledger wins on status and disposition; the later edit wins only when both sides changed the same field since the last mirror hash",
+      "closing_probe": "an edited issue updates its item in a test",
+      "probe": { "kind": "test_file", "path": "adapters/github/pull.test.js" },
+      "next_action": "implement the default conflict rule in core/steward as pull(ctx) against the steward_mirror hash and test it",
+      "disposition": "blocked"
+    },
+    {
+      "id": "deploy-agent-in-org-tick",
+      "item": "Wiring core/deploy/agent.js into core/org ticks",
+      "blocker": "opt-in needs a configured deployer",
+      "blocker_kind": "configuration",
+      "closing_probe": "org.extraSteps() lists the ops agent when configured",
+      "probe": { "kind": "test_file", "path": "core/org/ops-agent.test.js" },
+      "next_action": "add an ops_agent step to org.extraSteps() that is present only when config.deployer is set",
+      "disposition": "blocked"
+    }
+  ]
+}

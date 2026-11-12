@@ -1,0 +1,64 @@
+{
+  "id": "video",
+  "name": "Short video publishing",
+  "version": "0.1.0",
+  "class": "B",
+  "scope": {
+    "does": [
+      "Queues short videos the organization made, each with a provenance record: the file's hash, what made it, whether it is synthetic, and the fresh public claims it rests on",
+      "Checks every video before it is queued: length limit, disclosure label on synthetic media, links on the allowlist, sources that are fresh public claims",
+      "Publishes approved videos to the configured channel account, within a daily and a weekly cap",
+      "Reads each video back to confirm it is live with the same provenance hash, and reads views to measure itself"
+    ],
+    "does_not": [
+      "Publish synthetic media without a visible disclosure label, or strip provenance from a video",
+      "Impersonate a person, clone a real person's voice or face, or post as one",
+      "Buy views, subscribers or engagement, or use fake accounts",
+      "Publish a video whose sources are not fresh public claims in the registry",
+      "Bypass the outbound guard, the caps or a kill switch"
+    ]
+  },
+  "charter": {
+    "objective": "Publish short videos that carry verifiable provenance and an honest disclosure, and confirm each one is live and unchanged",
+    "primary_metric": {
+      "id": "video_published_verified", "op": ">=", "target": 1,
+      "read_probe": "SELECT COUNT(*) AS value FROM video_queue WHERE status = 'published' AND verify_status = 'verified' AND published_at >= datetime('now', '-7 days')"
+    },
+    "guard_metrics": [
+      {
+        "id": "video_removed", "op": "<=", "target": 0,
+        "read_probe": "SELECT COUNT(*) AS value FROM video_queue WHERE status = 'removed' AND removed_at >= datetime('now', '-7 days')"
+      },
+      {
+        "id": "video_unverified_published", "op": "<=", "target": 0,
+        "read_probe": "SELECT COUNT(*) AS value FROM video_queue WHERE status = 'published' AND verify_status = 'failed'"
+      }
+    ]
+  },
+  "requires": {
+    "ports": ["video", "describe"],
+    "secrets": ["VIDEO_CHANNEL_TOKEN"],
+    "specs": ["US-SPEC-21", "US-SPEC-22", "US-SPEC-06"]
+  },
+  "loops": [
+    { "id": "publish", "every_ticks": 1, "entry": "./publish.js#publishLoop", "outbound": true },
+    { "id": "verify", "every_ticks": 1, "entry": "./verify.js#verifyLoop", "outbound": false },
+    { "id": "metrics", "every_ticks": 6, "entry": "./metrics.js#metricsLoop", "outbound": false }
+  ],
+  "outbound": {
+    "channels": ["video"],
+    "caps": { "video": { "per_day": 2, "per_week": 6 } },
+    "consent": "none",
+    "suppression": true,
+    "approval": "by_rung"
+  },
+  "migrations": ["./migrations/0001_video.sql"],
+  "defaults": {
+    "handle": "organization.example.com",
+    "allowlist": ["example.org"],
+    "max_seconds": 60,
+    "max_length": 4000,
+    "disclosure": "AI-generated"
+  },
+  "enable_gate": "Turn on Short video publishing? It will publish short videos your organization made to the account you configure, up to 2 a day and 6 a week. Each video carries a provenance record (file hash, what made it, whether it is synthetic) and synthetic media always gets a visible disclosure label. Until it has earned trust, every video waits here as a card showing its title and description for you to approve. It will not clone a real person, buy views, hide that media is synthetic, or publish anything not backed by a fresh public claim. It costs only your channel's own fees. Turn it off any time with one action."
+}

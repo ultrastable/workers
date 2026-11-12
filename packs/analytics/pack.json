@@ -1,0 +1,54 @@
+{
+  "id": "analytics",
+  "name": "Privacy-first analytics",
+  "version": "0.1.0",
+  "class": "A",
+  "scope": {
+    "does": [
+      "Counts page views on the organization's own pages: path, referring host and campaign tags only",
+      "Rolls raw events up into daily totals per page and per referrer, and deletes raw events after a short retention window",
+      "Skips bots, and skips visitors who send Do Not Track or Global Privacy Control",
+      "Reports views, unique visitors and top pages and sources for the organization's own metrics"
+    ],
+    "does_not": [
+      "Store an IP address, a cookie id, a fingerprint or any value that follows a person from one day to the next",
+      "Sell, share or send event data outside the organization",
+      "Profile individual visitors or build a per-person history",
+      "Send anything outward: it has no outbound channel"
+    ]
+  },
+  "charter": {
+    "objective": "Know how many people read the organization's pages and where they came from, without storing anything that identifies a person",
+    "primary_metric": {
+      "id": "analytics_pageviews_7d", "op": ">=", "target": 1,
+      "read_probe": "SELECT COALESCE(SUM(pageviews), 0) AS value FROM analytics_daily WHERE day >= date('now', '-7 days')"
+    },
+    "guard_metrics": [
+      {
+        "id": "analytics_raw_events_overdue", "op": "<=", "target": 0,
+        "read_probe": "SELECT COUNT(*) AS value FROM analytics_events WHERE at < datetime('now', '-30 days')"
+      },
+      {
+        "id": "analytics_identifying_rows", "op": "<=", "target": 0,
+        "read_probe": "SELECT COUNT(*) AS value FROM analytics_events WHERE length(visitor_hash) <> 64 OR path LIKE '%?%'"
+      }
+    ]
+  },
+  "requires": {
+    "ports": ["analytics"],
+    "secrets": ["ANALYTICS_SALT"],
+    "specs": ["US-SPEC-21", "US-SPEC-06"]
+  },
+  "loops": [
+    { "id": "rollup", "every_ticks": 1, "entry": "./loops.js#rollup", "outbound": false },
+    { "id": "retention", "every_ticks": 12, "entry": "./loops.js#retention", "outbound": false },
+    { "id": "metrics", "every_ticks": 6, "entry": "./loops.js#metrics", "outbound": false }
+  ],
+  "migrations": ["./migrations/0001_analytics.sql"],
+  "defaults": {
+    "own_hosts": ["example.org"],
+    "raw_retention_days": 7,
+    "max_path_length": 200
+  },
+  "enable_gate": "Turn on Privacy-first analytics? It will count page views on your own pages (path, referring site and campaign tags only), skip bots and anyone who sends Do Not Track, roll the counts up per day and delete the raw events after 7 days. It never stores an IP address, cookie or anything that follows a person from one day to the next, and it sends nothing outside your organization. It costs only storage for a few small rows. Turn it off any time with one action."
+}
