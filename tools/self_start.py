@@ -52,13 +52,17 @@ def doors_section(prereq: dict) -> list[str]:
     return lines + [""]
 
 
-def gate_issue_body(cards: list[dict], repo: str, missing_apply: list[str], doors: list[dict] | None = None) -> str:
+def gate_issue_body(cards: list[dict], repo: str, missing_apply: list[str], doors: list[dict] | None = None, tried: list[dict] | None = None) -> str:
     lines = ["The organization starts itself as soon as one door below is done. Until then it stays in dry run and nothing is spent.",
              "A scheduled workflow (`self-start`) re-checks every few hours; nobody has to run anything. No door requires you to write code.", ""]
     for p in doors or []:
         if p["id"] == "cloudflare_access" and not missing_apply:
             continue  # the account credentials are already present
         lines += doors_section(p)
+    if tried:  # what the loop already attempted on every door, so the owner sees the one thing left and never re-does a step
+        lines += ["## What the system already tried", "", "| Door | Worked | Why |", "|---|---|---|"]
+        lines += [f"| {t['door']} | {'yes' if t['ok'] else 'no'} | {str(t['reason']).replace(chr(124), '/')} |" for t in tried]
+        lines.append("")
     lines += ["## Everything the bootstrapper recorded", "", "| Step | Why only you | If you do nothing | Closes when |", "|---|---|---|---|"]
     for c in cards:
         lines.append(f"| {c['what']} | {c['why_gated']} | {c['default_in_effect']} | `{c['closing_probe']}` |")
@@ -66,8 +70,8 @@ def gate_issue_body(cards: list[dict], repo: str, missing_apply: list[str], door
     return chr(10).join(lines)
 
 
-def ensure_gate_issue(gh, cards, repo, missing_apply, doors=None):
-    body = gate_issue_body(cards, repo, missing_apply, doors)
+def ensure_gate_issue(gh, cards, repo, missing_apply, doors=None, tried=None):
+    body = gate_issue_body(cards, repo, missing_apply, doors, tried)
     existing = [i for i in gh.issues() if i["title"].startswith(TITLE) and i["state"].upper() == "OPEN"]
     if existing:
         if (existing[0].get("body") or "").strip() != body.strip():
@@ -212,7 +216,7 @@ def start(run, http, gh, env: dict, root: Path, repo: str, now: dt.datetime, wor
     result["doors"] = doors
     record_attempt(root, now, doors)
     if cards or missing:
-        result["gate_issue"] = ensure_gate_issue(gh, cards, repo, missing, load_doors(root))
+        result["gate_issue"] = ensure_gate_issue(gh, cards, repo, missing, load_doors(root), doors)
     if not apply or rc != 0:
         return result
     cfg = json.loads((root / "self" / "ultrastable.json").read_text(encoding="utf-8"))
