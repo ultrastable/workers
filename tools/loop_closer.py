@@ -56,8 +56,14 @@ class Gh:
         return json.loads(j)
 
     def latest_ci(self, branch: str = "main", workflow: str = "ci") -> str | None:
-        """Conclusion of the most recent COMPLETED run of the workflow on the branch (success, failure, ...), or None."""
-        j = self._run("run", "list", "-R", self.repo, "-w", workflow, "-b", branch, "--limit", "10", "--json", "status,conclusion")
+        """Conclusion of the most recent COMPLETED run of the workflow on the branch (success, failure, ...), or None.
+        None also when the token cannot read Actions (the loops workflow has no `actions: read`): ci_green probes then stay
+        unevaluated instead of crashing the whole closer before it touches a single issue."""
+        try:
+            j = self._run("run", "list", "-R", self.repo, "-w", workflow, "-b", branch, "--limit", "10", "--json", "status,conclusion")
+        except subprocess.CalledProcessError as e:
+            print(f"latest_ci unavailable ({(e.stderr or '').strip()[:200]}); ci_green probes are skipped this run", file=sys.stderr)
+            return None
         done = [r for r in json.loads(j) if r.get("status") == "completed"]
         return done[0]["conclusion"] if done else None
 

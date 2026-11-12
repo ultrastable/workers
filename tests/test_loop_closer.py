@@ -119,5 +119,20 @@ class LoopCloser(unittest.TestCase):
         self.assertEqual(r3["closed"][0][0], 9)
 
 
+
+
+class LatestCiWithoutActionsRead(unittest.TestCase):
+    """Regression: the loops workflow token lacks `actions: read`; `gh run list` failed and crashed the closer before any issue was read."""
+
+    def test_returns_none_instead_of_raising(self):
+        import subprocess
+        gh = lc.Gh("o/r")
+
+        def boom(*a, **k):
+            raise subprocess.CalledProcessError(1, ["gh"], output="", stderr="HTTP 403: Resource not accessible by integration")
+        gh._run = boom
+        self.assertIsNone(gh.latest_ci("main"))
+
+
 if __name__ == "__main__":
     unittest.main()
