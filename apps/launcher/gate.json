@@ -1,0 +1,7 @@
+{
+  "id": "GATE-LAUNCHER-HOSTING",
+  "line": "IDENTITY-BOUND: host the launcher on a permanent Cloudflare account that is not the account of any existing organization, and set TURNSTILE_SECRET, TURNSTILE_SITE_KEY and the PROVISION_CAP binding; the product is under a patent-filing publication gate, so nothing is deployed or exposed before then",
+  "default_in_effect": "the launcher is built and tested offline only; LAUNCHER_MODE=public refuses to serve (503) until every abuse control is configured",
+  "closing_probe": "http:https://launcher.invalid/health",
+  "prepared": ["apps/launcher/src/turnstile.js", "apps/launcher/src/cap.js", "apps/launcher/test/turnstile.test.mjs"]
+}

@@ -4,17 +4,25 @@
 // Abuse controls are layered and optional by binding: a rate limiter (RATE_LIMITER) and a Turnstile check (TURNSTILE_SECRET).
 import { launcherPage } from './page.js';
 import { fetchChallenge, provision, ProvisionError } from './provision.js';
+import { verifyTurnstile, validSiteKey } from './turnstile.js';
+import { takeCap } from './cap.js';
 import { BUNDLE, BUNDLE_SHA256, MIGRATIONS_SQL, COMPATIBILITY_DATE } from './bundle.generated.js';
 
-const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; worker-src blob:; img-src 'self' data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'";
+const CSP_BASE = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; worker-src blob:; img-src 'self' data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'";
+// With Turnstile on, the page may load the Cloudflare widget script and frame; nothing else changes.
+const cspFor = env => (env?.TURNSTILE_SITE_KEY ? CSP_BASE.replace("script-src 'unsafe-inline'", "script-src 'unsafe-inline' https://challenges.cloudflare.com").replace("form-action 'none'", "frame-src https://challenges.cloudflare.com; form-action 'none'") : CSP_BASE);
+export { ProvisionCap } from './cap.js';
+// LAUNCHER_MODE=public refuses to serve unless the robot check, the rate limit and the daily cap are all configured.
+const publicMisconfigured = env => env?.LAUNCHER_MODE === 'public' && (!env.TURNSTILE_SECRET || !validSiteKey(env.TURNSTILE_SITE_KEY) || !env.RATE_LIMITER || !env.PROVISION_CAP);
 const baseHeaders = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...baseHeaders, 'content-type': 'application/json' } });
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname !== '/health' && publicMisconfigured(env)) return json({ error: 'The launcher is not ready.' }, 503);
     if (request.method === 'GET' && url.pathname === '/') {
-      return new Response(launcherPage({ bundleSha256: BUNDLE_SHA256 }), { headers: { ...baseHeaders, 'content-type': 'text/html; charset=utf-8', 'content-security-policy': CSP } });
+      return new Response(launcherPage({ bundleSha256: BUNDLE_SHA256, turnstileSiteKey: validSiteKey(env?.TURNSTILE_SITE_KEY) ? env.TURNSTILE_SITE_KEY : null }), { headers: { ...baseHeaders, 'content-type': 'text/html; charset=utf-8', 'content-security-policy': cspFor(env) } });
     }
     if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true, launcher: true, release: BUNDLE_SHA256 });
     if (request.method === 'GET' && url.pathname === '/api/challenge') {
@@ -27,6 +35,9 @@ export default {
       let b; try { b = await request.json(); } catch { return json({ error: 'That request could not be read.' }, 400); }
       if (env.TURNSTILE_SECRET && !(await turnstileOk(env, b.turnstile, request))) return json({ error: 'The robot check failed. Please try again.' }, 403);
       if (b.acceptedLicense !== true) return json({ error: 'Please confirm you have read the license summary.' }, 400);
+      if (b.acceptedCloudflareTerms !== true) return json({ error: "Please agree to Cloudflare's terms to continue." }, 400);
+      // The launcher's own daily cap: counted only once the request is otherwise valid, before anything is created.
+      if (env.PROVISION_CAP || env.LAUNCHER_MODE === 'public') { const cap = await takeCap(env); if (!cap.ok) return json({ error: 'The launcher has reached its limit for today. Please try again tomorrow.' }, 503); }
       try {
         const r = await provision({
           proof: b.proof, acceptedCloudflareTerms: b.acceptedCloudflareTerms === true,
@@ -50,8 +61,6 @@ async function limit(env, request) {
 }
 
 async function turnstileOk(env, token, request) {
-  if (!token) return false;
-  const body = new URLSearchParams({ secret: env.TURNSTILE_SECRET, response: token, remoteip: request.headers.get('cf-connecting-ip') || '' });
-  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body });
-  return Boolean((await r.json()).success);
+  const v = await verifyTurnstile({ secret: env.TURNSTILE_SECRET, token, ip: request.headers.get('cf-connecting-ip') || '', hostname: env.TURNSTILE_HOSTNAME || null });
+  return v.ok;
 }
