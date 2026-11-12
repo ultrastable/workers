@@ -120,7 +120,8 @@ def fill(template: str, values: dict) -> str:
 
 class Boot:
     def __init__(self, root: Path, out: Path, apply: bool, idea_path: Path | None = None, config_path: Path | None = None, interactive: bool = False,
-                 temporary: bool = False, console_key_file: Path | None = None):
+                 temporary: bool = False, console_key_file: Path | None = None, tick_mode: str | None = None):
+        self.tick_mode = tick_mode  # overrides runtime.tick_mode (self_start passes "alarm" when the cron never fired)
         self.root, self.out, self.apply, self.interactive = root, out, apply, interactive
         self.temporary, self.console_key_file = temporary, console_key_file
         self.idea_path, self.config_path = idea_path, config_path  # optional overrides, so one repo can boot a different org (self-hosting)
@@ -300,6 +301,8 @@ class Boot:
         values = {k: fill(v, {"slug": self.slug}) if isinstance(v, str) else v for k, v in values.items()}
         values.setdefault("d1_database_id", "{d1_database_id}")
         values.setdefault("tick_mode", "cron")
+        if self.tick_mode:
+            values["tick_mode"] = self.tick_mode
         self.runtime = values
         worker = self.root / "adapters" / "cloudflare"
         rendered = fill((worker / "wrangler.template.jsonc").read_text(), values)
@@ -406,7 +409,8 @@ class Boot:
         # A dry run never downloads or starts anything: it only asks an already-installed wrangler.
         usable = have_wrangler or (self.apply and bool(self.tools.get("npx")))
         res = ladder.run_ladder(self.run_cmd, dict(os.environ), wrangler_available=usable,
-                                wrangler=["wrangler"] if have_wrangler else ["npx", "wrangler"], interactive=self.interactive and self.apply)
+                                wrangler=["wrangler"] if have_wrangler else ["npx", "wrangler"], interactive=self.interactive and self.apply,
+                                target=ladder.target_account(self.config.get("runtime"), os.environ))
         self.state["ladder"] = res
         self.out.mkdir(parents=True, exist_ok=True)
         (self.out / "ladder.json").write_text(json.dumps(res, indent=2) + "\n")
@@ -499,18 +503,37 @@ class Boot:
         wr = worker / "wrangler.jsonc"
         wr.write_text(wr.read_text().replace("{d1_database_id}", db_id))
         for cmd in plan[1:]:
+            if cmd[:3] == ["npx", "wrangler", "deploy"]:
+                self.deploy_with_recovery(cmd, worker, wr)
+            else:
+                self.run(cmd, worker)
+        return "ok", f"D1 {self.runtime['d1_database']} ({db_id}) migrated and seeded; Worker deployed (tick: {self.runtime['tick_mode']}, route: {route['route']})"
+
+    def deploy_with_recovery(self, cmd, worker, wr):
+        """Deploy; on a known refusal repair and retry, once per kind. Rung 3: an account that refuses cron triggers is redeployed ticking
+        from the Durable Object alarm. Heartbeat reconcile (issue #167): a redeploy failing with provisioned_class_missing_from_config is
+        repaired by deleting this org's own Worker (named by the org config only; D1 and its data are separate and untouched, the Heartbeat
+        object holds only alarm timestamps, and the next self-start re-puts the Worker secrets) and deploying fresh, the sequence the live
+        trial proved. Both repairs are recorded in ladder.json."""
+        done: set[str] = set()
+        while True:
             try:
                 self.run(cmd, worker)
+                return
             except RuntimeError as e:
-                if cmd[:3] != ["npx", "wrangler", "deploy"] or not ladder.is_cron_refusal(str(e)):
+                msg = str(e)
+                if ladder.is_cron_refusal(msg) and "alarm" not in done:
+                    done.add("alarm")
+                    wr.write_text(ladder.render_wrangler(wr.read_text(), "alarm"))
+                    self.runtime["tick_mode"] = "alarm"
+                    self.state["ladder"]["tick_mode"] = "alarm"
+                elif ladder.is_heartbeat_reconcile_failure(msg) and "recreate" not in done:
+                    done.add("recreate")
+                    self.run(["npx", "wrangler", "delete", "--name", self.runtime["worker_name"], "--force"], worker)
+                    self.state["ladder"]["heartbeat_recreated"] = True
+                else:
                     raise
-                # Rung 3: the account refuses cron triggers; redeploy ticking from the Durable Object alarm.
-                wr.write_text(ladder.render_wrangler(wr.read_text(), "alarm"))
-                self.run(cmd, worker)
-                self.runtime["tick_mode"] = "alarm"
-                self.state["ladder"]["tick_mode"] = "alarm"
                 (self.out / "ladder.json").write_text(json.dumps(self.state["ladder"], indent=2) + "\n")
-        return "ok", f"D1 {self.runtime['d1_database']} ({db_id}) migrated and seeded; Worker deployed (tick: {self.runtime['tick_mode']}, route: {route['route']})"
 
     def start(self):
         if not self.apply:
@@ -606,12 +629,13 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None, help="output folder (default <root>/org)")
     ap.add_argument("--idea", type=Path, default=None, help="idea file (default <root>/IDEA.md)")
     ap.add_argument("--config", type=Path, default=None, help="org config (default <root>/ultrastable.json)")
+    ap.add_argument("--tick-mode", choices=("cron", "alarm"), default=None, help="override runtime.tick_mode (alarm: the Heartbeat Durable Object ticks, no cron)")
     ap.add_argument("--interactive", action="store_true", help="with --apply, let the connect rung start `wrangler login` (the person clicks Allow)")
     a = ap.parse_args(argv)
     root = a.root.resolve()
     boot = Boot(root, (a.out or root / "org").resolve(), apply=a.apply,
                 idea_path=a.idea.resolve() if a.idea else None, config_path=a.config.resolve() if a.config else None,
-                interactive=a.interactive, temporary=a.temporary,
+                interactive=a.interactive, temporary=a.temporary, tick_mode=a.tick_mode,
                 console_key_file=a.console_key_file.resolve() if a.console_key_file else None)
     for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "ladder", "provision", "start"):
         st = boot.guard(name, getattr(boot, name))

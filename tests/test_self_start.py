@@ -118,5 +118,51 @@ class SelfStart(unittest.TestCase):
             self.assertFalse(r["started"]); self.assertEqual(gh.log[0][0], "create")
 
 
+class SilentCronFallback(unittest.TestCase):
+    """Issue #167 (2): self-start notices a cron that never fired and redeploys with the alarm tick."""
+    ENV = {"CLOUDFLARE_API_TOKEN": "t", "CLOUDFLARE_ACCOUNT_ID": "a" * 32}
+
+    def started(self, d, at="2026-11-12T10:00:00+00:00", **extra):
+        root = make_root(d)
+        rec = {"at": at, "worker": "w-self", "applied": True, "worker_url": "https://w-self.x.workers.dev", "tick_mode": "cron", "tick_cron": "*/30 * * * *", **extra}
+        (root / "org" / "started.json").write_text(json.dumps(rec))
+        return root
+
+    def runner(self, calls):
+        def run(cmd, cwd=None, input=None):
+            calls.append(cmd); return SimpleNamespace(returncode=0, stdout="", stderr="")
+        return run
+
+    def test_silent_cron_after_two_periods_redeploys_in_alarm_mode_once(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls = self.started(d), []
+            later = dt.datetime(2026, 11, 12, 11, 5, tzinfo=dt.timezone.utc)
+            r = ss.start(self.runner(calls), lambda *a, **k: {"ok": True, "last_tick": None}, FakeGh(), self.ENV, root, "o/r", later)
+            self.assertEqual(r["tick_watch"]["fallback"], "alarm")
+            self.assertEqual(calls[0][calls[0].index("--tick-mode") + 1], "alarm"); self.assertIn("--apply", calls[0])
+            rec = json.loads((root / "org" / "started.json").read_text())
+            self.assertEqual(rec["tick_mode"], "alarm"); self.assertEqual(rec["fallback"]["from"], "cron")
+            calls.clear()
+            self.assertIsNone(ss.start(self.runner(calls), lambda *a, **k: {"ok": True}, FakeGh(), self.ENV, root, "o/r", later)["tick_watch"])
+            self.assertEqual(calls, [])
+
+    def test_a_tick_that_ran_or_a_young_deploy_changes_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls = self.started(d), []
+            later = dt.datetime(2026, 11, 12, 11, 5, tzinfo=dt.timezone.utc)
+            r = ss.start(self.runner(calls), lambda *a, **k: {"ok": True, "last_tick": {"id": 1}}, FakeGh(), self.ENV, root, "o/r", later)
+            self.assertFalse(r["tick_watch"]["silent"])
+            young = dt.datetime(2026, 11, 12, 10, 20, tzinfo=dt.timezone.utc)
+            r = ss.start(self.runner(calls), lambda *a, **k: {"ok": True, "last_tick": None}, FakeGh(), self.ENV, root, "o/r", young)
+            self.assertFalse(r["tick_watch"]["silent"]); self.assertEqual(calls, [])
+
+    def test_without_credentials_it_waits_and_never_guesses(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, calls = self.started(d), []
+            later = dt.datetime(2026, 11, 12, 12, 0, tzinfo=dt.timezone.utc)
+            r = ss.start(self.runner(calls), lambda *a, **k: {"ok": True}, FakeGh(), {}, root, "o/r", later)
+            self.assertTrue(r["tick_watch"]["silent"]); self.assertIn("no deploy credentials", r["tick_watch"]["fallback"]); self.assertEqual(calls, [])
+
+
 if __name__ == "__main__":
     unittest.main()
