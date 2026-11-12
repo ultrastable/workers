@@ -16,10 +16,10 @@ const done = db => runs(db).some(r => ['pr_opened', 'refused'].includes(r.state)
 
 test('migration is idempotent and runner_ prefixed', () => {
   const { db } = setup();
-  const sql = readFileSync(new URL('./migrations/0001_runner.sql', import.meta.url), 'utf8');
+  const sql = ['0001_runner.sql', '0002_ownerwatch.sql'].map(f => readFileSync(new URL('./migrations/' + f, import.meta.url), 'utf8')).join(' ');
   db.raw.exec(sql); db.raw.exec(sql);
   const names = rows(db, `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'runner_%'`).map(r => r.name).sort();
-  assert.deepEqual(names, ['runner_events', 'runner_item_context', 'runner_runs']);
+  assert.deepEqual(names, ['runner_events', 'runner_item_context', 'runner_ownerwatch', 'runner_probe_cadence', 'runner_runs']);
 });
 
 test('happy path: planned to a DRAFT pull request, with real check results, never merged', async () => {

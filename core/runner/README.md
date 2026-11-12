@@ -62,3 +62,7 @@ Default protected paths: `SCOPE.md`, `LICENSE`, `COMMERCIAL-TERMS.md`, `autonomy
 | A non-GitHub Vcs adapter | PLANNED | implement the six-method port |
 
 Hidden failure is recorded when the reviewer rejects a change whose checks were green and the rework limit is then reached.
+
+## Owner-step watch and probe cadence (`ownerwatch.js`, US-SPEC-11)
+
+`watchOwnerSteps` re-probes open gate cards on a cadence (`probe_every_minutes`), closes a card when its closing probe passes (`env:`, `item_done:`, `http:`, or a `ctx.probe` port), files one escalation item after `owner_step_hours` and raises it to priority 95 after twice that. `runCadence` runs named probes when due and files `OPS-PROBE-<name>` after a fail streak. Status: BUILT (`ownerwatch.test.js`).
