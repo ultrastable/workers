@@ -4,6 +4,7 @@
 // The front end is the back end: every action below writes a record the tick already understands.
 import { CONSOLE_HTML } from './console-ui.js';
 import { sha256Hex, verifyAccessJwt } from '../doors/index.js';
+import { listConnections, saveSecret, removeSecret } from './secrets-ui.js';
 import { firstRunDoor, doorStatus, page } from './first-run.js';
 
 // Request categories that SCOPE.md puts outside the default product (opt-in Capability Packs only).
@@ -99,22 +100,9 @@ const LOGIN = (msg = '') => `<!doctype html><meta charset=utf-8><meta name=viewp
 <body style="font:16px system-ui;max-width:22rem;margin:4rem auto;padding:0 1rem"><h1 style="font-size:1.3rem">Sign in</h1>${msg ? `<p>${msg}</p>` : ''}
 <form method=post action=/console/login><label>Access key<br><input name=key type=password autocomplete=current-password style="width:100%;padding:.6rem;margin:.4rem 0"></label><button style="padding:.6rem 1rem">Open</button></form></body>`;
 
-// The connections a person can paste in (names must also be on the vault allowlist). Values never come back.
-export const CONNECTIONS = [
-  { name: 'ANTHROPIC_API_KEY', label: 'Add a model key' },
-  { name: 'VCS_TOKEN', label: 'Add GitHub access' },
-];
-
-async function connections(vault, envNames) {
-  if (!vault) return [];
-  const rows = Object.fromEntries((await vault.names()).map(r => [r.name, r.set_at]));
-  const allowed = vault.allowed();
-  return CONNECTIONS.filter(c => allowed.includes(c.name)).map(c => ({ name: c.name, label: c.label, present: Boolean(rows[c.name] || envNames[c.name]), set_at: rows[c.name] || null }));
-}
-
 /** Route /console and /api/console/*. Returns null when the path is not ours.
- *  opts: { org, vault, doors (config.doors; omit = no first-run door), fetch, now, envNames } */
-export async function handleConsole(request, env, { org, vault, doors, fetch: fetchFn, now = () => Date.now(), envNames = {} } = {}) {
+ *  opts: { org, vault, doors (config.doors; omit = no first-run door), config (router providers name the keys to offer), fetch, now, envNames } */
+export async function handleConsole(request, env, { org, vault, doors, config, fetch: fetchFn, now = () => Date.now(), envNames = {} } = {}) {
   const url = new URL(request.url);
   const p = url.pathname;
   if (!(p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console'))) return null;
@@ -153,7 +141,7 @@ export async function handleConsole(request, env, { org, vault, doors, fetch: fe
   if (request.method === 'GET' && (p === '/console' || p === '/console/')) return page(CONSOLE_HTML);
   if (request.method === 'GET' && p === '/api/console') {
     const body = await buildConsole(env.DB, { org });
-    body.connections = await connections(vault, envNames);
+    body.connections = await listConnections(vault, envNames, { router: config?.router });
     body.doors = await doorStatus(env, { doors, now: clock() });
     return Response.json(body, { headers: { 'cache-control': 'no-store' } });
   }
@@ -166,10 +154,9 @@ export async function handleConsole(request, env, { org, vault, doors, fetch: fe
     if (p === '/api/console/card') r = await resolveCard(env.DB, String(body.id || ''), String(body.choice || ''));
     else if (p === '/api/console/ask') r = await recordAsk(env.DB, body.text);
     else if (p === '/api/console/secret') {
-      if (!vault) return Response.json({ error: 'secrets cannot be stored here' }, { status: 503 });
-      const out = await vault.put(String(body.name || ''), body.value, { by: 'console' });
-      r = out.error ? { status: 400, body: { error: out.error } } : { status: 200, body: { name: out.name, stored: true } };
-    } else return Response.json({ error: 'not found' }, { status: 404 });
+      r = await saveSecret(vault, body);
+    } else if (p === '/api/console/secret/remove') r = await removeSecret(vault, body);
+    else return Response.json({ error: 'not found' }, { status: 404 });
     return Response.json(r.body, { status: r.status });
   }
   return Response.json({ error: 'not found' }, { status: 404 });
