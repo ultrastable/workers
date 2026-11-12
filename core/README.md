@@ -32,7 +32,7 @@ Each directory here is one module of the Ultrastable core, written to the specif
 | `packs/social` (pack, outside core) | claim-backed public posting through the guard, US-SPEC-21 class B | BUILT (see `packs/social/README.md`) |
 | `githubapp` | one-click GitHub App (manifest flow), short-lived installation tokens for the runner, door github-app-install | BUILT |
 | `doors` | console doors: first-run key shown once, Cloudflare Access sign-in, paste-a-secret (Connect screen), US-SPEC-18/19 | BUILT (see `doors/doors.test.js`) |
-| `elicit` | needs register, Ask cards, defaults with assumption log, read-back, readiness score, four-sweep ignorance audit, US-SPEC-16 | BUILT as a module (see `elicit/elicit.test.js`); not yet wired into the console or tick |
+| `elicit` | needs register, Ask cards, defaults with assumption log, read-back, readiness score, four-sweep ignorance audit, US-SPEC-16 | BUILT as a module (see `elicit/elicit.test.js`); wired into core/org as an opt-in tick step and token-guarded routes (`config.elicit.enabled`) |
 | `console-l3` | operator console L3: fleet state, health, digest from one state, report cards with evidence and limits, objective-function guard, step budgets, US-SPEC-13 (L3 requirements R01-R06, R11) | BUILT as a module and served at `/api/console/fleet/*`; R12, R13 and the L2 service-level rows are NOT COVERED |
 | `org` | composition root: one tick runs every loop, one handle serves every route; the Worker and Cloud Run call it | BUILT (see its README) |
 | `codeloop`, `graph`, `tasks`, `router/calibration` | merge gate, blast radius, task runner, model probes | BUILT (see their READMEs) |

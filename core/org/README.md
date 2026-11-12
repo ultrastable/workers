@@ -61,3 +61,21 @@ The runner step is added only when `config.runner.enabled` is true and every nam
 ## Not covered here
 
 Pack code is loaded by directory through the injected `importer` (default Node dynamic import), so a Worker bundle runs packs only when an importer for bundled packs is passed. The `deploy` module is not started.
+
+## Opt-in loops (issue #156)
+
+Off unless `config.<name>.enabled === true`; the default step list above is unchanged. Ports are injected into `createOrg`. Tests: `core/test/org-wiring.test.js`.
+
+| Config | Needs | Adds |
+|---|---|---|
+| `waste` | optional `gauges` | `waste` step replaces `yield` (same sweep plus gauge rules) |
+| `steward` | `sinks` | `steward` step |
+| `ownerwatch` | none | `ownerwatch` step (escalates open gate cards) |
+| `containers` | `executors`; `secret_env` names to scrub | `containers` step: reap, run next job |
+| `agents` | `agentDefs`, router | `agents` step (expire approvals); `POST /api/agents/<name>/turn` |
+| `elicit` | none | `elicit` step (defaults on timeout); `GET /api/elicit/{readiness,asks}?project=` |
+| `console_l3` | `stepRuns` | `console_l3` step (step budgets); fleet routes were already served |
+| `infra` | optional `routes`, `checks` | `infra` heartbeat step; `/health/deep`; bearer auth (`CONSOLE_TOKEN`) and rate limits for the routes above |
+
+Migrations for steward runs, agent approvals, containers, infra and waste are appended at the end of `modules.js`.
+`tools/main_integration_guard.py` tests several PR heads merged together onto main and names a failing pair.
