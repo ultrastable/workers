@@ -31,7 +31,11 @@ jobs:
           [ "$ok" -ge 1 ] || { echo "no successful 'test' check on $GITHUB_SHA"; exit 1; }
         env:
           GH_TOKEN: ${{ github.token }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Build release bundle (hash, manifest)
+        run: node tools/release_bundle.mjs --outdir dist --version "${{ inputs.version }}"
       - name: Tag and release
-        run: gh release create "v${{ inputs.version }}" --target "$GITHUB_SHA" --title "v${{ inputs.version }}" --generate-notes
+        run: gh release create "v${{ inputs.version }}" dist/bundle.js dist/migrations.sql dist/manifest.json --target "$GITHUB_SHA" --title "v${{ inputs.version }}" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}

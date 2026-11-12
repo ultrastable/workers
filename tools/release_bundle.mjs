@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+// Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+// Release bundle (US-19-R16): build the preview Worker via apps/launcher/build.mjs, write bundle.js, migrations.sql,
+// and manifest.json (sha256 of each, Cloudflare products and permissions needed) into --outdir.
+// Usage: node tools/release_bundle.mjs --outdir <dir> [--version X.Y.Z]
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+export const PRODUCTS = ['Workers', 'D1'];
+export const PERMISSIONS = ['Workers Scripts: Edit', 'D1: Edit'];
+const sha = s => createHash('sha256').update(s).digest('hex');
+
+export function manifest(bundle, migrations, version) {
+  return { version: version || 'unreleased', bundle_sha256: sha(bundle), migrations_sha256: sha(migrations), products: PRODUCTS, permissions: PERMISSIONS };
+}
+
+export async function main(argv) {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const get = k => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : undefined);
+  const outdir = get('--outdir'); if (!outdir) { console.error('--outdir required'); return 2; }
+  mkdirSync(outdir, { recursive: true });
+  const gen = path.join(outdir, 'bundle.generated.js');
+  const r = spawnSync(process.execPath, [path.join(root, 'apps/launcher/build.mjs'), '--out', gen], { encoding: 'utf8' });
+  if (r.status !== 0) { console.error(r.stdout + r.stderr); return 1; }
+  const m = await import(pathToFileURL(gen).href);
+  writeFileSync(path.join(outdir, 'bundle.js'), m.BUNDLE);
+  writeFileSync(path.join(outdir, 'migrations.sql'), m.MIGRATIONS_SQL);
+  const man = manifest(m.BUNDLE, m.MIGRATIONS_SQL, get('--version'));
+  if (man.bundle_sha256 !== m.BUNDLE_SHA256) { console.error('hash mismatch'); return 1; }
+  writeFileSync(path.join(outdir, 'manifest.json'), JSON.stringify(man, null, 2) + '\n');
+  console.log(JSON.stringify(man));
+  return 0;
+}
+if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(await main(process.argv.slice(2)));
