@@ -19,8 +19,12 @@ test('checkSql allows own-table writes and shared reads, refuses everything else
     `SELECT * FROM guard_ledger WHERE pack = 'x'`, `INSERT INTO x_things (a) VALUES (?)`, `UPDATE x_things SET a = 1`,
     `DELETE FROM x_things WHERE a = ?`, `INSERT OR IGNORE INTO predictions (id) VALUES (?)`, `INSERT INTO items (id) VALUES (?)`,
     `SELECT 1 FROM sqlite_master WHERE name = 'guard_suppression; DROP TABLE x'`,
+    `INSERT INTO x_things (a) VALUES (?) ON CONFLICT(a) DO UPDATE SET a = excluded.a`,       // upsert: the target is the INSERT table
   ];
   for (const s of ok) assert.equal(checkSql(s, 'x'), null, s);
+  assert.equal(checkSql('INSERT INTO x_things (a) VALUES (1) ON CONFLICT(a) DO UPDATE SET a = 2', 'x'), null);
+  assert.equal(checkSql('INSERT INTO x_things (a) VALUES (1) ON CONFLICT(a) DO UPDATE SET a = 2; UPDATE other SET a = 1', 'x'), 'multiple_statements');
+  assert.equal(checkSql('UPDATE other SET a = 1', 'x'), 'write_outside_pack:other');
   const bad = {
     'INSERT INTO guard_suppression (recipient_hash) VALUES (1)': 'write_outside_pack:guard_suppression',
     'DELETE FROM guard_ledger': 'write_outside_pack:guard_ledger',
