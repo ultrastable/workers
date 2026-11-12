@@ -1,0 +1,98 @@
+{
+ "_doc": "Doc-consumption registry for ultrastable/workers (owner, 2026-11-12: nobody reads documents). `python3 tools/docs_audit.py --check` (run by tests/test_docs_audit.py inside npm test) fails on a document nothing consumes. Tiers: import, exact path in code/data, generated-by/consumer front matter, registry rows, and `verified` pages whose backticked file paths must all exist so they cannot drift. Same file as ultrastable/ultrastable foundation/docs_audit.py.",
+ "version": "1.0.0",
+ "consumers": [],
+ "verified": {
+  "globs": [
+   "**/*.md"
+  ]
+ },
+ "ignore_references_from": [],
+ "human_action_patterns": [
+  "\\\\b(Rowan|the owner|owner)\\\\s+(should|must|needs? to|has to|will need to)\\\\b",
+  "\\\\byou\\\\s+(should|must|need to|will need to|have to)\\\\b",
+  "\\\\b(please|just)\\\\s+(click|open|run|file|sign|submit|paste|upload|email)\\\\b"
+ ],
+ "human_action_exempt": [
+  "agents/**",
+  "LICENSE",
+  "COMMERCIAL-TERMS.md"
+ ],
+ "human_action_baseline": {},
+ "converted": [
+  {
+   "from": "docs/cutover/SHIMS.md",
+   "to": "docs/cutover/shims.json",
+   "consumer": "tests/test_cutover_shims.py",
+   "sha256": "a525cffa7f10c67d18016ab8fd4bd57470d0bd4eb528af5d7386e229f3540526",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "date": "2026-11-12"
+  }
+ ],
+ "removed": [
+  {
+   "path": "docs/aios-lessons.md",
+   "sha256": "e465c460f59173f94901d7830fb3ee32410e1a0428c729ece06e577602c000e8",
+   "reason": "lessons from the AIOS experiment; the seed kernel and ultrastable/ultrastable docs/bootstrapping/aios-lessons.md hold them",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "evidence": "ultrastable/ultrastable keeps docs/bootstrapping/aios-lessons.md; nothing here names this file"
+  },
+  {
+   "path": "docs/handoff/cutover-plan.md",
+   "sha256": "812bb396ca8dcbb4f3a57fa5289e7fe6b88062643acb6bc621bb646c61dbc538",
+   "reason": "one-time handoff note for the cutover plan, superseded by the plan itself",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "superseded_by": "docs/cutover/PLAN.md"
+  },
+  {
+   "path": "runtimes/python/docs/architecture.md",
+   "sha256": "70067329aa1a425c76229954a9b92378935ad02710a3c1777da1dd2be9bd7833",
+   "reason": "identical copy of platform/core/docs in ultrastable/ultrastable",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "evidence": "sha256 identical to ultrastable/ultrastable:platform/core/docs/architecture.md"
+  },
+  {
+   "path": "runtimes/python/docs/deploy-gcp.md",
+   "sha256": "8a8213727dca42ab574d003acf67d0f6b27900e01a8ebfc4c7d95f891a317444",
+   "reason": "identical copy of platform/core/docs in ultrastable/ultrastable",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "evidence": "sha256 identical to ultrastable/ultrastable:platform/core/docs/deploy-gcp.md"
+  },
+  {
+   "path": "runtimes/python/docs/heritage.md",
+   "sha256": "68b07800f0bbe00138070764743ae29f307150e5b92144a62ba260cccd15db38",
+   "reason": "identical copy of platform/core/docs in ultrastable/ultrastable",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "evidence": "sha256 identical to ultrastable/ultrastable:platform/core/docs/heritage.md"
+  },
+  {
+   "path": "runtimes/python/docs/proof-real-agent.md",
+   "sha256": "7c4557d81215217a408d3a814bd2adf4e0483614a2c74a5665877db1de68f3fb",
+   "reason": "identical copy of platform/core/docs in ultrastable/ultrastable",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "evidence": "sha256 identical to ultrastable/ultrastable:platform/core/docs/proof-real-agent.md"
+  },
+  {
+   "path": "runtimes/python/docs/second-installation.md",
+   "sha256": "b74f5d2be0b200d8008d1cf3bde468deac013eb9fff2ae6ea675ec290b9c4ea6",
+   "reason": "identical copy of platform/core/docs in ultrastable/ultrastable",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "evidence": "sha256 identical to ultrastable/ultrastable:platform/core/docs/second-installation.md"
+  },
+  {
+   "path": "runtimes/python/docs/roadmap.md",
+   "sha256": "f5638069cb0136608275c16de56eed2dd9a5c7a86454c21c4bdc3007b54fb18d",
+   "reason": "identical copy of platform/core/docs in ultrastable/ultrastable",
+   "date": "2026-11-12",
+   "recover": "487421f9d58c9271c66a0eae65d90f7e47b4e899",
+   "evidence": "sha256 identical to ultrastable/ultrastable:platform/core/docs/roadmap.md"
+  }
+ ]
+}

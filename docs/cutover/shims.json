@@ -1,0 +1,98 @@
+{
+ "_doc": "Shims and open items for the QNFO cutover (was docs/cutover/SHIMS.md). Shims live in the QNFO instance overlay, never in shared code. Each has an exit and a closing probe; tests/test_cutover_shims.py checks the shape. Source for open items: issue #93.",
+ "shims": [
+  {
+   "id": "S-1",
+   "dependency": "Secret lease shared by every agent lane (deploy-guard)",
+   "why_no_generic_equivalent": "core/claims covers work claims; the lease needs a live secret store",
+   "shim": "Overlay route to the old lease endpoint, behind the route table",
+   "exit": "Generic lease over Workers secrets bindings",
+   "closing_probe": "no calls to the old endpoint for 7 days"
+  },
+  {
+   "id": "S-2",
+   "dependency": "QNFO model ladder and provider keys",
+   "why_no_generic_equivalent": "Ladder is data; keys are the owner's",
+   "shim": "Instance file model_ladder plus binding names",
+   "exit": "none: stays configuration",
+   "closing_probe": "validator passes"
+  },
+  {
+   "id": "S-3",
+   "dependency": "Charter, portfolio and research-specific tick steps",
+   "why_no_generic_equivalent": "QNFO-only by design (inventory)",
+   "shim": "Overlay steps registered into the generic tick",
+   "exit": "Stay in the overlay permanently",
+   "closing_probe": "tick row lists overlay steps"
+  },
+  {
+   "id": "S-4",
+   "dependency": "QNFO scorer chains in observability",
+   "why_no_generic_equivalent": "QNFO-only by design",
+   "shim": "Overlay scorers on the core/observe port",
+   "exit": "Stay in the overlay",
+   "closing_probe": "scorer output present"
+  },
+  {
+   "id": "S-5",
+   "dependency": "Owner-code login page of ai-yield",
+   "why_no_generic_equivalent": "not extracted; console is the generic surface",
+   "shim": "Keep the old page serving until console login covers it",
+   "exit": "Console login",
+   "closing_probe": "route has zero hits for 7 days"
+  },
+  {
+   "id": "S-6",
+   "dependency": "QNFO-styled dashboard views",
+   "why_no_generic_equivalent": "superseded by /console",
+   "shim": "Redirect old dashboard host to the new console",
+   "exit": "Retire after 14 quiet days",
+   "closing_probe": "redirect hit count is zero"
+  },
+  {
+   "id": "S-7",
+   "dependency": "The 12 app workers and 8 personal workers",
+   "why_no_generic_equivalent": "not product",
+   "shim": "Keep in QNFO deployment; reach core over HTTP routes only",
+   "exit": "none",
+   "closing_probe": "no source import from core"
+  }
+ ],
+ "open_items": [
+  {
+   "id": "G-1",
+   "item": "Server-side ops agent that drives core/deploy",
+   "blocker": "not yet written",
+   "workaround": "Old ops worker serves deploys until it is; stage 5 for this unit waits",
+   "closing_probe": "agent opens a deploy item and the change path runs it in a test"
+  },
+  {
+   "id": "G-2",
+   "item": "Pull-direction GitHub sync",
+   "blocker": "needs QNFO sources or a live account",
+   "workaround": "old steward keeps it",
+   "closing_probe": "test for pull sync passes"
+  },
+  {
+   "id": "G-3",
+   "item": "Durable Object wrapper for the agents runtime",
+   "blocker": "needs a live Cloudflare account",
+   "workaround": "old agents worker keeps it",
+   "closing_probe": "wrapper deployed and probed"
+  },
+  {
+   "id": "G-4",
+   "item": "Container image and binding",
+   "blocker": "needs a live account",
+   "workaround": "old containers-pilot keeps it",
+   "closing_probe": "image runs a job"
+  },
+  {
+   "id": "G-5",
+   "item": "Product claims feed",
+   "blocker": "needs the product's own host (issue #10)",
+   "workaround": "static claims file",
+   "closing_probe": "feed answers on its host"
+  }
+ ]
+}

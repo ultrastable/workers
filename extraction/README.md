@@ -7,6 +7,8 @@ Ultrastable was built inside QNFO's Cloudflare Workers fleet (`QNFO/qnfo-workers
 
 QNFO's repository stays public and is already licensed under the QNFO Unified License Agreement v2.1 (non-commercial; commercial use needs a separate agreement). The code here is the same Licensor's, offered under the Ultrastable License v1.0. Each worker moves only after its QNFO-specific constants (account, hosts, repository, model ladder, owner contact) are read from configuration.
 
+The classification below is kept as data in `extraction/boundary.json` and enforced by `extraction/product_boundary.mjs`.
+
 ## Core workers to extract
 
 | Worker (in QNFO/qnfo-workers) | Role |

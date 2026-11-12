@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+# Cut a release tag. Instances pin the runtime code by this tag (runtime.ref in ultrastable.lock.json, docs/RELEASES.md).
+# Cost: manual dispatch only, one short job, no schedule. Gate: CI must be green on the commit being tagged.
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "semver without the v, e.g. 0.1.0"
+        required: true
+permissions:
+  contents: write
+  checks: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version is semver and unused
+        run: |
+          echo "${{ inputs.version }}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "not semver"; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/v${{ inputs.version }}" >/dev/null 2>&1; then echo "tag exists"; exit 1; fi
+      - name: CI is green on this commit
+        run: |
+          ok=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100" --jq '[.check_runs[]|select(.name=="test")|select(.conclusion=="success")]|length')
+          [ "$ok" -ge 1 ] || { echo "no successful 'test' check on $GITHUB_SHA"; exit 1; }
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Tag and release
+        run: gh release create "v${{ inputs.version }}" --target "$GITHUB_SHA" --title "v${{ inputs.version }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

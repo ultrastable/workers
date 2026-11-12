@@ -24,7 +24,7 @@ Exit code 1 when there is any finding, so it works as a CI gate.
 
 ## Configure
 
-Put `gaplint.json` at the repository root. Keys merge over the defaults in `gaplint/config.py`, except `required`, which replaces the default whole. `agent_rules` may be one spec or a list of specs. This repository's own file is `gaplint.json`.
+Put gaplint.json at the repository root. Keys merge over the defaults in `gaplint/config.py`, except `required`, which replaces the default whole. `agent_rules` may be one spec or a list of specs. This repository's own file is the root gaplint.json.
 
 ## Status
 

@@ -56,7 +56,7 @@ The runner step is added only when `config.runner.enabled` is true and every nam
 
 ## Migrations
 
-`modules.js` is the ordered module list (core, claims, router, kernel, runner, describe, packs, yield, docgate, then `packs/<id>/migrations` for each id in `config.pack_migrations`). `node tools/build_migrations.mjs [--config file.json] [--check]` writes `adapters/cloudflare/migrations/NNNN_<module>_<name>.sql`; the output is committed and `migrations.test.js` fails on drift and applies all files twice to a fresh database. The Worker template points `migrations_dir` at it. Adding a migration to an earlier module renumbers later files; every migration is idempotent, so a re-run is safe.
+`modules.js` is the ordered module list (core, claims, router, kernel, runner, describe, packs, yield, docgate, then `packs/<id>/migrations` for each id in `config.pack_migrations`). `node tools/build_migrations.mjs [--config FILE] [--check]` writes `adapters/cloudflare/migrations/NNNN_<module>_<name>.sql`; the output is committed and `migrations.test.js` fails on drift and applies all files twice to a fresh database. The Worker template points `migrations_dir` at it. Adding a migration to an earlier module renumbers later files; every migration is idempotent, so a re-run is safe.
 
 ## Not covered here
 
