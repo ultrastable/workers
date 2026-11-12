@@ -42,6 +42,7 @@ VERSION = "0.1.0"
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cases as case_library  # noqa: E402  (bootstrap case library, bootstrap/cases.json)
+import ladder  # noqa: E402  (docs/BOOTSTRAP-LADDER.md as code)
 
 
 # ---------------------------------------------------------------- helpers
@@ -106,8 +107,8 @@ def fill(template: str, values: dict) -> str:
 
 
 class Boot:
-    def __init__(self, root: Path, out: Path, apply: bool, idea_path: Path | None = None, config_path: Path | None = None):
-        self.root, self.out, self.apply = root, out, apply
+    def __init__(self, root: Path, out: Path, apply: bool, idea_path: Path | None = None, config_path: Path | None = None, interactive: bool = False):
+        self.root, self.out, self.apply, self.interactive = root, out, apply, interactive
         self.idea_path, self.config_path = idea_path, config_path  # optional overrides, so one repo can boot a different org (self-hosting)
         self.log: list[dict] = []
         self.state: dict = {"blocked_items": [], "gate_cards": []}
@@ -280,6 +281,7 @@ class Boot:
         values = {**self.config["runtime"], "slug": self.slug}
         values = {k: fill(v, {"slug": self.slug}) if isinstance(v, str) else v for k, v in values.items()}
         values.setdefault("d1_database_id", "{d1_database_id}")
+        values.setdefault("tick_mode", "cron")
         self.runtime = values
         worker = self.root / "adapters" / "cloudflare"
         (worker / "wrangler.jsonc").write_text(fill((worker / "wrangler.template.jsonc").read_text(), values))
@@ -373,6 +375,32 @@ class Boot:
             return "blocked", "no org-admin token: gate card opened, run the org-init workflow once it exists"
         return "ok", "org token present: run the org-init workflow (.github/workflows/org-init.yml)"
 
+    def ladder(self):
+        """Try the bootstrap ladder (docs/BOOTSTRAP-LADDER.md) before provisioning: connect, temporary, scoped token."""
+        have_wrangler = bool(self.tools.get("wrangler"))
+        # A dry run never downloads or starts anything: it only asks an already-installed wrangler.
+        usable = have_wrangler or (self.apply and bool(self.tools.get("npx")))
+        res = ladder.run_ladder(self.run_cmd, dict(os.environ), wrangler_available=usable,
+                                wrangler=["wrangler"] if have_wrangler else ["npx", "wrangler"], interactive=self.interactive and self.apply)
+        self.state["ladder"] = res
+        self.out.mkdir(parents=True, exist_ok=True)
+        (self.out / "ladder.json").write_text(json.dumps(res, indent=2) + "\n")
+        if res["route"]:  # a working route replaces the "paste a token" cards
+            self.state["gate_cards"] = [c for c in self.state["gate_cards"] if not re.search(r"CLOUDFLARE_(API_TOKEN|ACCOUNT_ID)$", c["id"])]
+        else:
+            card = ladder.gate_card(res)
+            if card and not any(c["id"] == "GATE-LADDER" for c in self.state["gate_cards"]):
+                self.state["gate_cards"].append(card)
+        (self.out / "gate-cards.json").write_text(json.dumps(self.state["gate_cards"], indent=2) + "\n")
+        tried = ", ".join(f"{a['rung']}={a['status']}" for a in res["attempts"])
+        return ("ok" if res["route"] else "degraded"), f"route {res['route'] or 'none'}; {tried}"
+
+    def run_cmd(self, cmd, env=None, timeout=None):
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout)
+        except (OSError, subprocess.TimeoutExpired) as e:  # a missing or hung tool is a failed rung, not a crash
+            return subprocess.CompletedProcess(cmd, 127, "", f"{type(e).__name__}: {e}")
+
     def provision(self):
         plan = [
             ["npx", "wrangler", "d1", "create", self.runtime["d1_database"]],
@@ -383,9 +411,10 @@ class Boot:
         self.state["provision_plan"] = [" ".join(c) for c in plan]
         if not self.apply:
             return "degraded", "dry run: planned " + str(len(plan)) + " commands (see boot-log.json provision_plan)"
-        need = {"cloudflare", "cloudflare_account"} - self.connectors_present
-        if need:
-            return "blocked", f"missing connector credentials: {sorted(need)} (gate cards opened)"
+        route = self.state.get("ladder", {})
+        if not route.get("route"):
+            return "blocked", "no ladder rung reached a Cloudflare account (see org/ladder.json; one gate card opened)"
+        self.cmd_env = {**os.environ, **route.get("env", {})}
         if not self.tools.get("npx"):
             return "blocked", "npx not found; install Node.js 20+"
         worker = self.root / "adapters" / "cloudflare"
@@ -403,16 +432,28 @@ class Boot:
         wr = worker / "wrangler.jsonc"
         wr.write_text(wr.read_text().replace("{d1_database_id}", db_id))
         for cmd in plan[1:]:
-            self.run(cmd, worker)
-        return "ok", f"D1 {self.runtime['d1_database']} ({db_id}) migrated and seeded; Worker deployed"
+            try:
+                self.run(cmd, worker)
+            except RuntimeError as e:
+                if cmd[:3] != ["npx", "wrangler", "deploy"] or not ladder.is_cron_refusal(str(e)):
+                    raise
+                # Rung 3: the account refuses cron triggers; redeploy ticking from the Durable Object alarm.
+                wr.write_text(ladder.render_wrangler(wr.read_text(), "alarm"))
+                self.run(cmd, worker)
+                self.runtime["tick_mode"] = "alarm"
+                self.state["ladder"]["tick_mode"] = "alarm"
+                (self.out / "ladder.json").write_text(json.dumps(self.state["ladder"], indent=2) + "\n")
+        return "ok", f"D1 {self.runtime['d1_database']} ({db_id}) migrated and seeded; Worker deployed (tick: {self.runtime['tick_mode']}, route: {route['route']})"
 
     def start(self):
         if not self.apply:
             return "degraded", "dry run: the first tick runs on the Worker's cron after --apply"
+        if self.runtime.get("tick_mode") == "alarm":
+            return "ok", "Worker ticks from its Durable Object alarm (no cron); KIT-3 closes when six complete ticks are observed in one hour (prediction P-KIT-3)"
         return "ok", "Worker cron armed; KIT-3 closes when six complete ticks are observed in one hour (prediction P-KIT-3)"
 
     def run(self, cmd, cwd) -> str:
-        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600)
+        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600, env=getattr(self, "cmd_env", None))
         if p.returncode != 0:
             raise RuntimeError(f"{' '.join(cmd[:4])} exited {p.returncode}: {p.stderr.strip()[-400:]}")
         return p.stdout
@@ -488,11 +529,13 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None, help="output folder (default <root>/org)")
     ap.add_argument("--idea", type=Path, default=None, help="idea file (default <root>/IDEA.md)")
     ap.add_argument("--config", type=Path, default=None, help="org config (default <root>/ultrastable.json)")
+    ap.add_argument("--interactive", action="store_true", help="with --apply, let the connect rung start `wrangler login` (the person clicks Allow)")
     a = ap.parse_args(argv)
     root = a.root.resolve()
     boot = Boot(root, (a.out or root / "org").resolve(), apply=a.apply,
-                idea_path=a.idea.resolve() if a.idea else None, config_path=a.config.resolve() if a.config else None)
-    for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "provision", "start"):
+                idea_path=a.idea.resolve() if a.idea else None, config_path=a.config.resolve() if a.config else None,
+                interactive=a.interactive)
+    for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "ladder", "provision", "start"):
         st = boot.guard(name, getattr(boot, name))
         if name == "read" and st == "blocked" and not hasattr(boot, "idea"):
             break  # nothing to plan from; the report says why
