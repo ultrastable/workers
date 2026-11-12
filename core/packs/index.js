@@ -11,6 +11,7 @@ import { registerMetric } from '../kernel/metrics.js';
 import { recordDecision } from '../kernel/decisions.js';
 import { validateManifest, parseEntry } from './manifest.js';
 import { sandboxDb, sandboxCtx, freezeGuard, scanPackSource } from './sandbox.js';
+import { createBounceIntake } from './bounce.js';
 import { applyPackMigrations, scanPackDirs } from './loader.js';
 import { createGuard, sha256, setSwitch, engagedSwitches, rungCeilings, DEFAULT_RUNGS } from './guard.js';
 
@@ -19,6 +20,7 @@ export * from './guard.js';
 export { assertCoreImportsNoPacks } from './static-check.js';
 export * from './sandbox.js';
 export * from './loader.js';
+export * from './bounce.js';
 export const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations/', import.meta.url));
 
 export function loadManifest(dir) { return JSON.parse(readFileSync(path.join(dir, 'pack.json'), 'utf8')); }
@@ -33,6 +35,7 @@ const withTimeout = (p, ms) => new Promise((res, rej) => {
 // config: { step_timeout_ms, tenant_names, rungs, act_rung, ceilings, manager_model, packs: { <id>: settings } }
 export function createPacks({ db, now = Date.now, config = {}, channels = {}, importer = d => import(pathToFileURL(d).href) } = {}) {
   const guard = createGuard({ db, now, config, channels });
+  const bounces = createBounceIntake({ db, guard, now, config: config.bounces || {} });
   const rungs = config.rungs || DEFAULT_RUNGS;
   const ceilings = rungCeilings(config);
   const timeoutMs = config.step_timeout_ms ?? 5000;
@@ -168,7 +171,7 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, im
   }
 
   return {
-    guard, register, loadFromDir, enablePack, disablePack, packSteps, boundGuard,
+    guard, bounces, register, loadFromDir, enablePack, disablePack, packSteps, boundGuard,
     setSwitch: (scope, on, reason) => setSwitch(db, scope, on, reason, now()),
     status: async () => all(db, `SELECT id, class, enabled, enabled_by, enabled_at, decision_id, rung_ceiling FROM packs_registry ORDER BY id`),
   };

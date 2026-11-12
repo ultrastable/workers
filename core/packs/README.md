@@ -60,7 +60,7 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | s6 check order | BUILT (pack, switches, class, idempotency, suppression, consent, caps, content, approval, deliver); re-run at approval | `guard.js` |
 | T21-1 .. T21-8 | BUILT | `packs.test.js` |
 | Honest sender identification | BUILT when the channel port declares `senderId` | |
-| Bounce and complaint intake | NOT COVERED (use `guard.suppress({reason: 'bounce'})` from the pack) | |
+| Bounce and complaint intake | BUILT: `packs.bounces.ingest(payload, {channel, format})` and `handle(request, {secret})`; hard bounce suppresses the channel, complaint and unsubscribe suppress `*`, soft bounces count to a limit; events are idempotent by id; ledger `guard_bounces` keeps hashes only | `bounce.js`, `bounce.test.js` |
 | Class D routing through `core/deploy` | PARTLY: the guard refuses class D sends without `viaDeploy: true`; the deploy call itself is the pack's | |
 | Applying a pack's own migrations on enable, loading packs from a directory scan | BUILT: `enablePack` applies the manifest's migrations once (ledger `packs_migrations`, digest kept; only `CREATE`/`ALTER`/`INSERT` on `<id>_*` objects; failure leaves the pack disabled); `loadFromDir(root)` registers every valid pack | `loader.js`, `loader.test.js` |
 
