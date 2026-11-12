@@ -43,4 +43,4 @@ Layering rule: `core/` imports nothing from `adapters/`; adapters import `core/`
 
 ## Runtime layout after bootstrap
 
-`bootstrap/bootstrap.py` renders `adapters/cloudflare/wrangler.jsonc` and "adapters/cloudflare/src/config.js" (both git-ignored) and points `migrations_dir` at `../../core/migrations`.
+`bootstrap/bootstrap.py` renders "adapters/cloudflare/wrangler.jsonc" and "adapters/cloudflare/src/config.js" (both git-ignored) and points `migrations_dir` at `../../core/migrations`.
