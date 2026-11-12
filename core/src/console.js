@@ -3,7 +3,8 @@
 // Guided console (US-SPEC-17). Three screens, buttons first, a prompt box second.
 // The front end is the back end: every action below writes a record the tick already understands.
 import { CONSOLE_HTML } from './console-ui.js';
-import { firstRunState, claimFirstRun, sha256Hex, verifyAccessJwt } from '../doors/index.js';
+import { sha256Hex, verifyAccessJwt } from '../doors/index.js';
+import { firstRunDoor, doorStatus, page } from './first-run.js';
 
 // Request categories that SCOPE.md puts outside the default product (opt-in Capability Packs only).
 export const OUT_OF_SCOPE = [
@@ -94,8 +95,6 @@ async function tokenOk(given, expected) {
 function cookie(req, name) { return (req.headers.get('cookie') || '').split(/;\s*/).map(p => p.split('=')).find(([k]) => k === name)?.[1]; }
 const COOKIE = 'us_console';
 
-const page = (html, status = 200, extra = {}) => new Response(html, { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'", ...extra } });
-
 const LOGIN = (msg = '') => `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Sign in</title>
 <body style="font:16px system-ui;max-width:22rem;margin:4rem auto;padding:0 1rem"><h1 style="font-size:1.3rem">Sign in</h1>${msg ? `<p>${msg}</p>` : ''}
 <form method=post action=/console/login><label>Access key<br><input name=key type=password autocomplete=current-password style="width:100%;padding:.6rem;margin:.4rem 0"></label><button style="padding:.6rem 1rem">Open</button></form></body>`;
@@ -113,15 +112,6 @@ async function connections(vault, envNames) {
   return CONNECTIONS.filter(c => allowed.includes(c.name)).map(c => ({ name: c.name, label: c.label, present: Boolean(rows[c.name] || envNames[c.name]), set_at: rows[c.name] || null }));
 }
 
-const SETUP = (inner, status = 200) => page(`<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><body style="font:16px system-ui;max-width:30rem;margin:4rem auto;padding:0 1rem">${inner}`, status);
-const OFF = () => SETUP('<h1>Console is off</h1><p>Set the CONSOLE_TOKEN secret to turn it on. Until then nobody can open it.</p>', 503);
-const FIRST_RUN = () => SETUP(`<h1>Welcome</h1><p>Press the button to create your private access key. It will be shown once, on the next page. Only the first person to press it gets a key.</p>
-<form method=post action=/console/first-run><button style="padding:.7rem 1.2rem;font-size:1rem">Create my key</button></form>`);
-const KEY_PAGE = key => SETUP(`<h1>Your access key</h1><p><b>This is shown once.</b> Copy it somewhere safe now. It cannot be shown again, and the system keeps only a fingerprint of it.</p>
-<p><input id=k readonly value="${key}" style="width:100%;padding:.6rem;font:14px monospace"></p>
-<p><button id=c style="padding:.6rem 1rem">Copy</button> <a href=/console>Open the console</a></p>
-<script>document.getElementById('c').onclick=function(){var k=document.getElementById('k');k.select();(navigator.clipboard?navigator.clipboard.writeText(k.value):Promise.reject()).catch(function(){document.execCommand('copy')});this.textContent='Copied'}</script>`);
-
 /** Route /console and /api/console/*. Returns null when the path is not ours.
  *  opts: { org, vault, doors (config.doors; omit = no first-run door), fetch, now, envNames } */
 export async function handleConsole(request, env, { org, vault, doors, fetch: fetchFn, now = () => Date.now(), envNames = {} } = {}) {
@@ -133,25 +123,12 @@ export async function handleConsole(request, env, { org, vault, doors, fetch: fe
   const clock = typeof now === 'function' ? now : () => now;
   const access = doors?.access?.team_domain && doors?.access?.aud ? doors.access : null;
 
-  // Which door is open? A configured token, else an Access team, else the one-time first-run key (never both with Access).
+  // Which door is open? A configured token, else an Access team, else the one-time first-run key (src/first-run.js).
   let issuedHash = null;
   if (!env.CONSOLE_TOKEN && !access) {
-    const fr = doors ? await firstRunState(env.DB, { now: clock(), minutes: doors.first_run_minutes ?? 60 }).catch(() => null) : null;
-    if (fr?.state === 'issued') issuedHash = fr.hash;
-    else if (fr?.state === 'open') {
-      if (isPost && p === '/console/first-run') {
-        const origin = request.headers.get('origin');
-        if (!origin || origin !== url.origin) return Response.json({ error: 'cross-origin request refused' }, { status: 403 });
-        const key = await claimFirstRun(env.DB);
-        if (!key) return SETUP('<h1>Already set up</h1><p>A key was already issued.</p>', 409);
-        const res = KEY_PAGE(key);
-        res.headers.append('set-cookie', `${COOKIE}=${encodeURIComponent(key)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000`);
-        return res;
-      }
-      if (request.method === 'GET' && (p === '/console' || p === '/console/')) return FIRST_RUN();
-      return api ? Response.json({ error: 'console not set up' }, { status: 503 }) : OFF();
-    } else if (fr?.state === 'starting') return SETUP('<h1>Starting up</h1><p>The first check has not run yet. Reload in a minute.</p>', 503);
-    else return OFF();
+    const door = await firstRunDoor(request, env, { doors, now: clock() });
+    if (door.response) return door.response;
+    issuedHash = door.issuedHash;
   }
   if (p === '/console/first-run') return Response.json({ error: 'not found' }, { status: 404 });
 
@@ -177,6 +154,7 @@ export async function handleConsole(request, env, { org, vault, doors, fetch: fe
   if (request.method === 'GET' && p === '/api/console') {
     const body = await buildConsole(env.DB, { org });
     body.connections = await connections(vault, envNames);
+    body.doors = await doorStatus(env, { doors, now: clock() });
     return Response.json(body, { headers: { 'cache-control': 'no-store' } });
   }
 
