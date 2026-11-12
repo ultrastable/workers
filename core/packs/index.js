@@ -11,6 +11,7 @@ import { registerMetric } from '../kernel/metrics.js';
 import { recordDecision } from '../kernel/decisions.js';
 import { validateManifest, parseEntry } from './manifest.js';
 import { sandboxDb, sandboxCtx, freezeGuard, scanPackSource } from './sandbox.js';
+import { createRedactor, secretValuesFor, redactingSink } from './redact.js';
 import { createBounceIntake } from './bounce.js';
 import { applyPackMigrations, scanPackDirs } from './loader.js';
 import { createGuard, sha256, setSwitch, engagedSwitches, rungCeilings, DEFAULT_RUNGS } from './guard.js';
@@ -21,6 +22,7 @@ export { assertCoreImportsNoPacks } from './static-check.js';
 export * from './sandbox.js';
 export * from './loader.js';
 export * from './bounce.js';
+export * from './redact.js';
 export const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations/', import.meta.url));
 
 export function loadManifest(dir) { return JSON.parse(readFileSync(path.join(dir, 'pack.json'), 'utf8')); }
@@ -33,8 +35,12 @@ const withTimeout = (p, ms) => new Promise((res, rej) => {
 });
 
 // config: { step_timeout_ms, tenant_names, rungs, act_rung, ceilings, manager_model, packs: { <id>: settings } }
-export function createPacks({ db, now = Date.now, config = {}, channels = {}, deployRoute = null, importer = d => import(pathToFileURL(d).href) } = {}) {
-  const guard = createGuard({ db, now, config, channels, deployRoute });
+export function createPacks({ db, now = Date.now, config = {}, channels = {}, deployRoute = null, env = {}, importer = d => import(pathToFileURL(d).href) } = {}) {
+  // Secret values seen by any step (declared names resolved in env, secret-looking settings) are redacted from every pack log line.
+  const known = new Set();
+  const learn = (m, tickEnv) => { for (const v of secretValuesFor(m, { env: { ...env, ...(tickEnv || {}) }, settings: config.packs?.[m.id] || {} })) known.add(v); };
+  const redactor = createRedactor({ values: () => [...known] });
+  const guard = createGuard({ db, now, config, channels, deployRoute, redact: redactor.redact });
   const bounces = createBounceIntake({ db, guard, now, config: config.bounces || {} });
   const rungs = config.rungs || DEFAULT_RUNGS;
   const ceilings = rungCeilings(config);
@@ -136,18 +142,20 @@ export function createPacks({ db, now = Date.now, config = {}, channels = {}, de
             const sw = await engagedSwitches(db);
             if (sw.has('global') || sw.has(`pack:${m.id}`)) { await record(m.id, loop.id, ctx.tickId, 'skipped_killed', null, 0); return; }
             const started = now();
+            learn(m, ctx.env);
             try {
               const en = parseEntry(loop.entry);
               const mod = await importer(path.resolve(r.source_dir, en.module));
               const fn = mod[en.export];
               if (typeof fn !== 'function') throw new Error(`entry ${loop.entry} is not a function`);
-              await withTimeout(fn({ db: sandboxDb(db, m.id), ctx: sandboxCtx(ctx), now, pack: m, settings: config.packs?.[m.id] || {}, guard: boundGuard(m.id) }), timeoutMs);
+              await withTimeout(fn({ db: sandboxDb(db, m.id), ctx: sandboxCtx(ctx, t => redactingSink(t, redactor.redact)), now, pack: m, settings: config.packs?.[m.id] || {}, guard: boundGuard(m.id) }), timeoutMs);
               await record(m.id, loop.id, ctx.tickId, 'ok', null, now() - started);
             } catch (e) {
-              await record(m.id, loop.id, ctx.tickId, e.timeout ? 'timeout' : 'error', e.message, now() - started);
-              ctx.errors.push(`pack:${m.id}:${loop.id}: ${e.message}`);
+              const msg = redactor.redact(e && e.message);
+              await record(m.id, loop.id, ctx.tickId, e.timeout ? 'timeout' : 'error', msg, now() - started);
+              ctx.errors.push(`pack:${m.id}:${loop.id}: ${msg}`);
               await ensureItem(db, { id: `PACKFAIL-${m.id}-${loop.id}-${iso(now()).slice(0, 13).replace(' ', 'T')}`,
-                title: `Pack ${m.id} loop ${loop.id} failed: ${e.message}`, owner_role: managerRole(m.id),
+                title: `Pack ${m.id} loop ${loop.id} failed: ${msg}`, owner_role: managerRole(m.id),
                 done_check: `the next run of ${m.id}:${loop.id} completes`, priority: 0, project: programId(m.id) });
             }
           },

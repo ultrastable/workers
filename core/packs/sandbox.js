@@ -48,8 +48,8 @@ export function sandboxDb(db, packId) {
   });
 }
 
-export function sandboxCtx(ctx) {
-  return Object.freeze({ tickId: ctx.tickId, nowIso: ctx.nowIso, now: ctx.now, notes: ctx.notes, errors: ctx.errors });
+export function sandboxCtx(ctx, wrap = x => x) {
+  return Object.freeze({ tickId: ctx.tickId, nowIso: ctx.nowIso, now: ctx.now, notes: wrap(ctx.notes), errors: wrap(ctx.errors) });
 }
 
 export function freezeGuard(g) {
