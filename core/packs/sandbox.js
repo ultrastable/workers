@@ -32,7 +32,7 @@ export function checkSql(sql, packId) {
   const own = `${packId}_`;
   for (const m of s.matchAll(WRITE_TARGET)) {
     const t = m[1].toLowerCase();
-    if (!(t.startsWith(own) || SHARED_WRITE_TABLES.includes(t))) return `write_outside_pack:${t}`;
+    if (!(t === packId || t.startsWith(own) || SHARED_WRITE_TABLES.includes(t))) return `write_outside_pack:${t}`;
   }
   return null;
 }

@@ -50,7 +50,7 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | US-21-R05 guarded tick step per loop | BUILT | error filed as `PACKFAIL-*` item, timeout, run counts in `packs_runs` |
 | US-21-R06 every outbound action passes the guard | BUILT: the host gives loops only a frozen `boundGuard` and a sandboxed db | `createGuard.send` |
 | US-21-R07 independent kill switch | BUILT | `packs_switches` (`global`, `pack:<id>`, `channel:<name>`) |
-| US-21-R08 pack cannot change core or other packs | BUILT: loops get `sandboxDb` (writes only to `<id>_*`, `items`, `predictions`; no DDL, PRAGMA, registry, switches or consent tokens), a restricted ctx (no env or config) and a frozen bound guard; `register` scans pack source for escaping imports, fs, eval | `sandbox.js`, `sandbox.test.js` |
+| US-21-R08 pack cannot change core or other packs | BUILT: loops get `sandboxDb` (writes only to `<id>` or `<id>_*`, `items`, `predictions`; no DDL, PRAGMA, registry, switches or consent tokens), a restricted ctx (no env or config) and a frozen bound guard; `register` scans pack source for escaping imports, fs, eval | `sandbox.js`, `sandbox.test.js` |
 | US-21-R09 secrets by presence only | BUILT for manifests (names only) and content (secret patterns refused, hashes stored); the host must keep values out of loop logs | `SECRET_PATTERNS` |
 | US-21-R10 testable with fake ports | BUILT | `packs.test.js` |
 | US-21-R11 no tenant names in code or defaults | BUILT (hosts, account ids, configured `tenant_names`) | `validateManifest`, `core/test/no-qnfo.test.js` |
@@ -60,8 +60,8 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | s6 check order | BUILT (pack, switches, class, idempotency, suppression, consent, caps, content, approval, deliver); re-run at approval | `guard.js` |
 | T21-1 .. T21-8 | BUILT | `packs.test.js` |
 | Honest sender identification | BUILT when the channel port declares `senderId` | |
-| Bounce and complaint intake | NOT COVERED (use `guard.suppress({reason: 'bounce'})` from the pack) | |
+| Bounce and complaint intake | BUILT: `packs.bounces.ingest(payload, {channel, format})` and `handle(request, {secret})`; hard bounce suppresses the channel, complaint and unsubscribe suppress `*`, soft bounces count to a limit; events are idempotent by id; ledger `guard_bounces` keeps hashes only | `bounce.js`, `bounce.test.js` |
 | Class D routing through `core/deploy` | PARTLY: the guard refuses class D sends without `viaDeploy: true`; the deploy call itself is the pack's | |
-| Applying a pack's own migrations on enable, loading packs from a directory scan | BUILT: `enablePack` applies the manifest's migrations once (ledger `packs_migrations`, digest kept; only `CREATE`/`ALTER`/`INSERT` on `<id>_*` objects; failure leaves the pack disabled); `loadFromDir(root)` registers every valid pack | `loader.js`, `loader.test.js` |
+| Applying a pack's own migrations on enable, loading packs from a directory scan | BUILT: `enablePack` applies the manifest's migrations once (ledger `packs_migrations`, digest kept; only `CREATE`/`ALTER`/`INSERT` on `<id>` or `<id>_*` objects; failure leaves the pack disabled); `loadFromDir(root)` registers every valid pack | `loader.js`, `loader.test.js` |
 
 Storage note: `guard_ledger` holds only hashes of recipient and content. `guard_queue` holds the raw recipient and content while a send awaits approval and clears both when decided. Consent is per recipient, channel and pack (`*` means any pack).

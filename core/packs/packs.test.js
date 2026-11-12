@@ -50,7 +50,7 @@ test('migration is idempotent and every table is packs_ or guard_ prefixed', () 
   const sql = readFileSync(new URL('./migrations/0001_packs.sql', import.meta.url), 'utf8');
   db.raw.exec(sql); db.raw.exec(sql);
   const names = rows(db, `SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'packs_%' OR name LIKE 'guard_%')`).map(r => r.name).sort();
-  assert.deepEqual(names, ['guard_consent', 'guard_ledger', 'guard_queue', 'guard_suppression', 'packs_migrations', 'packs_registry', 'packs_runs', 'packs_switches']);
+  assert.deepEqual(names, ['guard_bounces', 'guard_consent', 'guard_ledger', 'guard_queue', 'guard_suppression', 'packs_migrations', 'packs_registry', 'packs_runs', 'packs_switches']);
 });
 
 // ---- T21-1: inert until enabled; decision recorded; disable stops loops (R01, R04) ----
