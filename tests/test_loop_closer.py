@@ -134,5 +134,15 @@ class LatestCiWithoutActionsRead(unittest.TestCase):
         self.assertIsNone(gh.latest_ci("main"))
 
 
+class ReleaseProbe(unittest.TestCase):
+    def test_release_exists_closes_when_tag_published(self):
+        class G(FakeGh):
+            def release_tags(self): return {"v0.1.0"}
+        gh = G([issue(1, body="Closing probe: release_exists:v0.1.0")])
+        with tempfile.TemporaryDirectory() as d:
+            r = lc.run(gh, Path(d), False, dt.datetime.now(dt.timezone.utc), 24, 7)
+        self.assertEqual([n for n, _ in r["closed"]], [1])
+
+
 if __name__ == "__main__":
     unittest.main()

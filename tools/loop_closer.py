@@ -67,6 +67,13 @@ class Gh:
         done = [r for r in json.loads(j) if r.get("status") == "completed"]
         return done[0]["conclusion"] if done else None
 
+    def release_tags(self) -> set[str] | None:
+        """Tags of published releases, or None when the list cannot be read."""
+        try:
+            return {r["tagName"] for r in json.loads(self._run("release", "list", "-R", self.repo, "--limit", "100", "--json", "tagName"))}
+        except subprocess.CalledProcessError:
+            return None
+
     def comment(self, n: int, text: str): self._run("issue", "comment", str(n), "-R", self.repo, "--body", text)
     def close(self, n: int, text: str): self._run("issue", "close", str(n), "-R", self.repo, "--reason", "completed", "--comment", text)
     def label(self, n: int, name: str): self._run("issue", "edit", str(n), "-R", self.repo, "--add-label", name)
@@ -119,6 +126,7 @@ def run(gh, root: Path, apply: bool, now: dt.datetime, grace_h: float, stale_d: 
     prs = {p["number"]: p for p in gh.prs()}
     result = {"closed": [], "open_loop": [], "stalled": [], "children": [], "epics_closed": [], "ticked": [], "incidents": []}
     ci = gh.latest_ci("main") if hasattr(gh, "latest_ci") else None
+    tags = gh.release_tags() if hasattr(gh, "release_tags") else None
     names = lambda i: {l["name"] for l in i.get("labels", [])}  # noqa: E731
 
     for n, i in sorted(issues.items()):
@@ -163,6 +171,9 @@ def run(gh, root: Path, apply: bool, now: dt.datetime, grace_h: float, stale_d: 
         if probe:
             if probe.group(1).lower() == "ci_green":
                 ok, ev = (ci == "success"), f"latest ci run on main: {ci}"
+            elif probe.group(1).lower() == "release_exists":
+                tag = probe.group(2).strip().strip("`")
+                ok, ev = (tags is not None and tag in tags), f"release {tag} {'published' if tags is not None and tag in tags else 'not found'}"
             else:
                 ok, ev = eval_probe(probe.group(1), probe.group(2), issues, prs, root)
             if ok:
