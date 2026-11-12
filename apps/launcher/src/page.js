@@ -4,7 +4,8 @@
 // No backticks and no dollar-brace sequences inside the script: this file is a template literal.
 import { powWorkerSource } from './pow.js';
 
-export function launcherPage({ bundleSha256 = 'unreleased' } = {}) {
+export function launcherPage({ bundleSha256 = 'unreleased', turnstileSiteKey = null } = {}) {
+  const tsKey = typeof turnstileSiteKey === 'string' && /^[0-9A-Za-z_-]{1,64}$/.test(turnstileSiteKey) ? turnstileSiteKey : '';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ultrastable: say what you want</title>
@@ -45,6 +46,7 @@ button.alt{background:transparent;color:var(--fg);border-color:var(--line)}butto
   <h2>Two things to agree to</h2>
   <div class="row"><input type="checkbox" id="tos"><label for="tos" style="margin:0;font-weight:400">I have read and accept <a href="https://www.cloudflare.com/terms/" target="_blank" rel="noopener">Cloudflare's terms</a> and <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">privacy policy</a>. A free preview account is created in my name for about an hour.</label></div>
   <div class="row"><input type="checkbox" id="lic"><label for="lic" style="margin:0;font-weight:400">I understand Ultrastable is <b>free for non-commercial use</b>. If I make money with it, a commercial license applies. <a href="https://github.com/ultrastable/license" target="_blank" rel="noopener">Read the license</a>.</label></div>
+  ${tsKey ? '<div id="ts"></div>' : ''}
   <button id="go" disabled>Put my preview online</button><button class="alt" id="back">Change my answers</button>
 </section>
 
@@ -75,7 +77,8 @@ function words(){return{idea:$('idea').value.trim(),outcomes:[$('o1').value.trim
 $('next1').onclick=function(){var a=words();if(a.idea.length<10){alert('Please say a little more about what you want.');return}
   $('readback').textContent='You want: '+a.idea+(a.outcomes.length?' First, you would like to see: '+a.outcomes.join('; ')+'.':'')+' Monthly AI spending limit: '+a.limit+' USD.';show(2)};
 $('back').onclick=function(){show(1)};
-function ready(){$('go').disabled=!($('tos').checked&&$('lic').checked)}$('tos').onchange=ready;$('lic').onchange=ready;
+var TS_KEY='${tsKey}',TS_TOKEN='';${tsKey ? "if(TS_KEY){var tsS=document.createElement('script');tsS.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';tsS.onload=function(){window.turnstile.render('#ts',{sitekey:TS_KEY,action:'provision',callback:function(t){TS_TOKEN=t;ready()},'expired-callback':function(){TS_TOKEN='';ready()}})};document.head.appendChild(tsS)}" : ''}
+function ready(){$('go').disabled=!($('tos').checked&&$('lic').checked&&(!TS_KEY||TS_TOKEN))}$('tos').onchange=ready;$('lic').onchange=ready;
 function fail(m){$('errmsg').textContent=m;show(5)}
 $('retry').onclick=function(){show(2)};
 function solve(c){return new Promise(function(res,rej){var url=URL.createObjectURL(new Blob([POW_SRC],{type:'text/javascript'}));var w=new Worker(url);
@@ -84,7 +87,7 @@ $('go').onclick=function(){show(3);$('status').textContent='Asking Cloudflare fo
   fetch('/api/challenge').then(function(r){return r.json()}).then(function(c){if(c.error)throw new Error(c.error);$('status').textContent='Doing the safety check on your device';$('substatus').textContent='This takes about ten seconds. Please keep this page open.';
     return solve(c).then(function(cp){return {challengeToken:c.challengeToken,solution:{checkpoints:cp}}})})
   .then(function(proof){$('status').textContent='Putting your preview online';$('substatus').textContent='Creating a small database, loading what you said, starting the console.';var a=words();
-    return fetch('/api/provision',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({proof:proof,idea:a.idea,outcomes:a.outcomes,limit:a.limit,acceptedCloudflareTerms:$('tos').checked,acceptedLicense:$('lic').checked})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j})})})
+    return fetch('/api/provision',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({proof:proof,idea:a.idea,outcomes:a.outcomes,limit:a.limit,acceptedCloudflareTerms:$('tos').checked,acceptedLicense:$('lic').checked,turnstile:TS_TOKEN})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j})})})
   .then(function(r){$('url').textContent=r.url;$('url').href=r.url;$('key').textContent=r.consoleKey;$('claim').href=r.claimUrl;$('sha').textContent=String(r.bundleSha256||'').slice(0,12);
     $('notes').textContent='';(r.notes||[]).forEach(function(n){var li=document.createElement('li');li.textContent=n;$('notes').appendChild(li)});
     $('copykey').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(r.consoleKey);$('copykey').textContent='Copied'};show(4)})

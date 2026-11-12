@@ -9,4 +9,6 @@ A person with no terminal opens one page, says what they want, ticks two agreeme
 
 Tests: `node --test --no-warnings apps/launcher/test/*.test.mjs` (set `ULTRASTABLE_BUILD_TEST=1` to also build the bundle; slow, release builds only).
 
-Rate-limit binding is configured in `wrangler.template.jsonc`. Not yet built: Turnstile secret (hook exists, set `TURNSTILE_SECRET` at deploy), hosting on a permanent account, release bundle publishing, the claim-time heartbeat.
+Abuse controls (US-19-R09), all offline-tested in `test/turnstile.test.mjs`: Turnstile verification (`src/turnstile.js`, fails closed, fake siteverify in tests), a rate limit (`RATE_LIMITER`), and the launcher's own daily cap (`src/cap.js`, Durable Object `ProvisionCap`, one integer per UTC day). `LAUNCHER_MODE=public` refuses to serve until all three are configured. Nothing about a visitor is stored and nothing is logged; the claim link appears only in the response.
+
+Not deployed and not exposed (patent-filing publication gate): hosting on a permanent non-QNFO account and the `TURNSTILE_SECRET` secret are the card in `gate.json` (`IDENTITY-BOUND:`). Still open: release bundle publishing, the claim-time heartbeat.

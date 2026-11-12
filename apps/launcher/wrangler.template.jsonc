@@ -9,5 +9,11 @@
   "observability": { "enabled": false },
   "limits": { "cpu_ms": 50, "subrequests": 12 },
   // Per-visitor abuse limit (US-19-R09): 5 provisioning attempts per 60 s. Read as env.RATE_LIMITER in src/index.js.
-  "ratelimits": [{ "name": "RATE_LIMITER", "namespace_id": "1901", "simple": { "limit": 5, "period": 60 } }]
+  "ratelimits": [{ "name": "RATE_LIMITER", "namespace_id": "1901", "simple": { "limit": 5, "period": 60 } }],
+  // Own daily spend cap (US-19-R09): ProvisionCap counts attempts per UTC day (one integer, nothing about a visitor).
+  // Set DAILY_PROVISION_CAP, TURNSTILE_SITE_KEY (public) and the TURNSTILE_SECRET secret at deploy. LAUNCHER_MODE=public
+  // makes the Worker refuse to serve until the robot check, rate limit and cap are all present. Not deployed: see gate.json.
+  "durable_objects": { "bindings": [{ "name": "PROVISION_CAP", "class_name": "ProvisionCap" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ProvisionCap"] }],
+  "vars": { "DAILY_PROVISION_CAP": "25" }
 }
