@@ -26,6 +26,12 @@ class Axiom(unittest.TestCase):
         for f in roles:
             self.assertIn(MARK, f.read_text(encoding="utf-8"), f.name)
 
+    def test_contract_rules_are_numbered_without_gaps(self):
+        import re
+        rules = [int(n) for n in re.findall(r"^(\d+)\. \*\*", (ROOT / "agents/CONTRACT.md").read_text(encoding="utf-8"), re.M)]
+        self.assertIn(13, rules)
+        self.assertEqual(rules, list(range(1, len(rules) + 1)))
+
 
 if __name__ == "__main__":
     unittest.main()
