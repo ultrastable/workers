@@ -14,7 +14,7 @@ export * from './decisions.js';
 export * from './programs.js';
 export * from './failure.js';
 export * from './lifecycle.js';
-export const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations/', import.meta.url));
+export const MIGRATIONS_DIR = (() => { try { return fileURLToPath(new URL('./migrations/', import.meta.url)); } catch { return null; } })(); // import.meta.url is not a URL inside a deployed Worker (live trial 2026-11-12, error 10021); only Node tooling and tests use this path
 
 // Measurement steps always run; manager operations stop when config.kernel.manager_ops === false (US-03-R14).
 export const L2_STEPS = [

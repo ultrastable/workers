@@ -303,7 +303,11 @@ class Boot:
         self.runtime = values
         worker = self.root / "adapters" / "cloudflare"
         rendered = fill((worker / "wrangler.template.jsonc").read_text(), values)
-        (worker / "wrangler.jsonc").write_text(temporary_wrangler(rendered) if self.temporary else rendered)
+        if self.temporary:
+            rendered = temporary_wrangler(rendered)
+        elif values.get("tick_mode") == "alarm":  # the org config asks for the Durable Object heartbeat (no cron), e.g. when an account's cron never fires (live trial 2026-11-12)
+            rendered = ladder.render_wrangler(rendered, "alarm")
+        (worker / "wrangler.jsonc").write_text(rendered)
         cfg = {
             "org_slug": self.slug,
             "claim_ttl_minutes": 120,
@@ -417,6 +421,7 @@ class Boot:
         return ("ok" if res["route"] else "degraded"), f"route {res['route'] or 'none'}; {tried}"
 
     def run_cmd(self, cmd, env=None, timeout=None):
+        cmd = [shutil.which(cmd[0]) or cmd[0], *cmd[1:]]  # same Windows .cmd resolution as run()
         try:
             return subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout)
         except (OSError, subprocess.TimeoutExpired) as e:  # a missing or hung tool is a failed rung, not a crash
@@ -515,7 +520,12 @@ class Boot:
         return "ok", "Worker cron armed; KIT-3 closes when six complete ticks are observed in one hour (prediction P-KIT-3)"
 
     def run(self, cmd, cwd, stdin: str | None = None, scrub: str | None = None) -> str:
+        cmd = [shutil.which(cmd[0]) or cmd[0], *cmd[1:]]  # Windows: npx is npx.cmd, which CreateProcess does not find by bare name (live trial 2026-11-12)
         p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600, input=stdin, env=getattr(self, "cmd_env", None))
+        for _ in range(2):  # a native crash of wrangler itself (Windows libuv teardown 0xC0000409, or V8 out-of-memory 134) is not an answer; every provisioning step is idempotent, so retry (live trial 2026-11-12)
+            if p.returncode not in (0xC0000409, 134) or stdin:
+                break
+            p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600, input=stdin, env=getattr(self, "cmd_env", None))
         if p.returncode != 0:
             tail = p.stderr.strip()[-400:]
             if scrub:

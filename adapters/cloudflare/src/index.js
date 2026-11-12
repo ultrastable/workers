@@ -19,6 +19,6 @@ export default {
   async fetch(request, env) {
     await ensureArmed(env); // alarm mode: any visit makes sure the heartbeat is armed
     return (await orgFor(env).handle(request))
-      ?? new Response('ultrastable worker\n', { headers: { 'content-type': 'text/plain' } });
+      ?? new Response('ultrastable worker\n', { status: 404, headers: { 'content-type': 'text/plain' } });
   },
 };

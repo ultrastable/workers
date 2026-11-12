@@ -23,7 +23,7 @@ export * from './sandbox.js';
 export * from './loader.js';
 export * from './bounce.js';
 export * from './redact.js';
-export const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations/', import.meta.url));
+export const MIGRATIONS_DIR = (() => { try { return fileURLToPath(new URL('./migrations/', import.meta.url)); } catch { return null; } })(); // import.meta.url is not a URL inside a deployed Worker (live trial 2026-11-12, error 10021); only Node tooling and tests use this path
 
 export function loadManifest(dir) { return JSON.parse(readFileSync(path.join(dir, 'pack.json'), 'utf8')); }
 
