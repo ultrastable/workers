@@ -1,0 +1,83 @@
+{
+  "schema": "second-installation-live/1",
+  "issue": "ultrastable/workers#47",
+  "date": "2026-11-12",
+  "status": "PASSED as the closest honest approximation, OUTSIDE QNFO's INSTALLATION BUT NOT A SEPARATE ACCOUNT: a fresh org ('Example Co', slug example-co, from the root IDEA.md and ultrastable.json) was bootstrapped on its own Worker and its own D1 in the same Cloudflare account (quniverse). It shares the account, and the token used to deploy it, with the first installation. A separate account is still unproven.",
+  "worker": "ultrastable-second-20261112",
+  "d1_database": "ultrastable-second-20261112",
+  "org_slug": "example-co",
+  "tick_mode": "alarm",
+  "provision_stage": "ok: migrated, seeded, Worker deployed (tick: alarm, route: scoped-token)",
+  "first_tick": "tick 1 at about 2026-11-12 19:01, 13/13 steps",
+  "verify": {
+    "command": "node agent-setup/verify.mjs https://ultrastable-second-20261112.<account subdomain>.workers.dev",
+    "exit": 0,
+    "ok": true,
+    "checks": [
+      {
+        "name": "health answers with the Worker JSON",
+        "ok": true,
+        "detail": "status 200"
+      },
+      {
+        "name": "a complete tick has run",
+        "ok": true,
+        "detail": "{\"ok\":true,\"last_tick\":{\"id\":1,\"steps\":\"13/13\"}}"
+      },
+      {
+        "name": "console page refuses anonymous visitors",
+        "ok": true,
+        "detail": "status 401"
+      },
+      {
+        "name": "console data refuses anonymous visitors",
+        "ok": true,
+        "detail": "status 401"
+      },
+      {
+        "name": "console refusal leaks no data",
+        "ok": true,
+        "detail": "{\"error\":\"sign in\"}"
+      },
+      {
+        "name": "anonymous cross-origin write refused",
+        "ok": true,
+        "detail": "status 401"
+      },
+      {
+        "name": "page sends a content security policy",
+        "ok": true,
+        "detail": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-"
+      },
+      {
+        "name": "page is not cacheable",
+        "ok": true,
+        "detail": "no-store"
+      },
+      {
+        "name": "tick endpoint is not open to anonymous callers",
+        "ok": true,
+        "detail": "status 404"
+      }
+    ]
+  },
+  "shares_with_first_installation": [
+    "Cloudflare account",
+    "API token",
+    "wrangler session",
+    "code (same repository)"
+  ],
+  "separate_from_first_installation": [
+    "Worker",
+    "D1 database",
+    "Durable Object namespace",
+    "console token (generated for this run)",
+    "org slug and seed"
+  ],
+  "teardown": {
+    "worker_deleted": true,
+    "d1_deleted": true,
+    "remaining_resources_named_trial_or_second": []
+  },
+  "still_needed": "The remaining closing probe on a Cloudflare or Google Cloud account that is not the reference account: verify.mjs exits 0 against that installation (identity-bound: a new account)."
+}
