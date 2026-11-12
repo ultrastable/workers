@@ -31,7 +31,7 @@ python -m ultrastable serve --seed-demo --auto-tick 5   # control-room dashboard
 
 CLI: `init`, `tick`, `status`, `backlog`, `add`, `trust`, `gates`, `resolve`, `demo`, `serve`.
 
-Honest status: the default demo agents are **simulated**; a first real-model proof exists ([docs/proof-real-agent.md](docs/proof-real-agent.md): Workers AI fixed a bug, verified by a separate test run, one toy task) (deterministic, seeded) so the loops can be demonstrated and tested anywhere. `WorkersAIAgent`, `CommandAgent` (any CLI agent) and `AnthropicAgent` are implemented; only the first has been run against a real task. See [docs/roadmap.md](docs/roadmap.md).
+Honest status: the default demo agents are **simulated**; a first real-model proof exists (platform/core/docs/proof-real-agent.md in ultrastable/ultrastable: Workers AI fixed a bug, verified by a separate test run, one toy task) (deterministic, seeded) so the loops can be demonstrated and tested anywhere. `WorkersAIAgent`, `CommandAgent` (any CLI agent) and `AnthropicAgent` are implemented; only the first has been run against a real task. The roadmap is platform/core/docs/roadmap.md in ultrastable/ultrastable.
 
 ## Cloud-agnostic by construction
 
@@ -40,10 +40,10 @@ Core is Python standard library only: one container, one SQLite file, one HTTP p
 | Target | Status |
 |---|---|
 | Google Cloud Run + Cloud Scheduler + Secret Manager | [`deploy/gcp/deploy.sh`](deploy/gcp/deploy.sh) (single-instance, demo-grade storage) |
-| Cloudflare Workers + D1 (original runtime, runs QNFO today) | [`docs/architecture.md`](docs/architecture.md), seed repo |
+| Cloudflare Workers + D1 (original runtime, runs QNFO today) | platform/core/docs/architecture.md in ultrastable/ultrastable, seed repo |
 | AWS / self-hosted | Container image; Postgres adapter on the roadmap |
 
-Details: [architecture](docs/architecture.md), [deploy on Google Cloud](docs/deploy-gcp.md), [heritage and the QNFO transfer](docs/heritage.md), [security](docs/security.md).
+Details: architecture, deploy on Google Cloud and heritage (platform/core/docs/ in ultrastable/ultrastable), [security](docs/security.md).
 
 ## Layout
 

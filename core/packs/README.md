@@ -24,7 +24,7 @@ The console shows the pack's `enable_gate` text as a decision card (what it does
 
 ## How to write a pack
 
-A directory with `pack.json` and code. See `example/` (class B, a `noop-notify` loop, a fake channel).
+A directory with `core/packs/example/pack.json` and code. See `example/` (class B, a `noop-notify` loop, a fake channel).
 
 | Manifest field | Notes |
 |---|---|
@@ -53,7 +53,7 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | US-21-R08 pack cannot change core or other packs | PARTLY: metric ids are namespaced, guard is bound to the pack id; a pack with raw `db` access is not sandboxed | host trust boundary |
 | US-21-R09 secrets by presence only | BUILT for manifests (names only) and content (secret patterns refused, hashes stored); the host must keep values out of loop logs | `SECRET_PATTERNS` |
 | US-21-R10 testable with fake ports | BUILT | `packs.test.js` |
-| US-21-R11 no tenant names in code or defaults | BUILT (hosts, account ids, configured `tenant_names`) | `validateManifest`, `no-qnfo.test.js` |
+| US-21-R11 no tenant names in code or defaults | BUILT (hosts, account ids, configured `tenant_names`) | `validateManifest`, `core/test/no-qnfo.test.js` |
 | US-21-R12 autonomy ceiling by class | BUILT | `rungCeilings`, rung clamp in the guard |
 | US-21-R13 unsubscribe and suppression immediate | BUILT | `guard.unsubscribe`, `guard.suppress` (also cancels queued items) |
 | US-21-R14 one guard for every pack and platform | BUILT | same `createGuard` code, ports injected |
