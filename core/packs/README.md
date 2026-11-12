@@ -48,9 +48,9 @@ A loop reaches outside only through the `guard` it is given, bound to its own pa
 | US-21-R03 core does not import a pack | BUILT (static check) | `assertCoreImportsNoPacks`, tested over `core/` and `adapters/` |
 | US-21-R04 manager role, charter, primary and guard metric, plus items | BUILT | `enablePack` seeds roles and kernel records (kernel tables optional) |
 | US-21-R05 guarded tick step per loop | BUILT | error filed as `PACKFAIL-*` item, timeout, run counts in `packs_runs` |
-| US-21-R06 every outbound action passes the guard | BUILT for the guard; hosts must give packs only `boundGuard` | `createGuard.send` |
+| US-21-R06 every outbound action passes the guard | BUILT: the host gives loops only a frozen `boundGuard` and a sandboxed db | `createGuard.send` |
 | US-21-R07 independent kill switch | BUILT | `packs_switches` (`global`, `pack:<id>`, `channel:<name>`) |
-| US-21-R08 pack cannot change core or other packs | PARTLY: metric ids are namespaced, guard is bound to the pack id; a pack with raw `db` access is not sandboxed | host trust boundary |
+| US-21-R08 pack cannot change core or other packs | BUILT: loops get `sandboxDb` (writes only to `<id>_*`, `items`, `predictions`; no DDL, PRAGMA, registry, switches or consent tokens), a restricted ctx (no env or config) and a frozen bound guard; `register` scans pack source for escaping imports, fs, eval | `sandbox.js`, `sandbox.test.js` |
 | US-21-R09 secrets by presence only | BUILT for manifests (names only) and content (secret patterns refused, hashes stored); the host must keep values out of loop logs | `SECRET_PATTERNS` |
 | US-21-R10 testable with fake ports | BUILT | `packs.test.js` |
 | US-21-R11 no tenant names in code or defaults | BUILT (hosts, account ids, configured `tenant_names`) | `validateManifest`, `core/test/no-qnfo.test.js` |
