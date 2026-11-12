@@ -21,6 +21,7 @@ export const MODULES = [
   { id: 'agents', dir: 'adapters/cloudflare/agents/migrations' },
   { id: 'doors', dir: 'core/doors/migrations' }, // last, so earlier migration numbers never shift
   { id: 'elicit', dir: 'core/elicit/migrations' },
+  { id: 'console_l3', dir: 'core/console-l3/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.
