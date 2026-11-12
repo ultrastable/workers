@@ -18,7 +18,7 @@ async function setup(admin) {
   const fetch = async (u, o = {}) => {
     calls.push(String(u));
     if (String(u).endsWith('/login/oauth/access_token')) return json({ access_token: 'user-token-123' });
-    if (String(u).endsWith('/user')) return json({ login: 'rwnq8' });
+    if (String(u).endsWith('/user')) return json({ login: 'octocat' });
     if (String(u).endsWith('/repos/ultrastable/workers')) return json(admin === null ? { message: 'Not Found' } : { permissions: { admin } }, admin === null ? 404 : 200);
     return json({}, 404);
   };
@@ -43,7 +43,7 @@ test('a repository admin gets an owner session read from the repository, with no
   assert.equal(r.status, 303);
   const token = r.headers.get('set-cookie').match(new RegExp(SESSION_COOKIE + '=([^;]+)'))[1];
   const s = await readSession(token, { key: await vault.read('SESSION_KEY'), now: 2000 });
-  assert.deepEqual([s.login, s.role, canWrite(s)], ['rwnq8', 'owner', true]);
+  assert.deepEqual([s.login, s.role, canWrite(s)], ['octocat', 'owner', true]);
 });
 
 test('a non-admin or a user with no access to the repository is only a viewer', async () => {

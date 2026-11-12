@@ -26,9 +26,9 @@ test('the screen shows a masked address', () => {
 
 test('a session verifies, expires, and cannot be forged or used without a key', async () => {
   const key = 'generated-by-the-worker';
-  const t = await issueSession({ login: 'rwnq8', role: 'owner', key, now: 1000, ttlMs: 500 });
+  const t = await issueSession({ login: 'octocat', role: 'owner', key, now: 1000, ttlMs: 500 });
   const s = await readSession(t, { key, now: 1200 });
-  assert.deepEqual([s.login, s.role, canWrite(s)], ['rwnq8', 'owner', true]);
+  assert.deepEqual([s.login, s.role, canWrite(s)], ['octocat', 'owner', true]);
   assert.equal(await readSession(t, { key, now: 1600 }), null, 'expired');
   assert.equal(await readSession(t, { key: 'other', now: 1200 }), null, 'wrong key');
   assert.equal(await readSession(t, { key: '', now: 1200 }), null, 'no key');
