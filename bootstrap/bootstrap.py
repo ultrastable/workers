@@ -43,6 +43,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cases as case_library  # noqa: E402  (bootstrap case library, bootstrap/cases.json)
 import ladder  # noqa: E402  (docs/BOOTSTRAP-LADDER.md as code)
+from ownerdoc import owner_readme  # noqa: E402  (owner README generated from docs/help.md)
 
 
 # ---------------------------------------------------------------- helpers
@@ -274,6 +275,10 @@ class Boot:
                    "the fleet carries every other step.", "",
                    "## Models", ""] + [f"- {k}: {v}" for k, v in self.models.items()] + [""]
         (self.out / "charter.md").write_text("\n".join(charter))
+        help_src = self.root / "docs" / "help.md"
+        (self.out / "README.md").write_text(owner_readme(
+            self.org_name, s.get("idea", {}).get("prose", ""), self.outcomes, self.state["gate_cards"],
+            help_src.read_text(encoding="utf-8") if help_src.exists() else ""))
         (self.out / "roles.json").write_text(json.dumps(self.roles, indent=2) + "\n")
         (self.out / "backlog.json").write_text(json.dumps(self.items, indent=2) + "\n")
         (self.out / "gate-cards.json").write_text(json.dumps(self.state["gate_cards"], indent=2) + "\n")

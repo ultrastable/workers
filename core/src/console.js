@@ -6,6 +6,7 @@ import { CONSOLE_HTML } from './console-ui.js';
 import { sha256Hex, verifyAccessJwt } from '../doors/index.js';
 import { listConnections, saveSecret, removeSecret } from './secrets-ui.js';
 import { firstRunDoor, doorStatus, page } from './first-run.js';
+import { HELP_SECTIONS } from './help-data.js';
 
 // Request categories that SCOPE.md puts outside the default product (opt-in Capability Packs only).
 export const OUT_OF_SCOPE = [
@@ -143,6 +144,7 @@ export async function handleConsole(request, env, { org, vault, doors, config, f
     const body = await buildConsole(env.DB, { org });
     body.connections = await listConnections(vault, envNames, { router: config?.router });
     body.doors = await doorStatus(env, { doors, now: clock() });
+    body.help = HELP_SECTIONS; // generated from docs/help.md
     return Response.json(body, { headers: { 'cache-control': 'no-store' } });
   }
 
