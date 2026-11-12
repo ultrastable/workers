@@ -36,7 +36,7 @@ nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);b
 var D=null,TAB='now';
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
 function say(m){var s=document.getElementById('say');s.textContent=m;s.hidden=!m}
-function post(u,b){return fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j}})})}
+function post(u,b){if(!window.confirm('Please confirm.'))return Promise.resolve({ok:false,j:{error:'Cancelled.'}});b.confirm=true;return fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j}})})}
 function list(sec,title,items,fmt){sec.appendChild(el('h2','',title));if(!items.length){sec.appendChild(el('p','mut','Nothing here.'));return}items.forEach(function(i){var c=el('div','card');fmt(c,i);sec.appendChild(c)})}
 function render(){
  document.getElementById('headline').textContent=D.headline;document.getElementById('dot').className='dot'+(D.ok?'':' bad');
