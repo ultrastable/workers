@@ -167,6 +167,7 @@ test('handle routes /health, /describe and the console, and returns null for any
   assert.equal(h.status, 200);
   const body = await h.json();
   assert.equal(body.ok, true); assert.equal(body.org, 'test-org'); assert.ok(body.last_tick.report);
+  assert.equal(body.claims_released_unworked_24h, 0, '#173 probe field is served');
   assert.equal(await org.handle(new Request('https://x.test/nothing')), null);
   assert.equal((await org.handle(new Request('https://x.test/console'))).status, 401);
   for (const p of ['/describe', '/describe.json', '/llms.txt']) assert.equal((await org.handle(new Request('https://x.test' + p))).status, 200, p); // stored by the describe loop on the first tick

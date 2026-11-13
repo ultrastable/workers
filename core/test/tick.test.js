@@ -104,3 +104,26 @@ test('an item addressed to one role instance is dispatched to that instance, not
   const claim = db.raw.prepare("SELECT agent FROM claims WHERE item_id='P2'").get();
   assert.ok(claim, 'the item was claimed'); assert.equal(claim.agent, 'product-manager-2');
 });
+
+test('issue #173: a claim released with no work is recorded, and the item is parked after max_unworked_releases', async () => {
+  const db = makeDb(); seed(db);
+  const cfg = { ...config, max_unworked_releases: 2 };
+  await runTick(db, { config: cfg, now: T0 });
+  await runTick(db, { config: cfg, now: T0 + 3 * 3600e3 });
+  await runTick(db, { config: cfg, now: T0 + 6 * 3600e3 });
+  const unworked = db.raw.prepare("SELECT COUNT(*) AS n FROM outcomes WHERE surface='dispatch' AND result='unworked' AND item_id='A'").get().n;
+  assert.equal(unworked, 2);
+  const a = db.raw.prepare("SELECT status, blocker, disposition FROM items WHERE id='A'").get();
+  assert.equal(a.status, 'blocked');
+  assert.match(a.disposition, /^parked: dispatched 2 times, never worked/);
+  await runTick(db, { config: cfg, now: T0 + 9 * 3600e3 });
+  assert.equal(db.raw.prepare("SELECT status FROM items WHERE id='A'").get().status, 'blocked', 'a parked item is not claimed again');
+});
+
+test('issue #173: a claim that was heartbeated is released without an unworked outcome', async () => {
+  const db = makeDb(); seed(db);
+  await runTick(db, { config, now: T0 });
+  db.raw.exec("UPDATE claims SET heartbeat_at = datetime(claimed_at, '+1 minute')");
+  await runTick(db, { config, now: T0 + 3 * 3600e3 });
+  assert.equal(db.raw.prepare("SELECT COUNT(*) AS n FROM outcomes WHERE result='unworked'").get().n, 0);
+});

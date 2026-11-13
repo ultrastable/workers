@@ -193,7 +193,11 @@ export function createOrg({
     if (p === '/health') {
       const last = await db.prepare(`SELECT id, started_at, finished_at, steps_completed, steps_total, report, errors FROM tick_runs ORDER BY id DESC LIMIT 1`).first();
       const ok = Boolean(last && last.steps_completed === last.steps_total);
-      return Response.json({ ok, org: config.org_slug, last_tick: last || null }, { status: ok ? 200 : 503 });
+      // Issue #173 probe: claims released with no work in the last 24 h (dispatch that nothing executed).
+      const since = new Date(clock() - 864e5).toISOString().slice(0, 19).replace('T', ' ');
+      let unworked = null;
+      try { unworked = (await db.prepare(`SELECT COUNT(*) AS n FROM outcomes WHERE surface='dispatch' AND action_class='claim_release' AND result='unworked' AND at >= ?`).bind(since).first())?.n ?? 0; } catch { /* store without the table */ }
+      return Response.json({ ok, org: config.org_slug, last_tick: last || null, claims_released_unworked_24h: unworked }, { status: ok ? 200 : 503 });
     }
     if (secrets && config.vcs?.repo && p.startsWith('/console/github/signin')) return createSignin({ vault: secrets, fetch: doFetch, now: clock, repo: config.vcs.repo })(request);
     if (githubApp && p.startsWith('/console/github/')) return githubApp(request, url.origin);
