@@ -3,11 +3,13 @@
 # Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 """GAP-VENDOR-1: vendor and pin Ultrastable into any installation built on it. Generic: knows no downstream name.
 
-  vendor.py --dest DIR            copy the core set plus every tracked file the copied tests name, write DIR/VENDORED_FROM
+  vendor.py --dest DIR [--subset] copy the tracked tree (or the subset), write DIR/VENDORED_FROM
   vendor.py --check DIR           verify DIR matches its VENDORED_FROM manifest (drift = exit 1)
   vendor.py --list                print the files that would be vendored
 
-The core set is CORE below. Dependencies are discovered, not listed: every string literal in a vendored test (Python, JS, MJS)
+By default the whole tracked tree is vendored: tests also read files through data (a directive file naming its enforcers, the links
+between documents), which no scan can see, so a subset can silently break a vendored test. `--subset` vendors only the CORE set
+below. Dependencies are then discovered, not listed: every string literal in a vendored test (Python, JS, MJS)
 that names a tracked file or directory is vendored too, repeated to a fixed point, so a test never reads a file that was left behind.
 """
 from __future__ import annotations
@@ -15,6 +17,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import posixpath
 import re
 import shutil
 import subprocess
@@ -39,8 +42,10 @@ def head(root: Path) -> str:
     return subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
 
 
-def select(root: Path) -> list[str]:
+def select(root: Path, subset: bool = False) -> list[str]:
     files = tracked(root)
+    if not subset:
+        return sorted(files)
     fileset = set(files)
     chosen = {f for f in files if any(f == c or f.startswith(c + "/") for c in CORE)}
     dirs = {d for f in files for d in (str(p) for p in Path(f).parents) if d != "."}
@@ -54,8 +59,7 @@ def select(root: Path) -> list[str]:
             except (UnicodeDecodeError, FileNotFoundError):
                 continue
             for lit in LIT_RE.findall(text):
-                for cand in {lit, str(Path(f).parent / lit), str((Path(f).parent / lit).resolve().relative_to(root.resolve()))
-                             if (root / f).parent.joinpath(lit).resolve().is_relative_to(root.resolve()) else lit}:
+                for cand in {lit, posixpath.normpath(posixpath.join(posixpath.dirname(f), lit))}:
                     cand = cand.lstrip("./")
                     if cand in fileset and cand not in chosen:
                         added.add(cand)
@@ -70,8 +74,8 @@ def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def vendor(root: Path, dest: Path) -> dict:
-    files = select(root)
+def vendor(root: Path, dest: Path, subset: bool = False) -> dict:
+    files = select(root, subset)
     for f in files:
         t = dest / f
         t.parent.mkdir(parents=True, exist_ok=True)
@@ -99,10 +103,11 @@ def main(argv=None) -> int:
     ap.add_argument("--dest")
     ap.add_argument("--check")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--subset", action="store_true", help="vendor only the CORE set plus discovered test dependencies")
     ap.add_argument("--root", default=str(ROOT))
     a = ap.parse_args(argv)
     if a.list:
-        print("\n".join(select(Path(a.root))))
+        print("\n".join(select(Path(a.root), a.subset)))
         return 0
     if a.check:
         bad = check(Path(a.check))
@@ -110,7 +115,7 @@ def main(argv=None) -> int:
         return 1 if bad else 0
     if not a.dest:
         ap.error("--dest, --check or --list required")
-    m = vendor(Path(a.root), Path(a.dest))
+    m = vendor(Path(a.root), Path(a.dest), a.subset)
     print(f"vendored {len(m['files'])} files at {m['commit'][:12]} into {a.dest}")
     return 0
 

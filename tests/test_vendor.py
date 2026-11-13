@@ -18,8 +18,18 @@ class Vendor(unittest.TestCase):
             r = subprocess.run(["node", "--test", "--no-warnings", "core/test/second-installation.test.js"], cwd=dest,
                                capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stdout[-1500:] + r.stderr[-1500:])
+            self.assertIn("docs/seed.md", m["files"])
             (dest / "SCOPE.md").write_text("drift")
             self.assertEqual(vendor.check(dest), ["changed SCOPE.md"])
+
+    def test_subset_discovers_test_dependencies_from_another_cwd(self):
+        import os
+        old = os.getcwd()
+        try:
+            os.chdir(tempfile.gettempdir())  # a relative-path bug once failed here (cwd outside the source root)
+            self.assertIn("org/second-installation.json", vendor.select(ROOT, subset=True))
+        finally:
+            os.chdir(old)
 
 
 if __name__ == "__main__":
