@@ -157,10 +157,12 @@ export const STEPS = {
       if (ctx.tickId % Math.max(1, role.tick_every) !== 0) continue;
       const wip = await first(db, `SELECT COUNT(*) AS n FROM claims WHERE agent=?`, role.id);
       if (wip.n >= ctx.config.max_wip_per_role) continue;
-      const item = await first(db, `SELECT id FROM items WHERE status='ready' AND owner_role=?
+      // An item may name its role ('product-manager') or one role instance ('product-manager-3', as metric breaches do); both reach it.
+      // Matching only the role name left every instance-addressed item ready and undispatched for ever (found live 2026-11-13).
+      const item = await first(db, `SELECT id FROM items WHERE status='ready' AND (owner_role=? OR owner_role=?)
           AND (project IS NULL OR project = ? OR ? IS NULL)
-          AND id NOT IN (SELECT item_id FROM claims) ORDER BY priority, created_at LIMIT 1`,
-        role.role, role.project, role.project);
+          AND id NOT IN (SELECT item_id FROM claims) ORDER BY (owner_role=?) DESC, priority, created_at LIMIT 1`,
+        role.role, role.id, role.project, role.project, role.id);
       await run(db, `UPDATE roles SET last_tick_at=? WHERE id=?`, ctx.nowIso, role.id);
       if (!item) continue;
       await run(db, `INSERT INTO claims (item_id, agent, claimed_at, heartbeat_at) VALUES (?, ?, ?, ?)`, item.id, role.id, ctx.nowIso, ctx.nowIso);
