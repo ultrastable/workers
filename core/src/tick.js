@@ -65,15 +65,35 @@ export const STEPS = {
     ctx.notes.push(`reconciled: ${drops.length} reopened, ${r.meta?.changes ?? 0} became ready`);
   },
 
-  // Claims with no heartbeat for claim_ttl_minutes are released so work never stalls.
+  // Claims with no heartbeat for claim_ttl_minutes are released so work never stalls. A claim that was never heartbeated was
+  // dispatched and not worked (issue #173): that is recorded as an outcome (surface dispatch / claim_release / unworked), and an
+  // item released unworked `max_unworked_releases` times is parked with a reason instead of being claimed again for ever.
   async reap_claims(db, ctx) {
     const cutoff = iso(new Date(ctx.now - ctx.config.claim_ttl_minutes * 60e3));
-    const stale = await all(db, `SELECT item_id, agent FROM claims WHERE heartbeat_at < ?`, cutoff);
+    const maxRel = ctx.config.max_unworked_releases ?? 3;
+    const stale = await all(db, `SELECT item_id, agent, claimed_at, heartbeat_at FROM claims WHERE heartbeat_at < ?`, cutoff);
+    let unworked = 0, parked = 0;
     for (const c of stale) {
       await run(db, `DELETE FROM claims WHERE item_id=?`, c.item_id);
-      await run(db, `UPDATE items SET status='ready', updated_at=? WHERE id=? AND status='claimed'`, ctx.nowIso, c.item_id);
+      if (c.heartbeat_at !== c.claimed_at) { // someone worked it, then went quiet: plain release
+        await run(db, `UPDATE items SET status='ready', updated_at=? WHERE id=? AND status='claimed'`, ctx.nowIso, c.item_id);
+        continue;
+      }
+      unworked++;
+      await run(db, `INSERT INTO outcomes (item_id, agent, surface, action_class, result, evidence, at) VALUES (?, ?, 'dispatch', 'claim_release', 'unworked', ?, ?)`,
+        c.item_id, c.agent, `claim by ${c.agent} released after ${ctx.config.claim_ttl_minutes} min with no heartbeat`, ctx.nowIso);
+      const n = (await first(db, `SELECT COUNT(*) AS n FROM outcomes WHERE item_id=? AND surface='dispatch' AND action_class='claim_release' AND result='unworked'`, c.item_id)).n;
+      if (n >= maxRel) {
+        parked++;
+        await run(db, `UPDATE items SET status='blocked', blocker=?, disposition=?, updated_at=? WHERE id=? AND status='claimed'`,
+          `no executor worked this item: dispatched and released unworked ${n} times`,
+          `parked: dispatched ${n} times, never worked; needs an executor that reads this store (issue #173)`, ctx.nowIso, c.item_id);
+      } else {
+        await run(db, `UPDATE items SET status='ready', disposition=?, updated_at=? WHERE id=? AND status='claimed'`,
+          `released unworked (${n}/${maxRel}) ${ctx.nowIso}`, ctx.nowIso, c.item_id);
+      }
     }
-    if (stale.length) ctx.notes.push(`released ${stale.length} stale claim(s)`);
+    if (stale.length) ctx.notes.push(`released ${stale.length} stale claim(s), ${unworked} unworked, ${parked} parked`);
   },
 
   // Gate cards close themselves when their probe shows the owner's step is done.
