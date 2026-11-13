@@ -381,8 +381,9 @@ class Boot:
     def org(self):
         """Org initialization plan (BG-1 to BG-7, BG-11). Applied only with an admin token."""
         org = self.config.get("org", {})
-        repos = org.get("repos", [])
-        name = org.get("name", "")
+        front = self.idea["front"] if hasattr(self, "idea") else {}
+        repos = [r.strip() for r in front.get("repos", "").split(",") if r.strip()] or org.get("repos", [])
+        name = front.get("github_org") or org.get("name", "")  # the idea file may name its own target (GAP-SCAFFOLD-1)
         plan = [f"gh repo create {name}/{r} --private (skip if exists)" for r in repos]
         plan += [f"gh repo unarchive {name}/{r} --yes (if archived and not superseded)" for r in repos]
         plan += [f"publish brand/public-profile/profile to {name}/.github/profile and set it public",
@@ -400,6 +401,45 @@ class Boot:
                 "closing_probe": "org-init workflow succeeds; curl https://github.com/" + name + " shows the profile"})
             return "blocked", "no org-admin token: gate card opened, run the org-init workflow once it exists"
         return "ok", "org token present: run the org-init workflow (.github/workflows/org-init.yml)"
+
+    def scaffold(self):
+        """Generate each target repository's CI and scheduled-cycle workflows from the idea file (GAP-SCAFFOLD-1).
+        Generic: the idea names runtime, cycle_command and cycle_ledger; nothing platform-specific lives here."""
+        f = self.idea["front"]
+        repos = [r.strip() for r in f.get("repos", "").split(",") if r.strip()]
+        if not repos:
+            return "ok", "idea names no repos; nothing to scaffold"
+        runtime = f.get("runtime", "python")
+        cmd = f.get("cycle_command", "")
+        ledger = f.get("cycle_ledger", "ledger/cycles.jsonl")
+        if not cmd:
+            return "degraded", "idea has repos but no cycle_command; workflows not generated"
+        if runtime == "node":
+            setup = ["      - uses: actions/setup-node@v4", "        with: { node-version: 22 }", "      - run: npm ci || npm install"]
+            test = "npm test"
+        else:
+            setup = ["      - uses: actions/setup-python@v5", '        with: { python-version: "3.12" }', "      - run: pip install -e ."]
+            test = "python -m unittest discover -s tests -t . -v"
+        ci = ["name: ci", "# budget: about 3 minutes per push", "# trigger: push and pull_request, the check that gates merge",
+              "# free-alternative: none for the test run itself; draft PRs do not run CI", "on:", "  push:", "  pull_request:",
+              "permissions:", "  contents: read", "concurrency:", "  group: ci-${{ github.ref }}", "  cancel-in-progress: true",
+              "jobs:", "  test:", "    runs-on: ubuntu-latest", "    timeout-minutes: 10", "    steps:", "      - uses: actions/checkout@v4"] + setup + [f"      - run: {test}"]
+        cycle = ["name: cycle", f"# allow-schedule: the cycle needs a clock and the Cloudflare tick does not host this runtime; one job a day is about 150 of the 2000 free minutes a month",
+                 "# budget: about 5 minutes per day", "# trigger: daily cron and manual dispatch, never faster than daily",
+                 "# free-alternative: a Cloudflare cron worker that dispatches this workflow", "on:", "  schedule:", '    - cron: "17 3 * * *"',
+                 "  workflow_dispatch:", "permissions:", "  contents: write", "concurrency:", "  group: cycle", "  cancel-in-progress: false",
+                 "jobs:", "  cycle:", "    runs-on: ubuntu-latest", "    timeout-minutes: 15", "    steps:", "      - uses: actions/checkout@v4"] + setup + [
+                f"      - run: {test}", "      - name: Run one cycle and append to the ledger",
+                f"        run: {cmd} --ledger {ledger}", "      - name: Commit ledger", "        run: |",
+                '          git config user.name "cycle-bot"', '          git config user.email "bot@users.noreply.github.com"',
+                f"          git add {ledger}", '          git commit -m "cycle ${{ github.run_number }}" || exit 0', "          git push"]
+        for r in repos:
+            d = self.out / "scaffold" / r
+            (d / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+            (d / ".github" / "workflows" / "ci.yml").write_text("\n".join(ci) + "\n")
+            (d / ".github" / "workflows" / "cycle.yml").write_text("\n".join(cycle) + "\n")
+            (d / ".gitignore").write_text("__pycache__/\n*.egg-info/\nnode_modules/\n")
+        return "ok", f"scaffolded CI and cycle workflows for {len(repos)} repo(s) under {self.out / 'scaffold'}"
 
     def ladder(self):
         """Try the bootstrap ladder (docs/BOOTSTRAP-LADDER.md) before provisioning: connect, temporary, scoped token."""
@@ -637,7 +677,7 @@ def main(argv=None) -> int:
                 idea_path=a.idea.resolve() if a.idea else None, config_path=a.config.resolve() if a.config else None,
                 interactive=a.interactive, temporary=a.temporary, tick_mode=a.tick_mode,
                 console_key_file=a.console_key_file.resolve() if a.console_key_file else None)
-    for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "ladder", "provision", "start"):
+    for name in ("read", "detect", "select", "cases", "plan", "write", "surfaces", "org", "scaffold", "ladder", "provision", "start"):
         st = boot.guard(name, getattr(boot, name))
         if name == "read" and st == "blocked" and not hasattr(boot, "idea"):
             break  # nothing to plan from; the report says why
