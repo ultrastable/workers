@@ -3,7 +3,7 @@
 // The composition root: one object that starts every loop on one tick and serves every route of one organization.
 // createOrg({ db, env, config, fetch, now, readFile }) -> { extraSteps(), tick(), handle(request), packs }.
 // Ports only (db, env, fetch, now, readFile). Optional injections: vcs, router, store, channels, importer, specStatus,
-// voiceRules, scope, compose, outputs. The tick learns only that a secret exists; values are read by the router and the
+// voiceRules, scope, compose, outputs, metrics (domain metrics for scoring predictions: { name: async (db, nowMs, row) => number }). The tick learns only that a secret exists; values are read by the router and the
 // VCS adapter at call time and are never stored or logged here.
 import { runTick } from '../src/tick.js';
 import { handleConsole } from '../src/console.js';
@@ -60,7 +60,7 @@ const iso = ms => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
 export function createOrg({
   db, env = {}, config = {}, fetch, now = () => Date.now(), readFile,
   vcs, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
-  sinks = [], gauges = {}, executors = [], agentDefs = {}, hooks = {}, routes = [], checks = {}, stepRuns,
+  sinks = [], gauges = {}, executors = [], agentDefs = {}, hooks = {}, routes = [], checks = {}, stepRuns, metrics = {},
 } = {}) {
   const vaultStore = vault || createVault({ db });
   // The env the modules see: real env values win, a vault secret fills a missing name. Never logged or stored.
@@ -184,7 +184,7 @@ export function createOrg({
     const e = await mergedEnv();
     // Let an unclaimed first-run window expire (and file its card) even if nobody visits; not a tick step, so the step list is unchanged.
     if (config.doors) await sweepFirstRun(db, { now: clock(), config: config.doors, hasKey: Boolean(e.CONSOLE_TOKEN) || Boolean(config.doors?.access?.team_domain) }).catch(() => {});
-    return runTick(db, { config, env: presence(e), now: clock(), extraSteps: extraSteps(e) });
+    return runTick(db, { config, env: presence(e), now: clock(), extraSteps: extraSteps(e), metrics });
   }
 
   async function handle(request) {

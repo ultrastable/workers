@@ -98,14 +98,24 @@ export const STEPS = {
   async score_predictions(db, ctx) {
     const due = await all(db, `SELECT * FROM predictions WHERE verdict IS NULL AND due_at <= ?`, ctx.nowIso);
     for (const p of due) {
-      const metric = METRICS[p.metric];
-      const op = OPS[p.op];
+      const own = (o, k) => o && Object.prototype.hasOwnProperty.call(o, k);
+      const metric = own(METRICS, p.metric) ? METRICS[p.metric] : own(ctx.metrics, p.metric) ? ctx.metrics[p.metric] : null; // built-ins cannot be shadowed; domain metrics come from runTick option `metrics`
+      const op = own(OPS, p.op) ? OPS[p.op] : null;
       if (!metric || !op) {
         await run(db, `UPDATE predictions SET verdict='miss', observed=NULL WHERE id=?`, p.id);
         ctx.notes.push(`prediction ${p.id}: unknown metric or op, scored miss`);
         continue;
       }
-      const observed = await metric(db, ctx.now);
+      let observed;
+      try {
+        let timer;
+        observed = await Promise.race([Promise.resolve(metric(db, ctx.now, p)), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('metric timed out')), 10000); })]).finally(() => clearTimeout(timer));
+      } catch (e) { observed = NaN; ctx.notes.push(`prediction ${p.id}: metric ${p.metric} failed: ${String(e && e.message).slice(0, 120)}`); }
+      if (typeof observed !== 'number' || !Number.isFinite(observed)) {
+        await run(db, `UPDATE predictions SET verdict='miss', observed=NULL WHERE id=?`, p.id);
+        ctx.notes.push(`prediction ${p.id}: metric returned no finite number, scored miss`);
+        continue;
+      }
       const verdict = op(observed, p.target) ? 'hit' : 'miss';
       await run(db, `UPDATE predictions SET observed=?, verdict=? WHERE id=?`, observed, verdict, p.id);
       ctx.notes.push(`prediction ${p.id}: ${p.metric}=${observed} ${verdict}`);
@@ -195,12 +205,13 @@ export const STEPS = {
 export const STEP_ORDER = ['reconcile', 'reap_claims', 'probe_gates', 'score_predictions', 'accrue_trust', 'dispatch', 'check_plus_share'];
 
 // extraSteps: optional [{ name, run(db, ctx) }] appended after the seven L1 steps (extension point for higher layers).
-export async function runTick(db, { config, env = {}, now = Date.now(), extraSteps = [] } = {}) {
+// metrics: optional { name: async (db, nowMs, predictionRow) => number }, consulted before the built-ins when a due prediction is scored.
+export async function runTick(db, { config, env = {}, now = Date.now(), extraSteps = [], metrics = {} } = {}) {
   const steps = [...STEP_ORDER.map(name => ({ name, run: STEPS[name] })), ...extraSteps];
   const startedIso = iso(new Date(now));
   const ins = await run(db, `INSERT INTO tick_runs (started_at, steps_total) VALUES (?, ?)`, startedIso, steps.length);
   const tickId = ins.meta.last_row_id;
-  const ctx = { config, env, now, nowIso: startedIso, tickId, notes: [], errors: [], dispatched: 0, openGates: 0 };
+  const ctx = { config, env, now, nowIso: startedIso, tickId, notes: [], errors: [], dispatched: 0, openGates: 0, metrics };
   let completed = 0;
   for (const { name, run: stepRun } of steps) {
     try {
