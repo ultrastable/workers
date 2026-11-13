@@ -74,12 +74,25 @@ def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+# GAP-VENDOR-ORG (#182): rules in the source .gitignore that hide tracked data the vendored tests read. The source ignores
+# local boot output under /org/ but tracks org/*.json; a vendored copy has no tracked/ignored split, so a push would drop them.
+HIDING_RULES = {"/org/", "org/", "/org", "org"}
+
+
+def fix_gitignore(dest: Path) -> None:
+    g = dest / ".gitignore"
+    if g.exists():
+        kept = [ln for ln in g.read_text(encoding="utf-8").split(chr(10)) if ln.strip() not in HIDING_RULES]
+        g.write_text(chr(10).join(kept), encoding="utf-8")
+
+
 def vendor(root: Path, dest: Path, subset: bool = False) -> dict:
     files = select(root, subset)
     for f in files:
         t = dest / f
         t.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(root / f, t)
+    fix_gitignore(dest)
     manifest = {"schema": "vendored-from/1", "source": "ultrastable/workers", "commit": head(root),
                 "files": {f: sha(dest / f) for f in files}}
     (dest / MANIFEST).write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")

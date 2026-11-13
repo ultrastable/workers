@@ -22,6 +22,16 @@ class Vendor(unittest.TestCase):
             (dest / "SCOPE.md").write_text("drift")
             self.assertEqual(vendor.check(dest), ["changed SCOPE.md"])
 
+    def test_vendored_gitignore_does_not_hide_org_data(self):
+        """#182: a fresh git add of the vendored tree must include org/*.json (CI on a pushed repo reads them)."""
+        with tempfile.TemporaryDirectory() as d:
+            dest = Path(d)
+            vendor.vendor(ROOT, dest)
+            subprocess.run(["git", "init", "-q"], cwd=dest, check=True)
+            subprocess.run(["git", "add", "-A"], cwd=dest, check=True)
+            staged = subprocess.run(["git", "ls-files", "org"], cwd=dest, capture_output=True, text=True).stdout.split()
+            self.assertIn("org/second-installation.json", staged)
+
     def test_subset_discovers_test_dependencies_from_another_cwd(self):
         import os
         old = os.getcwd()
