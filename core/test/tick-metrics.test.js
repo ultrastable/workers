@@ -36,3 +36,23 @@ test('without registration, an unknown metric is still scored a miss (unchanged 
   assert.equal(v['p-domain'].verdict, 'miss');
   assert.equal(v['p-unknown'].verdict, 'miss');
 });
+
+test('a throwing, non-numeric or prototype-named metric is a miss and never blocks the predictions after it', async () => {
+  const db = makeDb();
+  for (const [id, metric] of [['a-throw', 'boom'], ['b-nan', 'nan'], ['c-proto', 'constructor'], ['d-ok', 'fine']]) {
+    await db.prepare(`INSERT INTO predictions (id, metric, op, target, due_at) VALUES (?,?,?,?, '2026-10-31 00:00:00')`).bind(id, metric, '>=', 1).run();
+  }
+  await runTick(db, { config, now: T0, metrics: { boom: async () => { throw new Error('x'); }, nan: async () => undefined, fine: async () => 3 } });
+  const v = verdicts(db);
+  assert.equal(v['a-throw'].verdict, 'miss');
+  assert.equal(v['b-nan'].verdict, 'miss');
+  assert.equal(v['c-proto'].verdict, 'miss');
+  assert.equal(v['d-ok'].verdict, 'hit');
+});
+
+test('a domain metric cannot shadow a built-in', async () => {
+  const db = makeDb();
+  await db.prepare(`INSERT INTO predictions (id, metric, op, target, due_at) VALUES ('s', 'items_done', '>=', 0, '2026-10-31 00:00:00')`).run();
+  await runTick(db, { config, now: T0, metrics: { items_done: async () => -99 } });
+  assert.notEqual(verdicts(db)['s'].observed, -99);
+});
