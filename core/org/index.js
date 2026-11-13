@@ -29,6 +29,7 @@ import { createContainers } from '../containers/index.js';
 import { createInfra, heartbeat } from '../infra/index.js';
 import { createElicit } from '../elicit/index.js';
 import { guardSteps, seedBacklog } from '../runner/selfdoer.js';
+import { createDownstreamGithub } from '../githubapp/downstream.js';
 import { handlePublicMetrics } from './public-metrics.js';
 
 export { MODULES, moduleList } from './modules.js';
@@ -59,7 +60,7 @@ const iso = ms => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
 
 export function createOrg({
   db, env = {}, config = {}, fetch, now = () => Date.now(), readFile,
-  vcs, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
+  vcs, downstream, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
   sinks = [], gauges = {}, executors = [], agentDefs = {}, hooks = {}, routes = [], checks = {}, stepRuns, metrics = {},
 } = {}) {
   const vaultStore = vault || createVault({ db });
@@ -156,6 +157,26 @@ export function createOrg({
       name: 'packs',
       run: async (d, ctx) => { for (const s of await packs.packSteps()) await s.run(d, ctx); }, // each pack step guards and records its own failure
     });
+    // Downstream loop (issue #183): ready or claimed items of config.downstream.kind (default 'brief') become one GitHub issue each in
+    // config.downstream.repo, opened through the GitHub App installation token, never a workflow GITHUB_TOKEN. The outcome row
+    // (github / open_issue) is both the record and the idempotency key, and feeds the trust ledger. `downstream` can be injected (tests).
+    if (on('downstream')) steps.push({ name: 'downstream_issues', run: async (_db, ctx) => {
+      const d = config.downstream;
+      const gh = downstream || (appReady && tokenProvider && d.repo ? createDownstreamGithub({ fetch: doFetch, repo: d.repo, tokenProvider, base: d.base || 'main' }) : null);
+      if (!gh) { ctx.notes.push('downstream_issues skipped: needs the GitHub App connected and downstream.repo'); return; }
+      const rows = (await db.prepare(`SELECT id, title, done_check FROM items WHERE kind=? AND status IN ('ready','claimed')
+        AND id NOT IN (SELECT item_id FROM outcomes WHERE surface='github' AND action_class='open_issue' AND result='verified' AND item_id IS NOT NULL) ORDER BY priority, created_at LIMIT ?`)
+        .bind(d.kind || 'brief', d.max_per_tick ?? 5).all()).results || [];
+      let opened = 0, failed = 0;
+      for (const it of rows) {
+        try {
+          const r = await gh.openIssue({ key: it.id, title: it.title, body: `Done check: ${it.done_check}`, labels: d.labels || [] });
+          await db.prepare(`INSERT INTO outcomes (item_id, agent, surface, action_class, result, evidence) VALUES (?, 'downstream', 'github', 'open_issue', 'verified', ?)`).bind(it.id, r.url).run();
+          opened++;
+        } catch (e) { failed++; ctx.notes.push(`downstream_issues: ${it.id}: ${String(e.message).slice(0, 120)}`); }
+      }
+      ctx.notes.push(`downstream_issues: ${opened} opened, ${failed} failed`);
+    } });
     steps.push(...runnerSteps(env_));
     // Self-hosting backlog: the specification backlog (tools/spec_backlog.py --json) and a target map, both read through readFile.
     if (on('selfdoer') && readFile && config.selfdoer.backlog_path) steps.push({ name: 'selfdoer_seed', run: async (_db, ctx) => {
