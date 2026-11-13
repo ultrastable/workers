@@ -95,3 +95,12 @@ test('reliability starts at the baseline and moves with outcomes', () => {
   assert.equal(reliability(0, 0, policy.trust), 0.5);
   assert.ok(reliability(10, 10, policy.trust) > 0.9);
 });
+
+test('an item addressed to one role instance is dispatched to that instance, not left ready for ever', async () => {
+  const db = makeDb();
+  db.raw.exec(`INSERT INTO roles (id, role, project, tick_every, model) VALUES ('product-manager-1','product-manager','OUT-1',1,'m'), ('product-manager-2','product-manager','OUT-2',1,'m');
+    INSERT INTO items (id,title,owner_role,done_check,priority,status) VALUES ('P2','p','product-manager-2','x',10,'ready');`);
+  await runTick(db, { config, now: T0 });
+  const claim = db.raw.prepare("SELECT agent FROM claims WHERE item_id='P2'").get();
+  assert.ok(claim, 'the item was claimed'); assert.equal(claim.agent, 'product-manager-2');
+});
