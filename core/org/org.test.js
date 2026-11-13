@@ -172,3 +172,21 @@ test('handle routes /health, /describe and the console, and returns null for any
   assert.equal((await org.handle(new Request('https://x.test/console'))).status, 401);
   for (const p of ['/describe', '/describe.json', '/llms.txt']) assert.equal((await org.handle(new Request('https://x.test' + p))).status, 200, p); // stored by the describe loop on the first tick
 });
+
+test('issue #183: downstream_issues opens one issue per ready brief through the injected GitHub host, once', async () => {
+  const opened = [];
+  const downstream = { openIssue: async a => { opened.push(a); return { number: opened.length, url: 'https://github.com/o/r/issues/' + opened.length, created: true }; } };
+  const config = { ...baseConfig(), downstream: { enabled: true, repo: 'o/r' } };
+  const { db, tick } = boot({ config, extra: { downstream } });
+  db.raw.exec(`INSERT INTO items (id,title,kind,owner_role,done_check,status) VALUES ('BRIEF-1','Brief one','brief','staff','shipped','ready'),('W-1','not a brief','work','staff','x','ready')`);
+  await tick(); await tick();
+  assert.deepEqual(opened.map(o => o.key), ['BRIEF-1']);
+  assert.equal(one(db, `SELECT evidence FROM outcomes WHERE item_id='BRIEF-1' AND surface='github'`).evidence, 'https://github.com/o/r/issues/1');
+});
+
+test('issue #183: without the GitHub App the downstream step skips and says why', async () => {
+  const config = { ...baseConfig(), downstream: { enabled: true, repo: 'o/r' } };
+  const { db, tick } = boot({ config });
+  const r = await tick();
+  assert.match(one(db, `SELECT report FROM tick_runs ORDER BY id DESC LIMIT 1`).report, /downstream_issues skipped/);
+});
