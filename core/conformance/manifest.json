@@ -34,12 +34,22 @@
   {
    "id": "US-00-T01",
    "spec": "US-SPEC-00",
-   "tests": []
+   "tests": [
+    {
+     "file": "core/conformance/conformance.test.js",
+     "name": "US-00-T01: this repository publishes its level and its deviation list, and both name specification versions"
+    }
+   ]
   },
   {
    "id": "US-00-T02",
    "spec": "US-SPEC-00",
-   "tests": []
+   "tests": [
+    {
+     "file": "core/conformance/conformance.test.js",
+     "name": "US-00-T02 and US-00-R03: every requirement the manifest labels met names a test file that exists and still cites it"
+    }
+   ]
   },
   {
    "id": "US-00-T03",
@@ -54,7 +64,12 @@
   {
    "id": "US-01-T01",
    "spec": "US-SPEC-01",
-   "tests": []
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-T01 and US-01-R04: applying the L1 migration a second time changes nothing"
+    }
+   ]
   },
   {
    "id": "US-01-T02",
@@ -63,6 +78,10 @@
     {
      "file": "adapters/docdb/docdb.test.js",
      "name": "US-01-T02 and US-01-R02 on a document store: a second claim for one item is rejected by the create-only write"
+    },
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-T02 and US-01-R02: a second claim for one item is rejected"
     }
    ]
   },
@@ -73,6 +92,10 @@
     {
      "file": "adapters/docdb/docdb.test.js",
      "name": "US-01-T03 on a document store: an item done with no disposition is reopened and a silent_drop outcome is written"
+    },
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-T03 and US-01-R03: an item set done with an empty disposition is reopened by the tick and a silent_drop outcome exists"
     }
    ]
   },
@@ -577,7 +600,12 @@
   {
    "id": "US-14-T01",
    "spec": "US-SPEC-14",
-   "tests": []
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-14-T01 and US-14-R07: the L1 tick runs every step over the adapter store handle and dispatches in priority order"
+    }
+   ]
   },
   {
    "id": "US-14-T02",
@@ -597,7 +625,12 @@
   {
    "id": "US-14-T04",
    "spec": "US-SPEC-14",
-   "tests": []
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-14-T04 and US-14-R04: the core is given a presence map; a secret value is in no row the tick wrote"
+    }
+   ]
   },
   {
    "id": "US-14-T05",
@@ -1169,9 +1202,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/conformance.test.js",
+     "name": "US-00-R01 and US-00-R02: the declaration names the level, each specification version and every requirement not met, with its reason"
+    }
+   ]
   },
   {
    "id": "US-00-R02",
@@ -1179,9 +1217,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/conformance.test.js",
+     "name": "US-00-R01 and US-00-R02: the declaration names the level, each specification version and every requirement not met, with its reason"
+    }
+   ]
   },
   {
    "id": "US-00-R03",
@@ -1189,9 +1232,18 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/conformance.test.js",
+     "name": "US-00-R03: the checker rejects an overstated manifest: a met with no test, a test file that is gone, a test that no longer cites it, a deviation with no reason"
+    },
+    {
+     "file": "core/conformance/conformance.test.js",
+     "name": "US-00-T02 and US-00-R03: every requirement the manifest labels met names a test file that exists and still cites it"
+    }
+   ]
   },
   {
    "id": "US-00-R04",
@@ -1209,9 +1261,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-R11, US-00-R05 and US-14-R06: every time the tick stores is YYYY-MM-DD HH:MM:SS in UTC and orders correctly as a string"
+    }
+   ]
   },
   {
    "id": "US-00-R06",
@@ -1269,9 +1326,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-R01: the seed migration creates the eleven L1 tables with at least the listed columns"
+    }
+   ]
   },
   {
    "id": "US-01-R02",
@@ -1285,6 +1347,10 @@
     {
      "file": "adapters/docdb/docdb.test.js",
      "name": "US-01-T02 and US-01-R02 on a document store: a second claim for one item is rejected by the create-only write"
+    },
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-T02 and US-01-R02: a second claim for one item is rejected"
     }
    ]
   },
@@ -1294,9 +1360,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-T03 and US-01-R03: an item set done with an empty disposition is reopened by the tick and a silent_drop outcome exists"
+    }
+   ]
   },
   {
    "id": "US-01-R04",
@@ -1307,6 +1378,10 @@
    "status": "met",
    "proof": "named test",
    "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-T01 and US-01-R04: applying the L1 migration a second time changes nothing"
+    },
     {
      "file": "core/export/export.test.js",
      "name": "US-01-R04: classify finds drops and rewrites, and leaves additive statements, views, indexes and trigger bodies alone"
@@ -1322,10 +1397,6 @@
     {
      "file": "core/export/export.test.js",
      "name": "US-01-R04: a destructive migration is preceded by an export that is verified readable, then applied"
-    },
-    {
-     "file": "core/export/export.test.js",
-     "name": "US-01-R04: no object store, an unreadable export or a corrupted export refuses the migration and leaves the data"
     }
    ]
   },
@@ -1400,9 +1471,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-R11, US-00-R05 and US-14-R06: every time the tick stores is YYYY-MM-DD HH:MM:SS in UTC and orders correctly as a string"
+    }
+   ]
   },
   {
    "id": "US-02-R01",
@@ -4028,9 +4104,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-14-R01: the portable core imports nothing and names no platform API"
+    }
+   ]
   },
   {
    "id": "US-14-R02",
@@ -4044,6 +4125,10 @@
     {
      "file": "adapters/postgres/postgres.test.js",
      "name": "US-14-R02: the store handle offers prepare().bind().all()/first()/run() with meta.changes and meta.last_row_id"
+    },
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-14-R02: the SQLite adapter store handle supports prepare().bind().all()/first()/run() with meta.changes and meta.last_row_id"
     }
    ]
   },
@@ -4072,6 +4157,10 @@
    "proof": "named test",
    "tests": [
     {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-14-T04 and US-14-R04: the core is given a presence map; a secret value is in no row the tick wrote"
+    },
+    {
      "file": "core/modelport/modelport.test.js",
      "name": "US-14-R04: the port sees only whether a key is present; a missing key makes the alias unusable"
     }
@@ -4083,9 +4172,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-14-R05: health reports the latest tick and fails when it did not complete all steps"
+    }
+   ]
   },
   {
    "id": "US-14-R06",
@@ -4099,6 +4193,10 @@
     {
      "file": "adapters/postgres/postgres.test.js",
      "name": "US-14-R06 dialect: datetime(now) becomes UTC text in YYYY-MM-DD HH:MM:SS so string comparison still orders time"
+    },
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-01-R11, US-00-R05 and US-14-R06: every time the tick stores is YYYY-MM-DD HH:MM:SS in UTC and orders correctly as a string"
     }
    ]
   },
@@ -4108,9 +4206,14 @@
    "level": "L1",
    "tagged": true,
    "must": true,
-   "status": "deviation",
-   "reason": "no test in this repository cites this requirement",
-   "tests": []
+   "status": "met",
+   "proof": "named test",
+   "tests": [
+    {
+     "file": "core/conformance/l1.test.js",
+     "name": "US-14-T01 and US-14-R07: the L1 tick runs every step over the adapter store handle and dispatches in priority order"
+    }
+   ]
   },
   {
    "id": "US-14-R08",
