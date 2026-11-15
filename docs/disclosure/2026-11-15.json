@@ -1,0 +1,18 @@
+{
+  "repository": "https://github.com/ultrastable/workers",
+  "made_public": "2026-11-15",
+  "snapshot_commit": "834d87e823f28ff39661cb258337f1373ec39919",
+  "snapshot_tag": "disclosure-2026-11-15",
+  "license": "LicenseRef-Ultrastable-USL-1.0",
+  "license_blob": "650d390828dd1f092f09a7fdb1593e4829ced803",
+  "software_heritage": {
+    "save_request_id": 2653136,
+    "requested_at": "2026-11-15",
+    "origin": "https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/ultrastable/workers"
+  },
+  "pre_publication_audit": {
+    "scope": "full history, all refs, issue and pull request text",
+    "trufflehog_3.99.9_verified_secrets": 0,
+    "gitleaks_8.30.1_live_credentials": 0
+  }
+}
