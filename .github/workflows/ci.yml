@@ -5,6 +5,11 @@
 name: ci
 on:
   workflow_dispatch:
+    inputs:
+      apply:
+        description: Provision Cloudflare resources from IDEA.md (bootstrap-apply)
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths-ignore: ['docs/**', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'COMMERCIAL-TERMS.md', 'CITATION.cff']
@@ -38,8 +43,9 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/ultrastable/license/main/LICENSE -o /tmp/LICENSE || { echo "canonical license not reachable yet; skipping"; exit 0; }
           diff -u /tmp/LICENSE LICENSE
   bootstrap-apply:
-    # Manual only. Provisions Cloudflare resources from IDEA.md; needs the two secrets below.
-    if: github.event_name == 'workflow_dispatch'
+    # Manual only, and only when asked for: a plain dispatch of ci runs the tests and nothing else, so `ci_green:main` can be re-probed by dispatch
+    # (a dispatch without the Cloudflare secret used to fail here and keep the red-main incident open). Needs the two secrets below.
+    if: github.event_name == 'workflow_dispatch' && inputs.apply
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
