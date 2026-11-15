@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 # One-command install for a new organization (PL-6, issue #40).
 # Usage: ./install.sh [org-dir]   Creates a venv, installs the core, initialises a database and runs a tick.
 set -euo pipefail

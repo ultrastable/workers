@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 """Seed a small demonstration organization (simulated agents; clearly labeled as such)."""
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone

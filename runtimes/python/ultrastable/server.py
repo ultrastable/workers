@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 """HTTP server: JSON API + live dashboard + scheduler hook. Stdlib only; one process runs on any cloud."""
 from __future__ import annotations
 import hmac, json, os, threading, time
