@@ -39,6 +39,15 @@ export const MODULES = [
   { id: 'remediation', dir: 'core/remediation/migrations' },
   { id: 'ghcost', dir: 'core/ghcost/migrations' },
   { id: 'tenancy', dir: 'core/tenancy/migrations' },
+  { id: 'predict', dir: 'core/predict/migrations' },
+  { id: 'trust', dir: 'core/trust/migrations' },
+  { id: 'governance', dir: 'core/governance/migrations' },
+  { id: 'ladder', dir: 'core/ladder/migrations' },
+  { id: 'export', dir: 'core/export/migrations' },
+  { id: 'sla', dir: 'core/sla/migrations' },
+  { id: 'modelport', dir: 'core/modelport/migrations' },
+  { id: 'walkthrough', dir: 'core/walkthrough/migrations' },
+  { id: 'sharedslots', dir: 'adapters/shared/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.

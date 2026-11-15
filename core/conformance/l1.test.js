@@ -110,7 +110,7 @@ test('US-14-T01 and US-14-R07: the L1 tick runs every step over the adapter stor
 });
 
 test('US-14-T04, US-14-R04 and US-01-R06: the core is given a presence map; a secret value is in no row the tick wrote', async () => {
-  const SECRET = 'sk-planted-4f9a2c7e1b';
+  const SECRET = 'planted-value-4f9a2c7e1b';
   const map = presence({ SOME_KEY: SECRET, EMPTY: '', DB: { prepare() {} } });
   assert.equal(map.SOME_KEY, true); assert.ok(!map.EMPTY); assert.ok(!JSON.stringify(map).includes(SECRET));
   const db = fresh();
