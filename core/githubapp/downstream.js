@@ -4,6 +4,7 @@
 // GITHUB_TOKEN. `tokenProvider` is createInstallationTokenProvider(...) (short-lived installation tokens). Ports only: injected fetch.
 // openIssue is idempotent (a hidden marker in the body is searched first); openDraftPr is always a DRAFT; mergeHost() is a codeloop
 // host ({ name, merge }), so it is reached only through codeloop's trust-ladder gate: this module never decides to merge.
+// A draft cannot be merged, so the host first marks the PR ready for review (markReady: GraphQL, the REST API has no such call).
 const MARK = k => `<!-- ultrastable-key:${k} -->`;
 
 export function createDownstreamGithub({ fetch, repo, tokenProvider, base = 'main', apiBase = 'https://api.github.com' }) {
@@ -41,12 +42,22 @@ export function createDownstreamGithub({ fetch, repo, tokenProvider, base = 'mai
       const r = await api('POST', `${root}/pulls`, { title, head: branch, base: target, body, draft: true });
       return { number: r.number, url: r.html_url };
     },
+    /** Take a PR out of draft. Returns { ready, changed }; a PR that is already ready is left alone. */
+    async markReady({ pr }) {
+      const p = await api('GET', `${root}/pulls/${pr}`);
+      if (!p.draft) return { ready: true, changed: false };
+      const g = await api('POST', `${origin}/graphql`, { query: 'mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{isDraft}}}', variables: { id: p.node_id } });
+      if (g.errors?.length) throw new Error('downstream: mark ready refused: ' + String(g.errors[0]?.message || 'unknown').slice(0, 160));
+      return { ready: true, changed: true };
+    },
     /** A codeloop merge host: codeloop calls this only after its trust-ladder gate allowed the merge. */
     mergeHost() {
+      const self = this;
       return {
         name: 'github-app',
         merge: async ({ pr, method = 'squash' }) => {
           try {
+            await self.markReady({ pr });
             const r = await api('PUT', `${root}/pulls/${pr}/merge`, { merge_method: method });
             return r.merged ? { merged: true } : { merged: false, reason: String(r.message || 'not_merged').slice(0, 200) };
           } catch (e) { return { merged: false, reason: String(e.message).slice(0, 200) }; }

@@ -3,10 +3,13 @@
 // Code loop (item -> tested, reviewed, merged change). Extends core/runner, which stops at a DRAFT pull request:
 // this module adds the task line parser and the merge gate. Ports: ctx = { db, now(), config, hosts, rung?(surface, class) }.
 // hosts is an ORDERED LIST of merge routes ({ name, merge({pr, method}) }): no single route (a failing host falls to the next).
+// A run counts as approved in state 'approved' or 'pr_opened': core/runner opens the draft PR only after checks passed and the
+// reviewer approved, and 'pr_opened' is where it then rests.
 // Merge is allowed only when: run approved with passing checks, no protected path, rung >= config.merge_min_rung, kill switch off.
 
 const RUNGS = ['observed', 'assisted', 'delegated', 'autonomous', 'self-directed', 'self-modifying', 'self-extending'];
 const DEFAULTS = { merge_min_rung: 'autonomous', merge_method: 'squash', protected_paths: [], max_files: 20, done_owner_role: 'project-manager' };
+const APPROVED = ['approved', 'pr_opened'];
 export const cfg = ctx => ({ ...DEFAULTS, ...(ctx.config || {}) });
 const nowMs = ctx => { const v = ctx.now(); return v instanceof Date ? v.getTime() : typeof v === 'string' ? Date.parse(v.includes('T') ? v : v.replace(' ', 'T') + 'Z') : v; };
 const iso = ms => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
@@ -33,7 +36,7 @@ const isProtected = (p, list) => list.some(x => p === x || p.startsWith(x.endsWi
 /** Pure decision: returns { ok, reason }. */
 export function mergeDecision({ run: r, files = [], rung = 'observed', killed = false }, c) {
   if (killed) return { ok: false, reason: 'kill_switch' };
-  if (!r || r.state !== 'approved') return { ok: false, reason: 'not_approved' };
+  if (!r || !APPROVED.includes(r.state)) return { ok: false, reason: 'not_approved' };
   if (!r.pr_number) return { ok: false, reason: 'no_pull_request' };
   if (files.length > c.max_files) return { ok: false, reason: 'too_many_files' };
   const bad = files.filter(f => isProtected(f, c.protected_paths));
@@ -48,7 +51,15 @@ export async function mergeRun(ctx, runId, { files = [], killed = false } = {}) 
   const r = await first(ctx.db, 'SELECT * FROM runner_runs WHERE id = ?', runId);
   const rung = ctx.rung ? await ctx.rung('code', 'merge') : 'observed';
   const d = mergeDecision({ run: r, files, rung, killed }, c);
-  const log = (decision, host, reason, attempts) => run(ctx.db,
+  // A refusal or failure repeated with the same reason is one row, not one per tick (the sweep re-reads the run every tick).
+  const log = async (decision, host, reason, attempts) => {
+    if (decision !== 'merged') {
+      const last = await first(ctx.db, 'SELECT decision, reason FROM codeloop_merges WHERE run_id = ? ORDER BY id DESC LIMIT 1', runId);
+      if (last && last.decision === decision && last.reason === reason) return null;
+    }
+    return insertMerge(decision, host, reason, attempts);
+  };
+  const insertMerge = (decision, host, reason, attempts) => run(ctx.db,
     'INSERT INTO codeloop_merges (run_id, item_id, pr_number, decision, host, reason, attempts_json, at) VALUES (?,?,?,?,?,?,?,?)',
     runId, r?.item_id ?? null, r?.pr_number ?? null, decision, host ?? null, reason, JSON.stringify(attempts || []), ts);
   if (!d.ok) { await log('refused', null, d.reason); return { merged: false, reason: d.reason }; }
@@ -61,7 +72,7 @@ export async function mergeRun(ctx, runId, { files = [], killed = false } = {}) 
       if (res && res.merged) {
         attempts.push({ host: h.name, ok: true });
         await log('merged', h.name, 'merged', attempts);
-        await run(ctx.db, "UPDATE items SET status='done', disposition='merged via ' || ?, updated_at=datetime('now') WHERE id=? AND status IN ('open','ready','claimed')", h.name, r.item_id);
+        await run(ctx.db, "UPDATE items SET status='done', disposition='merged via ' || ?, updated_at=datetime('now') WHERE id=? AND (status IN ('open','ready','claimed') OR (status='blocked' AND blocker LIKE 'draft PR %'))", h.name, r.item_id);
         return { merged: true, host: h.name, reason: 'merged' };
       }
       attempts.push({ host: h.name, ok: false, error: String(res?.reason || 'not_merged').slice(0, 200) });
@@ -73,7 +84,7 @@ export async function mergeRun(ctx, runId, { files = [], killed = false } = {}) 
 
 /** Tick step: merge every approved run with a pull request, bounded per tick. */
 export async function sweep(ctx, { limit = 3, filesOf, killed = false } = {}) {
-  const rows = (await ctx.db.prepare("SELECT id FROM runner_runs WHERE state='approved' AND pr_number IS NOT NULL AND id NOT IN (SELECT run_id FROM codeloop_merges WHERE decision='merged') ORDER BY id LIMIT ?").bind(limit).all()).results || [];
+  const rows = (await ctx.db.prepare("SELECT id FROM runner_runs WHERE state IN ('approved','pr_opened') AND pr_number IS NOT NULL AND id NOT IN (SELECT run_id FROM codeloop_merges WHERE decision='merged') ORDER BY id LIMIT ?").bind(limit).all()).results || [];
   const out = [];
   for (const r of rows) out.push({ run: r.id, ...(await mergeRun(ctx, r.id, { files: filesOf ? await filesOf(r.id) : [], killed })) });
   return out;

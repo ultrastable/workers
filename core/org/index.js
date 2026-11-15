@@ -30,6 +30,7 @@ import { createInfra, heartbeat } from '../infra/index.js';
 import { createElicit } from '../elicit/index.js';
 import { guardSteps, seedBacklog } from '../runner/selfdoer.js';
 import { createDownstreamGithub } from '../githubapp/downstream.js';
+import { sweep as codeloopSweep } from '../codeloop/index.js';
 import { handlePublicMetrics } from './public-metrics.js';
 
 export { MODULES, moduleList } from './modules.js';
@@ -60,7 +61,7 @@ const iso = ms => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
 
 export function createOrg({
   db, env = {}, config = {}, fetch, now = () => Date.now(), readFile,
-  vcs, downstream, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
+  vcs, downstream, mergeHosts, router, store, vault, channels = {}, importer, specStatus = null, voiceRules, scope, compose, outputs,
   sinks = [], gauges = {}, executors = [], agentDefs = {}, hooks = {}, routes = [], checks = {}, stepRuns, metrics = {},
 } = {}) {
   const vaultStore = vault || createVault({ db });
@@ -178,6 +179,34 @@ export function createOrg({
       ctx.notes.push(`downstream_issues: ${opened} opened, ${failed} failed`);
     } });
     steps.push(...runnerSteps(env_));
+    // Merge under the trust ladder (issue #183, opt-in config.codeloop.enabled): a runner pull request that passed checks and
+    // review is merged by core/codeloop only when its gate allows it (rung of <trust_surface>/merge in the trust ledger at or
+    // above merge_min_rung, no protected path, file limit, kill switch off). The route is the GitHub App installation token
+    // (or injected `mergeHosts`); a merge is recorded as an outcome so the same ledger keeps scoring it. After the runner
+    // steps, so a PR opened this tick can merge in it.
+    if (on('codeloop')) steps.push({ name: 'codeloop_merge', run: async (_db, ctx) => {
+      const c = config.codeloop, surface = c.trust_surface || 'repo', repo = c.repo || config.vcs?.repo;
+      const hosts = mergeHosts || (appReady && tokenProvider && repo ? [createDownstreamGithub({ fetch: doFetch, repo, tokenProvider, base: config.vcs?.base || 'main' }).mergeHost()] : null);
+      if (!hosts) { ctx.notes.push('codeloop_merge skipped: needs the GitHub App connected and vcs.repo'); return; }
+      const rung = async () => (await db.prepare(`SELECT rung FROM trust_ledger WHERE surface=? AND action_class='merge'`).bind(surface).first())?.rung
+        || config.policy?.surfaces?.[surface]?.start_rung || 'observed';
+      // The files a run changed come from its stored patch. A run with no readable patch is refused, never merged blind.
+      const UNKNOWN = '(files unknown)';
+      const filesOf = async id => {
+        const raw = (await db.prepare(`SELECT patch_json FROM runner_runs WHERE id=?`).bind(id).first())?.patch_json;
+        let files = []; try { files = JSON.parse(raw || '[]'); } catch { files = []; }
+        const paths = Array.isArray(files) ? files.map(f => f && f.path).filter(p => typeof p === 'string' && p) : [];
+        return paths.length ? paths : [UNKNOWN];
+      };
+      const out = await codeloopSweep({ db, now: clock, config: { ...c, protected_paths: [...(c.protected_paths || []), UNKNOWN] }, hosts, rung }, { limit: c.max_per_tick ?? 3, filesOf, killed: c.killed === true });
+      for (const m of out.filter(x => x.merged)) {
+        const r = await db.prepare(`SELECT item_id, pr_url, pr_number FROM runner_runs WHERE id=?`).bind(m.run).first();
+        await db.prepare(`INSERT INTO outcomes (item_id, agent, surface, action_class, result, evidence) VALUES (?, 'codeloop', ?, 'merge', 'verified', ?)`)
+          .bind(r.item_id, surface, `merged ${r.pr_url || 'PR ' + r.pr_number} via ${m.host}`).run();
+      }
+      const refused = out.filter(x => !x.merged).map(x => x.reason);
+      ctx.notes.push(`codeloop_merge: ${out.length - refused.length} merged, ${refused.length} not merged${refused.length ? ' (' + [...new Set(refused)].join(', ') + ')' : ''}`);
+    } });
     // Self-hosting backlog: the specification backlog (tools/spec_backlog.py --json) and a target map, both read through readFile.
     if (on('selfdoer') && readFile && config.selfdoer.backlog_path) steps.push({ name: 'selfdoer_seed', run: async (_db, ctx) => {
       const items = JSON.parse(await readFile(config.selfdoer.backlog_path));

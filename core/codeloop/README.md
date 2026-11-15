@@ -5,7 +5,7 @@
 
 Merge stage of the code loop. `core/runner` carries an item to a DRAFT pull request; this module parses the `code-task:` line (`paths=a,b; test=cmd; base=branch`) and merges approved runs behind a gate.
 
-- **Gate:** run approved, PR exists, no protected path, at most `max_files`, trust rung (port `rung('code','merge')`) at or above `merge_min_rung` (default `autonomous`), kill switch off.
+- **Gate:** run approved (runner state `approved` or `pr_opened`), PR exists, no protected path, at most `max_files`, trust rung (port `rung('code','merge')`) at or above `merge_min_rung` (default `autonomous`), kill switch off.
 - **No single route:** `hosts` is an ordered list of merge routes; a failing host falls to the next; all failures are recorded in `codeloop_merges`, never swallowed.
 - **Owner role:** project-manager. **Trigger:** runner reaches `approved`. **Closing probe:** item status `done` with disposition `merged via <host>`; `codeloop_merges` row `merged`.
 
@@ -13,4 +13,6 @@ Merge stage of the code loop. `core/runner` carries an item to a DRAFT pull requ
 |---|---|
 | task line parse, merge gate, multi-host merge, item closure | BUILT (`codeloop.test.js`) |
 | planning calls and patch writing | BUILT in `core/runner` |
-| a concrete GitHub merge host | NOT COVERED: `adapters/github` (planned, next batch) |
+| a concrete GitHub merge host | BUILT: `core/githubapp/downstream.js` `mergeHost()` (GitHub App installation token; takes the PR out of draft, then merges), `core/githubapp/downstream.test.js` |
+| started by the org tick | BUILT, opt-in: `config.codeloop.enabled` adds the `codeloop_merge` step in `core/org/index.js` (rung of `<trust_surface>/merge` from the trust ledger, default surface `repo`; files from the run's stored patch, a run without one is refused), `core/org/org.test.js` |
+| a live cycle on a deployed Worker | NOT COVERED: needs the GitHub App installed on the repository (issue #183 closing probe) |
