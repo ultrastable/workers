@@ -10,7 +10,7 @@ US-SPEC-13 sections 4 and 5. One `step(ctx, { l3 })` per tick runs all of it; `l
 | US-13-R07 severity and due date per open row, recomputed each tick | BUILT (`recompute`, `sla.test.js`) |
 | US-13-R08 14-day hard cap, three exemptions, acceleration rule (US-13-T03) | BUILT |
 | US-13-R09 past due: one priority level up and the manager notified, once per missed date | BUILT (`sla_notices`) |
-| US-13-R10 items waiting on a person as a metric with target zero | BUILT (`waitingOnPerson`, `sla_metrics`, one item with a closing probe) |
+| US-13-R10 count of items that wait on a person, as a metric with target zero | BUILT (`waitingOnPerson`, `sla_metrics`, one item with a closing probe) |
 | Weekly audit (due date or executor per open row) | BUILT (`weeklyAudit`, `sla_audits`) |
 | US-13-R11 per-step budgets from stored step runs, breach procedure (US-13-T04) | BUILT (`startStep`, `stepRuns`, handed to `sweepStepBudgets`) |
 | US-13-R12 one done check per process, at least two paths per step | BUILT (`defineProcess`, `processGaps`) |

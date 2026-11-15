@@ -37,6 +37,8 @@ export const MODULES = [
   { id: 'fleet', dir: 'core/fleet/migrations' },
   { id: 'signals', dir: 'core/signals/migrations' },
   { id: 'remediation', dir: 'core/remediation/migrations' },
+  { id: 'ghcost', dir: 'core/ghcost/migrations' },
+  { id: 'tenancy', dir: 'core/tenancy/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.

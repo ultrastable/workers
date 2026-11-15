@@ -83,7 +83,7 @@ test('US-13-R09: a row past due is raised one priority level and the manager not
   assert.equal((await sla.summary()).past_due, 2);
 });
 
-test('US-13-R10: items waiting on a person is a metric with target zero; a breach files one item whose probe closes it', async () => {
+test('US-13-R10: the count of items that wait on a person is a metric with target zero; a breach files one item whose probe closes it', async () => {
   const { db, sla } = mk();
   assert.deepEqual((await sla.waitingOnPerson()).breach, false);
   db.raw.exec(`INSERT INTO gate_cards (id,what,why_gated,default_in_effect,closing_probe) VALUES ('G1','Approve','money','zero','manual')`);
