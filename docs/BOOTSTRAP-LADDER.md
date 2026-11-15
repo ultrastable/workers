@@ -18,7 +18,7 @@ Owner directive 2026-11-11: a non-coder cannot be asked to mint an API token; a 
 3. **Heartbeat without a token.** The Worker ticks itself with a Durable Object alarm (issue #20), so the running system needs no cron and no outside credential. BUILT for the preview Worker (workers#83) and for the real Worker (`adapters/cloudflare/src/heartbeat.js`); bootstrap redeploys in alarm mode automatically when the account refuses cron triggers.
 4. **Scoped token supplied by the owner.** The expert path (`bootstrap-apply` with secrets). BUILT, last resort.
 
-A rung that fails records why and the next rung starts. A bootstrap that ends without a running system and without a recorded reason for each rung is a defect (US-SPEC-24 closed loops).
+A rung that fails records why and the next rung starts. Account guard (issues #167, #181, `tests/test_ladder.py`): with a target account configured (`runtime.account_id`, else `ULTRASTABLE_TARGET_ACCOUNT_ID`) a session or token that does not reach it is refused with reason code `account_mismatch` and the next rung is tried; a token set for another account is set aside so it cannot hide a session that does reach the target, a missing account id is pinned to the target, and a token is asked which accounts it reaches before anything is provisioned. `org/ladder.json` lists the mismatching rungs in `account_guard.mismatch`. A bootstrap that ends without a running system and without a recorded reason for each rung is a defect (US-SPEC-24 closed loops).
 
 ## Identity-bound steps that remain (stated once)
 

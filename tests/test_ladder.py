@@ -106,7 +106,7 @@ class AccountGuard(unittest.TestCase):
         r = ladder.run_ladder(run, {}, target=ACCT)
         self.assertIsNone(r["route"]); self.assertEqual(r["attempts"][0]["status"], "failed")
         self.assertIn("refused", r["attempts"][0]["reason"]); self.assertEqual(r["env"], {})
-        self.assertEqual(r["account_guard"], {"target": ACCT, "enforced": True})
+        self.assertEqual(r["account_guard"], {"target": ACCT, "enforced": True, "mismatch": ["connect"]})
 
     def test_target_is_picked_among_several_reachable_accounts(self):
         run, _ = fake({"whoami": f"logged in OAuth {self.OTHER} {ACCT}"})
@@ -124,6 +124,50 @@ class AccountGuard(unittest.TestCase):
         self.assertIsNone(r["route"]); self.assertEqual(r["attempts"][-1]["status"], "failed")
         ok = ladder.run_ladder(run, {"CLOUDFLARE_API_TOKEN": "x", "CLOUDFLARE_ACCOUNT_ID": ACCT}, target=ACCT)
         self.assertEqual(ok["route"], "scoped-token")
+
+    def test_issue_181_a_token_for_another_account_does_not_hide_a_session_that_reaches_the_target(self):
+        seen = []
+        def run(cmd, env=None, timeout=None):
+            seen.append(dict(env or {}))
+            return SimpleNamespace(returncode=0, stdout=f"logged in OAuth {ACCT}", stderr="")
+        env = {"CLOUDFLARE_API_TOKEN": "SECRET-VALUE", "CLOUDFLARE_ACCOUNT_ID": self.OTHER, "PATH": "/bin"}
+        r = ladder.run_ladder(run, env, target=ACCT)
+        self.assertEqual(r["route"], "connect"); self.assertEqual(r["env"], {"CLOUDFLARE_ACCOUNT_ID": ACCT})
+        self.assertEqual(r["unset"], ["CLOUDFLARE_API_TOKEN"])
+        self.assertNotIn("CLOUDFLARE_API_TOKEN", seen[0]); self.assertNotIn("CLOUDFLARE_ACCOUNT_ID", seen[0])  # Wrangler was asked without the token
+        cmd_env = ladder.command_env(env, r)
+        self.assertEqual(cmd_env, {"CLOUDFLARE_ACCOUNT_ID": ACCT, "PATH": "/bin"})  # the wrong-account token never reaches a deploy
+        self.assertNotIn("SECRET-VALUE", repr(r)); self.assertNotIn(self.OTHER, repr(r["env"]))
+
+    def test_issue_181_wrong_token_and_wrong_session_every_rung_refuses_with_a_code_and_the_card_says_so(self):
+        run, calls = fake({"whoami": f"logged in OAuth {self.OTHER}", "login": ""})
+        r = ladder.run_ladder(run, {"CLOUDFLARE_API_TOKEN": "x", "CLOUDFLARE_ACCOUNT_ID": self.OTHER}, target=ACCT, interactive=True)
+        self.assertIsNone(r["route"]); self.assertEqual(r["env"], {}); self.assertEqual(r["unset"], [])
+        self.assertEqual(r["account_guard"]["mismatch"], ["connect", "scoped-token"])
+        self.assertTrue(all(a["reason"] for a in r["attempts"])); self.assertNotIn("login", calls)
+        card = ladder.gate_card(r)
+        self.assertIn(ACCT, card["what"]); self.assertIn("different account", card["what"])
+        none = ladder.run_ladder(fake({"whoami": "not authenticated"})[0], {"CLOUDFLARE_API_TOKEN": "x", "CLOUDFLARE_ACCOUNT_ID": self.OTHER}, target=ACCT)
+        self.assertEqual([a["status"] for a in none["attempts"]], ["skipped", "skipped", "failed"])
+
+    def test_issue_181_session_mismatch_falls_to_the_token_rung_which_is_pinned_to_the_target(self):
+        def run(cmd, env=None, timeout=None):  # no token in env: the OAuth session (other account); with the token: the target
+            out = f"logged in with an API Token {ACCT}" if (env or {}).get("CLOUDFLARE_API_TOKEN") else f"logged in OAuth {self.OTHER}"
+            return SimpleNamespace(returncode=0, stdout=out, stderr="")
+        r = ladder.run_ladder(run, {}, target=ACCT)
+        self.assertIsNone(r["route"]); self.assertEqual(r["attempts"][0]["code"], "account_mismatch")
+        self.assertEqual(r["attempts"][2]["status"], "unavailable"); self.assertEqual(r["attempts"][2]["reason"], "not set: CLOUDFLARE_API_TOKEN")
+        t = ladder.rung_token({"CLOUDFLARE_API_TOKEN": "x"}, ACCT, run, ["wrangler"])  # account id not typed: pinned to the target
+        self.assertEqual((t["status"], t["env"]), ("ready", {"CLOUDFLARE_ACCOUNT_ID": ACCT}))
+
+    def test_issue_181_a_token_that_reaches_only_another_account_is_refused_before_anything_is_provisioned(self):
+        run, calls = fake({"whoami": f"logged in with an API Token {self.OTHER}"})
+        t = ladder.rung_token({"CLOUDFLARE_API_TOKEN": "x", "CLOUDFLARE_ACCOUNT_ID": ACCT}, ACCT, run, ["wrangler"])
+        self.assertEqual((t["status"], t["code"]), ("failed", "account_mismatch")); self.assertEqual(calls, ["whoami"])
+        self.assertNotIn("env", t)
+        quiet, _ = fake({"whoami": ""})  # a token that reports no account list is still pinned to the target id
+        self.assertEqual(ladder.rung_token({"CLOUDFLARE_API_TOKEN": "x", "CLOUDFLARE_ACCOUNT_ID": ACCT}, ACCT, quiet, ["wrangler"])["status"], "ready")
+        self.assertEqual(ladder.rung_token({"CLOUDFLARE_API_TOKEN": "x"}, None)["status"], "unavailable")  # no target: nothing is guessed
 
     def test_no_target_keeps_the_old_behaviour_and_says_so(self):
         run, _ = fake({"whoami": f"logged in OAuth {ACCT}"})

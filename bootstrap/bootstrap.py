@@ -525,7 +525,7 @@ class Boot:
         route = self.state.get("ladder", {})
         if not route.get("route"):
             return "blocked", "no ladder rung reached a Cloudflare account (see org/ladder.json; one gate card opened)"
-        self.cmd_env = {**os.environ, **route.get("env", {})}
+        self.cmd_env = ladder.command_env(dict(os.environ), route)  # extras applied; a token set aside by the ladder is removed
         if not self.tools.get("npx"):
             return "blocked", "npx not found; install Node.js 20+"
         worker = self.root / "adapters" / "cloudflare"
