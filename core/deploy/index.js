@@ -3,7 +3,7 @@
 // Canonical change path (US-SPEC-07 section 4): lock, version check, ledger, publish, probes, keep or revert.
 // Ports: db (D1-style), deployer {publish, liveVersion, rollback}, fetch, now, sleep, lock, killSwitch. No ambient state.
 import { dbLock } from './lock.js';
-import { runProbes } from './probes.js';
+import { runProbes, probeName } from './probes.js';
 
 const iso = (ms) => new Date(ms).toISOString();
 const DEFAULTS = { lockTtlMs: 300000, windowMs: 30000, intervalMs: 2000, breakerThreshold: 3 };
@@ -63,6 +63,24 @@ export function createDeploy({ db, deployer, fetch: fetchPort, now = () => Date.
     return r.meta.last_row_id;
   }
 
+  // US-05-T04, US-07-T05: a reverted deploy files a failure item in the work tracker (seed table `items`). Where the module
+  // runs with its own tables only (config.fileItems = false) the record stays in deploy_ledger.
+  async function fileFailureItem(unit, ledgerId, prior, attempted, why) {
+    if (cfg.fileItems === false) return null;
+    const itemId = `DEPLOYFAIL-${unit}-${ledgerId}`;
+    const t = nowIso().replace('T', ' ').slice(0, 19);
+    try {
+      await run(`INSERT OR IGNORE INTO items (id, title, kind, owner_role, done_check, closing_probe, priority, status, created_at, updated_at) VALUES (?,?,'fix',?,?,?,0,'ready',?,?)`,
+        itemId, scrub(`Deploy of ${unit} ${attempted} reverted to ${prior}: ${why}`).slice(0, 300), cfg.ownerRole ?? 'operations',
+        `a deploy of ${unit} is kept with every revert probe passing`,
+        `SELECT COUNT(*) FROM deploy_ledger WHERE unit = '${String(unit).replace(/'/g, "''")}' AND kind = 'deploy' AND status = 'kept' AND id > ${Number(ledgerId)}`, t, t);
+      return itemId;
+    } catch (e) { // a store without the work tracker: the reason is kept on the ledger row, never dropped
+      await run(`UPDATE deploy_ledger SET reason = reason || ? WHERE id=?`, scrub(`; failure item not filed: ${e && e.message}`).slice(0, 200), ledgerId);
+      return null;
+    }
+  }
+
   async function deploy({ unit, artifact, expectedVersion, actor }) {
     const base = { unit, actor, expectedVersion };
     if (!unit || !artifact) return refuse(base, 'bad_request');
@@ -96,8 +114,13 @@ export function createDeploy({ db, deployer, fetch: fetchPort, now = () => Date.
         await sleep(cfg.intervalMs);
       }
       await recordProbes(id, 'after', after);
-      const failed = after.filter(p => !p.ok);
-      if (!failed.length) return finish(id, 'kept', null, { toVersion: newVersion });
+      // US-05-R09: a probe marked `revert: false` (it depends on a shared resource under load) is recorded but never reverts.
+      const excluded = new Set(def.probes.filter(d => d.revert === false).map(probeName));
+      const failedAll = after.filter(p => !p.ok);
+      const failed = failedAll.filter(p => !excluded.has(p.probe));
+      if (!failed.length) {
+        return finish(id, 'kept', failedAll.length ? 'excluded_probe_failed: ' + failedAll.map(p => p.probe).join(', ') : null, { toVersion: newVersion });
+      }
       const why = 'probe_failed: ' + failed.map(p => p.probe).join(', ');
       if (def.mode === 'observe') return finish(id, 'kept', why + ' (observe mode)', { toVersion: newVersion });
 
@@ -108,6 +131,7 @@ export function createDeploy({ db, deployer, fetch: fetchPort, now = () => Date.
         return finish(id, 'failed', why + '; rollback_unverified', { gate: g });
       }
       const result = await finish(id, 'reverted', why);
+      result.item = await fileFailureItem(unit, id, live, newVersion, why);
       const recent = await all(`SELECT status FROM deploy_ledger WHERE unit=? AND kind='deploy' AND status IN ('kept','reverted','failed') ORDER BY id DESC LIMIT ?`, unit, cfg.breakerThreshold);
       if (recent.length >= cfg.breakerThreshold && recent.every(r => r.status === 'reverted')) {
         result.gate = await openGate(unit, `${cfg.breakerThreshold} consecutive reverted deploys of ${unit}; last reason: ${why}`);

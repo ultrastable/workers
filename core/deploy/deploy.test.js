@@ -233,3 +233,40 @@ test('handle: auth required, POST /deploy, GET /ledger, 409 on refusal', async (
   const none = createDeploy({ db: makeDb([MIG]), deployer: fakeDeployer(), fetch: fakeFetch({}), env: {} });
   assert.equal((await none.handle(req('GET', '/ledger', null, ''))).status, 401); // no token configured: refuse everyone
 });
+
+test('US-05-T04, US-07-T05: a version whose pre-passing probe fails is reverted to the prior version and a failure item is filed', async () => {
+  const { db, deployer, web, d } = setup();
+  web.version = 'v1';
+  const before = await d.deploy({ unit: 'api', artifact: art('v1b'), expectedVersion: 'v1', actor: 'ops' }); // probe passes before: baseline row ok
+  assert.equal(before.status, 'reverted'); // version not reported: reverted, and it proves the probe is live
+  web.healthy = false;
+  const res = await d.deploy({ unit: 'api', artifact: art('v2'), expectedVersion: 'v1', actor: 'ops' });
+  assert.equal(res.status, 'reverted');
+  assert.equal(deployer.live, 'v1', 'prior version restored');
+  const probes = await rows(db, `SELECT phase, ok FROM deploy_probe_results WHERE ledger_id = ${res.id} ORDER BY id`);
+  assert.deepEqual(probes.map(p => p.phase), ['before', 'after']);
+  const item = (await rows(db, `SELECT id, kind, status, priority, owner_role, closing_probe FROM items WHERE id = '${res.item}'`))[0];
+  assert.equal(item.id, `DEPLOYFAIL-api-${res.id}`);
+  assert.deepEqual([item.kind, item.status, item.priority, item.owner_role], ['fix', 'ready', 0, 'operations']);
+  // the closing probe is a query the tick can run: it passes once a later deploy of the unit is kept
+  const probeNow = Object.values((await rows(db, item.closing_probe))[0])[0];
+  assert.equal(probeNow, 0);
+  web.healthy = true; web.version = 'v3';
+  assert.equal((await d.deploy({ unit: 'api', artifact: art('v3'), expectedVersion: 'v1', actor: 'ops' })).status, 'kept');
+  assert.equal(Object.values((await rows(db, item.closing_probe))[0])[0], 1);
+});
+
+test('US-05-R09: a probe marked revert:false (shared resource under load) is recorded but does not revert; other probes still do', async () => {
+  const shared = { kind: 'db', name: 'shared-queue-depth', sql: `SELECT COUNT(*) FROM deploy_config`, expect: '>0', revert: false };
+  const health = { kind: 'http', url: 'https://svc.example/health', contains: ['"ok":true'] };
+  const { db, deployer, web, d } = setup({ extra: { probes: { api: [health, shared] } } });
+  const kept = await d.deploy({ unit: 'api', artifact: art('v2'), expectedVersion: 'v1', actor: 'ops' });
+  assert.deepEqual([kept.status, kept.reason], ['kept', 'excluded_probe_failed: shared-queue-depth']);
+  assert.equal(deployer.live, 'v2');
+  assert.equal((await rows(db, `SELECT ok FROM deploy_probe_results WHERE probe='shared-queue-depth' AND phase='after'`))[0].ok, 0);
+  assert.equal((await rows(db, `SELECT COUNT(*) AS n FROM items WHERE id LIKE 'DEPLOYFAIL-%'`))[0].n, 0);
+  web.healthy = false;
+  const rev = await d.deploy({ unit: 'api', artifact: art('v3'), expectedVersion: 'v2', actor: 'ops' });
+  assert.equal(rev.status, 'reverted');
+  assert.equal(deployer.live, 'v2');
+});
