@@ -29,7 +29,7 @@ The public view (the console in read-only form) shows five things and nothing el
 4. Money: spend against the daily and monthly cap, and **cost per merged pull request**.
 5. Autonomy: where agents may act without a person, earned from recorded outcomes.
 
-Not shown, because not the product: research, outreach, patents, business plans (`SCOPE.md`).
+Not shown, because not the product: research, outreach, business plans (`SCOPE.md`).
 
 ## 2. Where the engine lives: its own Cloudflare account
 
@@ -75,7 +75,7 @@ Habits that keep spend low (each is a requirement, not a hope):
 
 The first week is supervised, with autonomy at zero:
 
-1. **Bootstrap.** `python bootstrap/bootstrap.py --apply --idea self/IDEA.md --config self/ultrastable.json` provisions the Worker, the D1 database and the cron in the new account. (Dry run today: 4 owner cards, none about patents, outreach or entities, because those belong to Capability Packs.)
+1. **Bootstrap.** `python bootstrap/bootstrap.py --apply --idea self/IDEA.md --config self/ultrastable.json` provisions the Worker, the D1 database and the cron in the new account. (Dry run today: 4 owner cards, none about outreach or entities, because those belong to Capability Packs.)
 2. **Seed the backlog.** `python tools/spec_backlog.py --spec-dir <spec>/specs --sql` loads one item per unfinished capability (49 today).
 3. **Agents work through pull requests.** Doers open pull requests on `ultrastable/workers`; a different-family reviewer checks the diff and the named tests; **a person merges** until autonomy is earned.
 4. **Earn autonomy per surface.** The trust ledger promotes a surface (for example "documentation pull requests") only from verified outcomes, by a reviewed change to the autonomy policy.
@@ -112,7 +112,7 @@ The first week is supervised, with autonomy at zero:
 |---|---|
 | `self/IDEA.md`, `self/ultrastable.json` | BUILT; dry run passes with 4 owner cards |
 | `tools/spec_backlog.py` | BUILT; 5 tests |
-| Bootstrap `--idea` / `--config`; Capability Packs for patent, business, outreach and research cases | BUILT; 4 tests |
+| Bootstrap `--idea` / `--config`; Capability Packs for legal-document, business, outreach and research cases | BUILT; 4 tests |
 | Account, secrets, `--apply` | NOT DONE (owner steps above) |
 | Doer runner (agents that actually write the pull requests) | BUILT as opt-in code: `core/runner/selfdoer.js` (backlog seeding from `tools/spec_backlog.py --json` plus a target map, outer daily and monthly spend caps), wired by `config.selfdoer` in `core/org`; tested offline in `core/test/self-doer.test.js`; never run live |
 | Read-only public metrics view (`tools/public_metrics.py`: remaining, agent PRs, predictions, spend, autonomy; JSON and static HTML) | BUILT; 6 tests; served from the Worker at `/public/metrics` and `/public/metrics.json` when `config.public_metrics.enabled` (`core/org/public-metrics.js`, tested offline); turning it on for the live organization needs the live account |

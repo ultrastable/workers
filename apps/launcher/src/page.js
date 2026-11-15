@@ -24,7 +24,7 @@ button.alt{background:transparent;color:var(--fg);border-color:var(--line)}butto
 </style></head><body><main>
 <h1>Say what you want.</h1>
 <p>Ultrastable works out what it needs to know, writes the plans, and builds and runs it. No code, no terminal. This page puts a live preview of your idea online so you can see it. It takes about two minutes.</p>
-<p class="mut">It runs on Cloudflare, and a free preview needs no account. By default Ultrastable does not write business plans, file patents, give legal or financial advice, or run marketing.</p>
+<p class="mut">It runs on Cloudflare, and a free preview needs no account. By default Ultrastable does not write business plans, file legal documents, give legal or financial advice, or run marketing.</p>
 
 <section id="s1" class="card">
   <label for="idea">What do you want to exist, and who is it for?</label>

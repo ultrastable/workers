@@ -10,7 +10,7 @@ It runs today inside [QNFO](https://qnfo.org), which is its first and live custo
 
 ## Scope
 
-Ultrastable is for a person who can say what they want but is not a coder and does not know what they do not know. It works out what it needs to know, asks in plain words, writes its own specifications and charters, and builds and runs the system under full project-management discipline (initiating, planning, executing, monitoring, closing; predictive, agile or hybrid). By default it does **not** write business plans, file patents or trademarks, give legal or financial advice, or run marketing or outreach; those are opt-in Capability Packs outside the core. The boundary and the scope test are in [SCOPE.md](SCOPE.md).
+Ultrastable is for a person who can say what they want but is not a coder and does not know what they do not know. It works out what it needs to know, asks in plain words, writes its own specifications and charters, and builds and runs the system under full project-management discipline (initiating, planning, executing, monitoring, closing; predictive, agile or hybrid). By default it does **not** write business plans, file trademarks or other legal documents, give legal or financial advice, or run marketing or outreach; those are opt-in Capability Packs outside the core. The boundary and the scope test are in [SCOPE.md](SCOPE.md).
 
 ## Repositories
 

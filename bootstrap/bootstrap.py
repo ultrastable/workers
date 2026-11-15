@@ -260,7 +260,7 @@ class Boot:
                  for n, (i, t, o, trig, d, p) in enumerate(kit)]
         constraints = " ".join(self.idea["sections"].get("constraints", {}).get("bullets", [])).lower()
         if "nothing public" in constraints or "not public" in constraints:
-            items.append({"id": "KIT-6", "title": "Hold the disclosure gate: repos private, sites behind access, no public posts",
+            items.append({"id": "KIT-6", "title": "Honour the owner's no-public-posting rule: repos private, sites behind access, no public posts",
                           "kind": "work", "project": None, "owner_role": "portfolio-manager", "trigger_on": None,
                           "done_check": "standing rule; audited each portfolio tick", "closing_probe": "owner lifts the gate",
                           "priority": 5})
@@ -397,7 +397,7 @@ class Boot:
         if not self.state.get("surfaces", {}).get("org_admin_token"):
             self.state["gate_cards"].append({
                 "id": "GATE-ORG-TOKEN", "line": "IDENTITY-BOUND: mint ORG_ADMIN_TOKEN (docs/ops/ORG-TOKEN.md)",
-                "default_in_effect": "holding page only; all non-org stages continue",
+                "default_in_effect": "profile content staged in the repo; all non-org stages continue",
                 "closing_probe": "org-init workflow succeeds; curl https://github.com/" + name + " shows the profile"})
             return "blocked", "no org-admin token: gate card opened, run the org-init workflow once it exists"
         return "ok", "org token present: run the org-init workflow (.github/workflows/org-init.yml)"

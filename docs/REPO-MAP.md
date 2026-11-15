@@ -25,13 +25,12 @@ Layering rule: `core/` imports nothing from `adapters/`; adapters import `core/`
 
 | Repository | Holds | Visibility |
 |---|---|---|
-| `ultrastable/workers` | All code (this repo) | private now, public after license review |
-| `ultrastable/spec` | Architectural specifications (`US-SPEC-*`) and docs; replaces the patent drafts | private now, public later |
-| `ultrastable/license` | Canonical license text, commercial terms, FAQ | private now, public later |
+| `ultrastable/workers` | All code (this repo) | public; the Ultrastable License governs use |
+| `ultrastable/spec` | Architectural specifications (`US-SPEC-*`) and docs | public; the Ultrastable License governs use |
+| `ultrastable/license` | Canonical license text, commercial terms, FAQ | public; the Ultrastable License governs use |
 | `ultrastable/ultrastable` | System of record: roadmap, issues, ops, owner dashboard (`dashboard/`), instance generator (`foundation/`), site, outreach, social, brand, scripts | private |
 | `ultrastable/business` | Business plan, funding, investor, Google/Cloudflare startup kits | private |
-| `ultrastable/ip` | Historical patent drafts and evidence; not released | private |
-| `ultrastable/site` | Marketing site worker | private until release |
+| `ultrastable/site` | Marketing site worker | public; the Ultrastable License governs use |
 | `ultrastable/docs`, `ultrastable/seed`, `ultrastable/platform` | Superseded: content moved to `spec` and `workers` | archive |
 
 ## Moved, left, and why
