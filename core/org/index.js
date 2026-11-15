@@ -28,6 +28,7 @@ import { createAgents } from '../agents/index.js';
 import { createContainers } from '../containers/index.js';
 import { createInfra, heartbeat } from '../infra/index.js';
 import { createElicit } from '../elicit/index.js';
+import { step as specloopStep } from '../specloop/index.js';
 import { guardSteps, seedBacklog } from '../runner/selfdoer.js';
 import { createDownstreamGithub } from '../githubapp/downstream.js';
 import { sweep as codeloopSweep } from '../codeloop/index.js';
@@ -98,7 +99,9 @@ export function createOrg({
   }
 
   function runnerSteps(env) {
-    if (config.runner?.enabled !== true) return [];
+    // On by default wherever a repository is configured: a deployment builds its own backlog without being switched on.
+    // config.runner.enabled === false is the only way to turn it off; missing credentials become cards, never a silent idle.
+    if (config.runner?.enabled === false || (config.runner?.enabled !== true && !config.vcs?.repo)) return [];
     const need = runnerNeeds(config, env, { vcsInjected: !!vcs, appCredentials: appReady });
     if (need.length) return [{ name: 'runner_needs', run: async (_db, ctx) => { await fileRunnerCards(need); ctx.notes.push(`runner skipped: needs ${need.join(', ')}`); } }];
     const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null });
@@ -178,6 +181,15 @@ export function createOrg({
       }
       ctx.notes.push(`downstream_issues: ${opened} opened, ${failed} failed`);
     } });
+    // Specification-to-code loop, before the runner so the items it files this tick are takeable this tick. On by default:
+    // the specifications are read from config.specloop (file paths or repositories), else from the repository the runner
+    // writes to. Nobody files, targets or closes these items by hand.
+    {
+      const sc = { spec_repo: config.vcs?.repo, code_repo: config.vcs?.repo, ref: config.vcs?.base, ...(config.specloop || {}) };
+      const tokenEnv = config.vcs?.token_env || 'VCS_TOKEN';
+      const st = specloopStep({ db, now: clock, config: sc, readFile, fetch: doFetch, token: typeof env_[tokenEnv] === 'string' ? env_[tokenEnv] : null });
+      if (st) steps.push(st);
+    }
     steps.push(...runnerSteps(env_));
     // Merge under the trust ladder (issue #183, opt-in config.codeloop.enabled): a runner pull request that passed checks and
     // review is merged by core/codeloop only when its gate allows it (rung of <trust_surface>/merge in the trust ledger at or

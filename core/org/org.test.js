@@ -87,7 +87,7 @@ test('end to end: every loop runs on one tick, a run reaches a draft PR, nothing
   last = await tick();
 
   const names = org.extraSteps().map(s => s.name);
-  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs', 'runner']);
+  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs', 'specloop', 'runner']);
 
   // L2 kernel step recorded its snapshot, every tick
   assert.ok(one(db, `SELECT COUNT(*) n FROM kernel_step_evidence WHERE step='risk_snapshot' AND ok=1`).n >= 3);
