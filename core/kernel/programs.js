@@ -81,7 +81,9 @@ export async function ensureAllocationMetric(db) {
 
 // Steps 306/308: allocate slots, classify, and log the decision with a parsable prediction (US-03-R15).
 export async function allocate(db, { tickId, now, config = {} }) {
-  const T = config.slots ?? 25;
+  // config.plus_slots: slots reserved for the plus loop (US-04-R05, core/plus capacity()). They are taken off before any
+  // risk is read, so rising risk cannot reallocate them to repair.
+  const T = Math.max(0, (config.slots ?? 25) - Math.max(0, config.plus_slots ?? 0));
   const snaps = await all(db, `SELECT * FROM kernel_risk_snapshot WHERE tick_id = ?`, tickId);
   if (!snaps.length) return {};
   const windowStart = iso(now - 24 * 3600e3);

@@ -30,6 +30,7 @@ export const MODULES = [
   { id: 'infra', dir: 'core/infra/migrations' },
   { id: 'waste', dir: 'core/waste/migrations' },
   { id: 'specloop', dir: 'core/specloop/migrations' },
+  { id: 'criticality', dir: 'core/criticality/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.

@@ -31,9 +31,26 @@ export function validateCard(card, { jargon = DEFAULT_JARGON } = {}) {
   return p;
 }
 
+/** Put a card into the person's words (US-16-R03). entries: [{ term, plain, person_term }]. A system term the person has their own
+ *  word for is replaced by that word; a system term with only a plain explanation stays and is defined in the same card. */
+export function applyGlossary(card, entries = []) {
+  const out = { ...card, options: [...(card.options || [])], defines: [...(card.defines || [])], definitions: { ...(card.definitions || {}) } };
+  const swap = (text, re, to) => (typeof text === 'string' ? text.replace(re, to) : text);
+  for (const e of entries) {
+    const re = new RegExp(`\\b${String(e.term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    const shown = [out.question, out.why, out.cue, out.default_consequence, ...out.options].some(t => typeof t === 'string' && new RegExp(re.source, 'i').test(t));
+    if (!shown) continue;
+    if (e.person_term) {
+      for (const f of ['question', 'why', 'cue', 'default_consequence']) out[f] = swap(out[f], re, e.person_term);
+      out.options = out.options.map(o => (EXTRA_OPTIONS.includes(o) ? o : swap(o, re, e.person_term)));
+    } else if (e.plain) { out.defines.push(String(e.term).toLowerCase()); out.definitions[String(e.term).toLowerCase()] = e.plain; }
+  }
+  return out;
+}
+
 export function createElicit({ db, now = () => Date.now(), config = {} } = {}) {
   const clock = typeof now === 'function' ? now : () => now;
-  const cfg = { max_open: 3, daily_cap: 5, quiet: null, expiry_hours: 72, spend_cap_usd: 0, defer_below: 0, g1_threshold: 0.7, jargon: DEFAULT_JARGON, ...config };
+  const cfg = { max_open: 3, daily_cap: 5, quiet: null, expiry_hours: 72, spend_cap_usd: 0, defer_below: 0, g1_threshold: 0.7, jargon: DEFAULT_JARGON, fatigue_after: 3, priority_list: 3, ...config };
   const all = async (sql, ...a) => (await db.prepare(sql).bind(...a).all()).results || [];
   const one = (sql, ...a) => db.prepare(sql).bind(...a).first();
   const run = (sql, ...a) => db.prepare(sql).bind(...a).run();
@@ -60,9 +77,49 @@ export function createElicit({ db, now = () => Date.now(), config = {} } = {}) {
       n.project, n.id, n.default_value, reason, 'revisit at the next demonstration or review, or when the person answers', t);
   }
 
+  /** US-16-R17: related needs are asked as one sequence, not interleaved. Groups are the artifacts the needs feed; the group
+   *  holding the most valuable need goes first, and inside a group the order is by value of information. */
+  async function batched(project, where) {
+    const rows = await all(`SELECT * FROM elicit_needs WHERE project=? AND ${where} ORDER BY priority DESC, id`, project);
+    const order = [...new Set(rows.map(r => r.artifact))];
+    return order.flatMap(a => rows.filter(r => r.artifact === a));
+  }
+
+  /** US-16-R18: has the person stopped answering? True when the last `fatigue_after` Asks that ended all ended by timeout. */
+  async function fatigue(project) {
+    const ends = [
+      ...(await all(`SELECT answered_at AS at, 'answer' AS kind FROM elicit_needs WHERE project=? AND state='answered' AND provenance='stated'`, project)),
+      ...(await all(`SELECT created_at AS at, CASE reason WHEN 'timeout' THEN 'timeout' ELSE 'answer' END AS kind FROM elicit_assumptions WHERE project=? AND reason IN ('timeout','not_sure')`, project)),
+    ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+    let n = 0; for (const e of ends) { if (e.kind !== 'timeout') break; n++; }
+    return { stopped: n >= cfg.fatigue_after, consecutive_timeouts: n };
+  }
+
   return {
     config: cfg,
     toCard,
+    fatigue,
+
+    /** Record the person's own word for a system term, or a plain explanation of it (US-16-R03, section 8). */
+    async learnTerm(term, { plain = null, person_term = null } = {}) {
+      const t = String(term || '').trim().toLowerCase();
+      if (!t || (!plain && !person_term)) return { ok: false, error: 'a term needs a plain explanation or the person\'s own word for it' };
+      await run(`INSERT INTO elicit_glossary (term, plain, person_term, created_at) VALUES (?,?,?,?) ON CONFLICT(term) DO UPDATE SET plain=COALESCE(excluded.plain, elicit_glossary.plain), person_term=COALESCE(excluded.person_term, elicit_glossary.person_term)`,
+        t, plain ?? person_term, person_term, iso(clock()));
+      return { ok: true, term: t };
+    },
+    glossary: () => all(`SELECT term, plain, person_term FROM elicit_glossary ORDER BY term`),
+
+    /** Check every card that would be shown, after the glossary mapping, against the card rules (failure mode "jargon leak"). */
+    async reviewCards(project) {
+      const glossary = await all(`SELECT term, plain, person_term FROM elicit_glossary`);
+      const out = [];
+      for (const n of await all(`SELECT * FROM elicit_needs WHERE project=? AND state IN ('open','asked','gated')`, project)) {
+        const problems = validateCard(applyGlossary(toCard(n), glossary), { jargon: cfg.jargon });
+        if (problems.length) out.push({ need_id: n.id, problems });
+      }
+      return out;
+    },
 
     /** Build the needs register from a catalog (the REQUIRED artifact fields), deriving what the idea text already answers (US-16-R01, T16-1). */
     async registerNeeds(project, catalog, { idea = '' } = {}) {
@@ -96,16 +153,28 @@ export function createElicit({ db, now = () => Date.now(), config = {} } = {}) {
             'work that depends on this waits; other work continues', 'elicit', `elicit_answered:${project}:${n.id}`);
         } else if (n.priority < cfg.defer_below && n.default_value != null) await setDefault(n, 'low_priority');
       }
+      const tired = await fatigue(project);
+      if (tired.stopped) {
+        // US-16-R18: the person stopped answering. Do not ask more often: keep only the priority list and default the rest.
+        const open = await all(`SELECT * FROM elicit_needs WHERE project=? AND state='open' ORDER BY priority DESC, id`, project);
+        for (const n of open.slice(cfg.priority_list)) if (n.default_value != null && !gated(n)) await setDefault(n, 'fatigue');
+      }
       if (!quiet()) {
         const open = (await one(`SELECT COUNT(*) AS n FROM elicit_needs WHERE project=? AND state='asked'`, project)).n;
         const day = iso(clock()).slice(0, 10);
         const today = (await one(`SELECT COUNT(*) AS n FROM elicit_needs WHERE project=? AND state<>'gated' AND substr(asked_at,1,10)=?`, project, day)).n;
-        const room = Math.max(0, Math.min(cfg.max_open - open, cfg.daily_cap - today));
-        for (const n of await all(`SELECT id FROM elicit_needs WHERE project=? AND state='open' ORDER BY priority DESC, id LIMIT ?`, project, room)) {
+        const maxOpen = tired.stopped ? Math.min(1, cfg.max_open) : cfg.max_open;
+        const room = Math.max(0, Math.min(maxOpen - open, cfg.daily_cap - today));
+        for (const n of (await batched(project, `state='open'`)).slice(0, room)) {
           await run(`UPDATE elicit_needs SET state='asked', asked_at=?, expires_at=? WHERE project=? AND id=?`, iso(clock()), iso(clock() + cfg.expiry_hours * 3600e3), project, n.id);
         }
       }
-      return (await all(`SELECT * FROM elicit_needs WHERE project=? AND state IN ('asked','gated') ORDER BY priority DESC, id`, project)).map(toCard);
+      const glossary = await all(`SELECT term, plain, person_term FROM elicit_glossary`);
+      const rows = await batched(project, `state IN ('asked','gated')`);
+      return rows.map((n, i) => {
+        const same = rows.filter(r => r.artifact === n.artifact);
+        return { ...applyGlossary(toCard(n), glossary), sequence: { artifact: n.artifact, position: same.indexOf(n) + 1, of: same.length } };
+      });
     },
 
     /** An unanswered Ask becomes its default after its time (US-16-R10). Gated needs never expire to a default. */

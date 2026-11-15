@@ -320,7 +320,7 @@ export function createRunner({ db, now = () => Date.now(), config = {}, env = {}
     if (c.enabled === true && (await wip()) < c.max_wip) {
       const probe = await router.route({ role: 'doer', kind: 'doer', rung: c.doer.rung, capabilities: ['json'] });
       if (probe.ok) {
-        const cands = await all(`SELECT * FROM items WHERE status = 'ready' AND owner_role = 'staff'
+        const cands = await all(`SELECT * FROM items WHERE status = 'ready' AND (owner_role = 'staff' OR done_check LIKE '%target:%')
           AND id NOT IN (SELECT item_id FROM claims) AND id NOT IN (SELECT item_id FROM runner_runs WHERE state NOT IN ('refused','pr_opened'))
           ORDER BY priority, created_at LIMIT 3`);
         for (const item of cands) {
@@ -330,7 +330,7 @@ export function createRunner({ db, now = () => Date.now(), config = {}, env = {}
         }
       } else if (probe.refusal === 'role_not_allowed') {
         // Only a model too weak for code changes is configured: ask for a stronger one instead of opening a bad PR.
-        const next = await first(`SELECT id FROM items WHERE status = 'ready' AND owner_role = 'staff'
+        const next = await first(`SELECT id FROM items WHERE status = 'ready' AND (owner_role = 'staff' OR done_check LIKE '%target:%')
           AND id NOT IN (SELECT item_id FROM claims) AND id NOT IN (SELECT item_id FROM runner_runs WHERE state NOT IN ('refused','pr_opened'))
           ORDER BY priority, created_at LIMIT 1`);
         if (next) {

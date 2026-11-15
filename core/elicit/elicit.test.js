@@ -170,3 +170,64 @@ test('failed predictions feed the surprise sweep', async () => {
   await e.audit(P, {});
   assert.match(db.raw.prepare("SELECT finding FROM elicit_audit WHERE sweep='surprise' AND disposition='lesson'").get().finding, /failed prediction P1/);
 });
+
+test('US-16-R03: the glossary maps system terms to the person\'s own words in every card; a term with only an explanation is defined in the card', async () => {
+  const { e } = mk({ jargon: ['backend', 'latency'] });
+  const r = await e.registerNeeds(P, [
+    need('host', { question: 'Where should the backend run?', why: 'The backend decides what it costs each month.', defines: ['backend'] }),
+    need('speed', { question: 'How much latency is acceptable?', cue: 'Most shops accept low latency only at checkout.', defines: ['latency'] }),
+  ]);
+  assert.deepEqual(r.rejected, []);
+  assert.equal((await e.learnTerm('', {})).ok, false);
+  await e.learnTerm('Backend', { person_term: 'engine room' });
+  await e.learnTerm('latency', { plain: 'how long a page takes to answer' });
+  const cards = Object.fromEntries((await e.nextAsks(P)).map(c => [c.need_id, c]));
+  assert.equal(cards.host.question, 'Where should the engine room run?');
+  assert.equal(cards.host.why, 'The engine room decides what it costs each month.');
+  assert.ok(!/backend/i.test(JSON.stringify(cards.host)));
+  assert.match(cards.speed.question, /latency/); assert.equal(cards.speed.definitions.latency, 'how long a page takes to answer'); assert.ok(cards.speed.defines.includes('latency'));
+  assert.deepEqual(await e.reviewCards(P), [], 'no card leaks an undefined term after the mapping');
+  assert.deepEqual((await e.glossary()).map(g => [g.term, g.person_term]), [['backend', 'engine room'], ['latency', null]]);
+});
+
+test('US-16-R03: reviewCards reports a stored card whose jargon is neither mapped nor defined', async () => {
+  const { db, e } = mk({ jargon: ['webhook'] });
+  await e.registerNeeds(P, [need('notify')]);
+  db.raw.exec(`UPDATE elicit_needs SET question='Which webhook should fire?' WHERE id='notify'`);
+  assert.deepEqual(await e.reviewCards(P), [{ need_id: 'notify', problems: ['jargon without definition: webhook'] }]);
+  await e.learnTerm('webhook', { person_term: 'automatic message' });
+  assert.deepEqual(await e.reviewCards(P), []);
+});
+
+test('US-16-R17: related needs are asked as one card sequence, not interleaved with another topic', async () => {
+  const { e } = mk({ max_open: 5 });
+  await e.registerNeeds(P, [
+    need('c1', { artifact: 'charter', p_wrong: 0.9 }), need('s1', { artifact: 'security', p_wrong: 0.8 }), need('c2', { artifact: 'charter', p_wrong: 0.7 }),
+    need('s2', { artifact: 'security', p_wrong: 0.6 }), need('c3', { artifact: 'charter', p_wrong: 0.1 }),
+  ]);
+  const cards = await e.nextAsks(P);
+  assert.deepEqual(cards.map(c => c.need_id), ['c1', 'c2', 'c3', 's1', 's2']);
+  assert.deepEqual(cards.map(c => `${c.sequence.artifact} ${c.sequence.position}/${c.sequence.of}`), ['charter 1/3', 'charter 2/3', 'charter 3/3', 'security 1/2', 'security 2/2']);
+  const few = mk({ max_open: 3 }); await few.e.registerNeeds(P, [need('c1', { artifact: 'charter', p_wrong: 0.9 }), need('s1', { artifact: 'security', p_wrong: 0.8 }), need('c2', { artifact: 'charter', p_wrong: 0.7 }), need('c3', { artifact: 'charter', p_wrong: 0.1 })]);
+  assert.deepEqual((await few.e.nextAsks(P)).map(c => c.need_id), ['c1', 'c2', 'c3'], 'the open cap is filled from one sequence before the next topic starts');
+});
+
+test('US-16-R18: when the person stops answering the system does not ask more often: it keeps the priority list and defaults the rest', async () => {
+  const cat = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'].map((id, i) => need(id, { p_wrong: 0.9 - i * 0.05 }));
+  cat[8] = need('i', { p_wrong: 0.01, reversible: false });
+  const { db, t, e } = mk({ max_open: 3, daily_cap: 9, fatigue_after: 3, priority_list: 2 }); await e.registerNeeds(P, cat);
+  assert.equal((await e.nextAsks(P)).filter(c => c.need_id !== 'i').length, 3);
+  assert.deepEqual(await e.fatigue(P), { stopped: false, consecutive_timeouts: 0 });
+  t.v += 73 * 3600e3;
+  const after = await e.nextAsks(P);
+  assert.deepEqual(await e.fatigue(P), { stopped: true, consecutive_timeouts: 3 });
+  const asked = after.filter(c => c.need_id !== 'i').map(c => c.need_id);
+  assert.deepEqual(asked, ['d'], 'one Ask open, not three: frequency went down, not up');
+  const states = Object.fromEntries(db.raw.prepare(`SELECT id, state FROM elicit_needs`).all().map(r => [r.id, r.state]));
+  assert.equal(states.e, 'open', 'the priority list is kept'); assert.equal(states.f, 'defaulted'); assert.equal(states.h, 'defaulted');
+  assert.equal(states.i, 'gated', 'a need that cannot be defaulted is never defaulted by fatigue');
+  assert.equal(db.raw.prepare(`SELECT COUNT(*) AS n FROM elicit_assumptions WHERE reason='fatigue'`).get().n, 3);
+  await e.answer(P, 'd', { choice: 'second' });
+  assert.equal((await e.fatigue(P)).stopped, false, 'an answer ends the fatigue state');
+  assert.equal((await e.nextAsks(P)).filter(c => c.need_id !== 'i').length, 1);
+});

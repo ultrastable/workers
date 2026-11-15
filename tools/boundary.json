@@ -1,0 +1,312 @@
+{
+  "_comment": "Boundary manifest (US-SPEC-10 s7, US-10-R11), read by tools/boundary_check.mjs. Every directory directly under a root is a component and needs a class (core, app or private) and a role. core: the product, identical for every tenant. app: optional capability or application built on the core. private: a private plane that never ships (none in this repository).",
+  "roots": [
+    "core",
+    "packs",
+    "adapters",
+    "apps",
+    "runtimes",
+    "products"
+  ],
+  "components": {
+    "core/_shared": {
+      "class": "core",
+      "role": "test helpers shared by the core modules"
+    },
+    "core/agents": {
+      "class": "core",
+      "role": "agent runtime (US-SPEC-11)"
+    },
+    "core/auth": {
+      "class": "core",
+      "role": "OWNER-AUTH-1: who is the owner is read from the repository, never typed. The person signs in with GitHub (one click, through the"
+    },
+    "core/claims": {
+      "class": "core",
+      "role": "Claims (US-SPEC-08): exclusive time-limited claims, fences, secret lease, deploy lock, reaper, reconciliation hooks"
+    },
+    "core/codeloop": {
+      "class": "core",
+      "role": "item to merged change"
+    },
+    "core/console-l3": {
+      "class": "core",
+      "role": "Operator console L3 (US-SPEC-13, US-SPEC-18; issue #46): the fleet view over the L1 console. One state function feeds the"
+    },
+    "core/containers": {
+      "class": "core",
+      "role": "container executor (US-SPEC-11)"
+    },
+    "core/criticality": {
+      "class": "core",
+      "role": "core/criticality: a deployment must reach the point where it builds itself with nobody prompting it. Two tick steps"
+    },
+    "core/deploy": {
+      "class": "core",
+      "role": "the canonical change path"
+    },
+    "core/describe": {
+      "class": "core",
+      "role": "self-description and the claims registry"
+    },
+    "core/docgate": {
+      "class": "core",
+      "role": "Document gate: \"if it is not in code, it does not exist\". Every document is either traced to a work item or gets a recorded"
+    },
+    "core/doors": {
+      "class": "core",
+      "role": "Doors for the console (US-SPEC-18/19): a first-run key shown once, and Cloudflare Access sign-in by verified JWT"
+    },
+    "core/elicit": {
+      "class": "core",
+      "role": "Elicitation (US-SPEC-16, issue #60): the front door for a person who does not know what they do not know"
+    },
+    "core/export": {
+      "class": "core",
+      "role": "Export before drop (US-01-R04). Migrations are additive; one that drops or rewrites data is applied only after every"
+    },
+    "core/fleet": {
+      "class": "core",
+      "role": "Fleet runtime (US-SPEC-11): worker contract and registry reconciliation, row-driven dispatcher, typed executor with an"
+    },
+    "core/ghcost": {
+      "class": "core",
+      "role": "core/ghcost (US-SPEC-24): the Actions minutes watchdog as a tick step, the monthly ledger, the workflow kill switch with"
+    },
+    "core/githubapp": {
+      "class": "core",
+      "role": "One-click GitHub access (US-SPEC-18 door github-app-install). A GitHub App is created from a manifest, installed on"
+    },
+    "core/governance": {
+      "class": "core",
+      "role": "Recognition engine and pre-emission filter (US-SPEC-07 section 3.1). A draft is matched against the signature register;"
+    },
+    "core/graph": {
+      "class": "core",
+      "role": "topology and blast radius"
+    },
+    "core/infra": {
+      "class": "core",
+      "role": "shared routes (US-SPEC-14)"
+    },
+    "core/install": {
+      "class": "core",
+      "role": "core/install (US-SPEC-10 s7 one-command install, US-10-R14): take a slug, a runtime and an idea; verify preconditions;"
+    },
+    "core/intent": {
+      "class": "core",
+      "role": "Intent intake: a request from any client becomes one work item the loops act on, or a recorded non-action"
+    },
+    "core/kernel": {
+      "class": "core",
+      "role": "the L2 managerial layer"
+    },
+    "core/lifecycle-gates": {
+      "class": "core",
+      "role": "Management lifecycle beyond the gate tables of core/kernel (US-SPEC-15): the delivery-mode rule and tailoring, the"
+    },
+    "core/migrations": {
+      "class": "core",
+      "role": "the seed schema every module builds on"
+    },
+    "core/modelport": {
+      "class": "core",
+      "role": "the Models port and the Role runtime port"
+    },
+    "core/observe": {
+      "class": "core",
+      "role": "Observability: the organization sees itself. Ingest structured events, compute error ratio and latency per source, and raise one work item per degraded source"
+    },
+    "core/org": {
+      "class": "core",
+      "role": "the composition root"
+    },
+    "core/packs": {
+      "class": "core",
+      "role": "capability packs and the outbound guard"
+    },
+    "core/plus": {
+      "class": "core",
+      "role": "The plus loop (US-SPEC-04): a reserved share of capacity, a product registry, one plus at a time per product with a"
+    },
+    "core/predict": {
+      "class": "core",
+      "role": "Predict, act, verify, score (US-SPEC-05). Decision log with parsed predictions, scorer, calibration (aggregate and binned),"
+    },
+    "core/principles": {
+      "class": "core",
+      "role": "The principles register: the system's own memory of what autonomy means and what the owner has directed"
+    },
+    "core/remediation": {
+      "class": "core",
+      "role": "Failure modes and remediation, the parts beside the kernel register (US-SPEC-17): a status view over the register, the"
+    },
+    "core/router": {
+      "class": "core",
+      "role": "cost-aware model ladder"
+    },
+    "core/runner": {
+      "class": "core",
+      "role": "the doer/reviewer runner"
+    },
+    "core/signals": {
+      "class": "core",
+      "role": "Signal pipeline (US-SPEC-12 Part A): intake, triage, boundary, synthesis, ignorance audit, strict-shrink refinement,"
+    },
+    "core/sla": {
+      "class": "core",
+      "role": "Service levels and the loops around them (US-SPEC-13 sections 4 and 5):"
+    },
+    "core/specloop": {
+      "class": "core",
+      "role": "core/specloop: the specification-to-code loop. Nobody asks for a specified capability to be built: every tick this module"
+    },
+    "core/src": {
+      "class": "core",
+      "role": "the tick, the console and the first-run flow of the seed"
+    },
+    "core/staff": {
+      "class": "core",
+      "role": "Virtual staff (US-SPEC-02): personas with an enumerated decision authority, a tool layer that enforces the lane from"
+    },
+    "core/steward": {
+      "class": "core",
+      "role": "the item ledger mirrored to every tracker (US-SPEC-08)"
+    },
+    "core/tasks": {
+      "class": "core",
+      "role": "task runner and owner-step watch"
+    },
+    "core/tenancy": {
+      "class": "core",
+      "role": "core/tenancy (US-SPEC-10 s7, US-10-R13): tenant registry, the hourly aggregate a tenant pushes to a control plane that"
+    },
+    "core/test": {
+      "class": "core",
+      "role": "tests of the seed and the separation guard"
+    },
+    "core/trust": {
+      "class": "core",
+      "role": "Trust ledger, autonomy ladder and interrupt gate (US-SPEC-06) beyond the seed tick: beta-prior scores with a stated prior,"
+    },
+    "core/vault": {
+      "class": "core",
+      "role": "The vault: where a secret a person pastes into the console lives, so no one has to open a terminal to set a Worker"
+    },
+    "core/walkthrough": {
+      "class": "core",
+      "role": "First-run walkthrough, per-person profile, Elicitation Ask cards and the read-back screen (US-SPEC-18 sections 4, 5, 6;"
+    },
+    "core/waste": {
+      "class": "core",
+      "role": "finds spend that produces nothing (US-SPEC-09)"
+    },
+    "core/yield": {
+      "class": "core",
+      "role": "Yield and waste (cost per useful output). Ports: ctx = { db, now(), config, outputs?(days) }"
+    },
+    "packs/analytics": {
+      "class": "app",
+      "role": "privacy-first page counts"
+    },
+    "packs/cloud": {
+      "class": "app",
+      "role": "Cloudflare and Google Cloud through core/deploy"
+    },
+    "packs/drafts": {
+      "class": "app",
+      "role": "plan, technical-description and legal-style drafts, draft-only"
+    },
+    "packs/email": {
+      "class": "app",
+      "role": "the email list pack (class B)"
+    },
+    "packs/social": {
+      "class": "app",
+      "role": "claim-backed public posting"
+    },
+    "packs/video": {
+      "class": "app",
+      "role": "short video publishing with provenance"
+    },
+    "adapters/cloudflare": {
+      "class": "core",
+      "role": "the Workers adapter: entry point, heartbeat, deployer and install adapter"
+    },
+    "adapters/docdb": {
+      "class": "core",
+      "role": "document-database adapter"
+    },
+    "adapters/gcp": {
+      "class": "core",
+      "role": "the Cloud Run adapter, kept as proof of the portability seams"
+    },
+    "adapters/github": {
+      "class": "core",
+      "role": "issue steward and merge host"
+    },
+    "adapters/mcp": {
+      "class": "core",
+      "role": "tool server for agent clients"
+    },
+    "adapters/postgres": {
+      "class": "core",
+      "role": "dialect shim"
+    },
+    "adapters/shared": {
+      "class": "core",
+      "role": "route table (infra)"
+    },
+    "adapters/sqlite": {
+      "class": "core",
+      "role": "SQLite behind the database port"
+    },
+    "apps/demos": {
+      "class": "app",
+      "role": "public demonstration cases"
+    },
+    "apps/launcher": {
+      "class": "app",
+      "role": "the web launcher (US-SPEC-19)"
+    },
+    "runtimes/python": {
+      "class": "core",
+      "role": "the Python runtime of the platform"
+    },
+    "products/gaplint": {
+      "class": "app",
+      "role": "open-loop linter for any repository"
+    }
+  },
+  "core_scripts": [
+    "bootstrap/bootstrap.py",
+    "tools/install.mjs",
+    "tools/us.mjs",
+    "tools/boundary_check.mjs",
+    "tools/release_bundle.mjs",
+    "tools/spec_truth.py",
+    "tools/selfhost_check.py",
+    "tools/workflow_lint.py",
+    "tools/actions_budget.py",
+    "tools/build_migrations.mjs",
+    "agent-setup/verify.mjs"
+  ],
+  "core_workflows": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/selfhost.yml"
+  ],
+  "core_tables": [
+    "org",
+    "roles",
+    "items",
+    "claims",
+    "gate_cards",
+    "predictions",
+    "outcomes",
+    "trust_ledger",
+    "dispatches",
+    "tick_runs",
+    "doctrine_lineage"
+  ]
+}

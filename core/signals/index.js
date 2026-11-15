@@ -244,7 +244,7 @@ export async function reenter(ctx) {
     const empty = !u || u.length === 0;
     let weight = empty ? 0 : a.reentry_weight;
     if (!empty && !isWeight(weight)) { weight = 0; await incident(ctx, 'unstored_weight', { ref: a.id, detail: 'no stored re-entry weight: entered at 0, not inferred' }); }
-    const logged = empty || weight === 0 && !isWeight(a.reentry_weight);
+    const logged = empty || !isWeight(a.reentry_weight);
     const content = [a.title, a.abstract || '', a.deposit_id, u && u.length ? `Open questions: ${u.join('; ')}` : 'Open questions: none recorded'].join('\n');
     const r = await run(ctx.db, `INSERT OR IGNORE INTO signals_signals (id, ts, source, source_ref, content, open_questions, evidential_weight, domain, status, decision, created_at)
       VALUES (?,?, 'artifact_reentry', ?,?,?,?,?,?,?,?)`, `reentry-${a.id}`, at, a.deposit_id, content, JSON.stringify(u || []), weight, c.reentry_domain ?? null,

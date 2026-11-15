@@ -81,7 +81,9 @@ export function deriveTarget(row) {
   return { target, test };
 }
 
-const doneCheck = (row, t) => `${row.spec} status row "${row.capability}" reads BUILT, names the file, and the tests it names pass; spec: ${row.id}; target: ${t.target}; test: ${t.test}`;
+// specFile is set when the specifications live in the repository the doer writes to: the doer then flips the status line in
+// the same change. When they live elsewhere the item closes on the merged change itself (see sync).
+const doneCheck = (row, t, specFile) => `${row.spec} status row "${row.capability}" reads BUILT, names the file, and the tests it names pass; spec: ${row.id}; target: ${t.target}${specFile ? `; target: ${specFile}` : ''}; test: ${t.test}`;
 
 export async function sync({ db, now = () => Date.now(), loadSpecs, exists = async () => true, config = {} }) {
   const at = iso(now());
@@ -90,6 +92,14 @@ export async function sync({ db, now = () => Date.now(), loadSpecs, exists = asy
   const first = (sql, ...a) => db.prepare(sql).bind(...a).first();
   let specs;
   try { specs = await loadSpecs(); } catch (e) { out.error = String(e && e.message || e).slice(0, 300); specs = null; }
+  // No specification written yet (a new deployment) is a true zero, as long as none was ever seen. If lines were seen
+  // before, an empty answer is a source fault, not a deletion of everything.
+  const seen = (await first(`SELECT COUNT(*) AS n FROM specloop_lines`)).n;
+  if (specs && !specs.length && !seen) {
+    await run(`INSERT INTO org (key, value) VALUES ('spec_remaining', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, JSON.stringify({ BUILT: 0, RUNNING_ONLY: 0, PLANNED: 0, 'NOT COVERED': 0, total: 0, remaining: 0, built_share: 0, false_built: 0, at }));
+    await run(`INSERT INTO specloop_runs (at, specs, lines, built, remaining, false_built, filed, closed, reopened, released, error) VALUES (?,0,0,0,0,0,0,0,0,0,NULL)`, at);
+    return out;
+  }
   if (!specs || !specs.length) {
     out.error = out.error || 'no specifications found';
     // An unreadable source is unmeasured, never zero: file one item about the source itself instead of closing anything.
@@ -100,28 +110,38 @@ export async function sync({ db, now = () => Date.now(), loadSpecs, exists = asy
   await run(`UPDATE items SET status='done', disposition='specification source readable again', updated_at=? WHERE id='SPECLOOP-SOURCE' AND status IN ${ACTIVE}`, at);
   out.specs = specs.length;
   const counts = { BUILT: 0, RUNNING_ONLY: 0, PLANNED: 0, 'NOT COVERED': 0 };
+  const sameRepo = config.spec_paths ? true : Boolean(config.spec_repo && config.spec_repo === config.code_repo);
   for (const s of specs) for (const row of parseSpec(s.name, s.text)) {
     out.lines++;
+    const specFile = sameRepo ? (s.path || `${config.spec_dir || 'specs'}/${s.name}`) : null;
     let truthful = true;
     if (row.label === 'BUILT') {
       truthful = false;
       for (const p of row.paths) if (await exists(p)) { truthful = true; break; }
     }
-    const isBuilt = row.label === 'BUILT' && truthful;
+    const t = deriveTarget(row);
+    // Built by this system and merged, but the label was not flipped (the specification is in another repository, or the
+    // doer left the line): the merged, verified change plus the code and its test being there is the evidence.
+    let merged = false;
+    if (row.label !== 'BUILT') {
+      const m = await first(`SELECT 1 AS x FROM outcomes WHERE item_id=? AND action_class='merge' AND result='verified' LIMIT 1`, row.id);
+      merged = Boolean(m) && await exists(t.target) && await exists(t.test);
+    }
+    const isBuilt = (row.label === 'BUILT' && truthful) || merged;
+    if (merged) out.label_stale = (out.label_stale || 0) + 1;
     counts[isBuilt ? 'BUILT' : row.label === 'BUILT' ? 'PLANNED' : row.label]++;
     if (row.label === 'BUILT' && !truthful) out.false_built++;
-    const t = deriveTarget(row);
     await run(`INSERT INTO specloop_lines (id, spec, capability, label, truthful, target, test, item_id, first_seen, last_seen, built_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET capability=excluded.capability, label=excluded.label, truthful=excluded.truthful, target=excluded.target, test=excluded.test, item_id=excluded.item_id, last_seen=excluded.last_seen, built_at=COALESCE(specloop_lines.built_at, excluded.built_at)`,
       row.id, row.spec, row.capability, row.label, truthful ? 1 : 0, t.target, t.test, row.id, at, at, isBuilt ? at : null);
     if (!isBuilt) await run(`UPDATE specloop_lines SET built_at=NULL WHERE id=?`, row.id);
     const item = await first(`SELECT status, disposition FROM items WHERE id=?`, row.id);
     if (isBuilt) {
-      if (item && ['open', 'ready', 'blocked'].includes(item.status)) { await run(`UPDATE items SET status='done', disposition='specification line reads BUILT and the code it names exists', blocker=NULL, updated_at=? WHERE id=?`, at, row.id); out.closed++; }
+      if (item && ['open', 'ready', 'blocked'].includes(item.status)) { await run(`UPDATE items SET status='done', disposition='${merged ? 'built and merged by the runner; code and test exist (status label not yet flipped)' : 'specification line reads BUILT and the code it names exists'}', blocker=NULL, updated_at=? WHERE id=?`, at, row.id); out.closed++; }
       continue;
     }
     const verb = row.label === 'BUILT' ? 'Make true (labelled BUILT, code missing)' : row.label === 'PLANNED' ? 'Build' : row.label === 'RUNNING_ONLY' ? 'Generalize (runs elsewhere, no code here)' : 'Cover';
-    const title = `${verb}: ${row.capability} (${row.spec})`, check = doneCheck(row, t);
+    const title = `${verb}: ${row.capability} (${row.spec})`, check = doneCheck(row, t, specFile);
     const priority = (row.label === 'BUILT' ? 20 : 30) + row.num;
     if (!item) {
       await run(`INSERT INTO items (id, title, kind, project, owner_role, done_check, closing_probe, priority, status) VALUES (?,?,?,?,?,?,?,?, 'ready')`,
@@ -129,7 +149,7 @@ export async function sync({ db, now = () => Date.now(), loadSpecs, exists = asy
       out.filed++;
     } else if (item.status === 'blocked' && item.disposition === AWAITING) {
       await run(`UPDATE items SET status='ready', disposition=NULL, done_check=?, updated_at=? WHERE id=?`, check, at, row.id); out.released++;
-    } else if (['done', 'superseded', 'cancelled'].includes(item.status)) {
+    } else if (['superseded', 'cancelled'].includes(item.status) || (item.status === 'done' && !(await first(`SELECT 1 AS x FROM outcomes WHERE item_id=? AND action_class='merge' AND result='verified' LIMIT 1`, row.id)))) {
       // closed while the line is not BUILT: the claim regressed or the close was wrong. Nothing leaves the set that way.
       await run(`UPDATE items SET status='ready', disposition=NULL, title=?, done_check=?, updated_at=? WHERE id=?`, title, check, at, row.id); out.reopened++;
     }
@@ -152,7 +172,7 @@ export async function sync({ db, now = () => Date.now(), loadSpecs, exists = asy
 /** Specifications and code as files behind one readFile port (Cloud Run, tests, a checkout). */
 export function fileSource({ readFile, spec_paths = [] }) {
   return {
-    loadSpecs: async () => Promise.all(spec_paths.map(async p => ({ name: p.split('/').pop(), text: await readFile(p) }))),
+    loadSpecs: async () => Promise.all(spec_paths.map(async p => ({ name: p.split('/').pop(), path: p, text: await readFile(p) }))),
     exists: async p => { for (const c of [p, `${p}/index.js`, `${p}/README.md`]) { try { if ((await readFile(c)) != null) return true; } catch { /* next candidate */ } } return false; },
   };
 }
@@ -174,7 +194,10 @@ export function repoSource({ fetch, token = null, api = 'https://api.github.com'
   };
   return {
     loadSpecs: async () => {
-      const list = await (await get(`${api}/repos/${spec_repo}/contents/${spec_dir}?ref=${ref}`)).json();
+      const lr = await fetch(`${api}/repos/${spec_repo}/contents/${spec_dir}?ref=${ref}`, { headers });
+      if (lr.status === 404) return []; // the directory does not exist yet: no specification has been written
+      if (!lr.ok) throw new Error(`${lr.status} /repos/${spec_repo}/contents/${spec_dir}`);
+      const list = await lr.json();
       const files = (Array.isArray(list) ? list : []).filter(f => /^US-SPEC-\d+.*\.md$/.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
       return Promise.all(files.map(async f => ({ name: f.name, text: await (await get(`${api}/repos/${spec_repo}/contents/${spec_dir}/${f.name}?ref=${ref}`, { ...headers, accept: 'application/vnd.github.raw+json' })).text() })));
     },
