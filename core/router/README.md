@@ -31,15 +31,15 @@ Configuration: see `example-config.json` (generic `provider-a`/`provider-b`). Mi
 | US-09-R06 never raise a cap or clear a breach by deletion | BUILT | Router never writes caps or deletes calls |
 | US-09-R07 cap steers down, never ends task while free path exists | BUILT | soft cap steps down one rung; hard cap serves only free models |
 | US-09-R08 capability first | BUILT | model `capabilities` list is the passed-canary set |
-| US-09-R09 escalation on measured signal | PLANNED | Provider errors fall back; no rung escalation or retry bound |
+| US-09-R09 escalation on measured signal | BUILT in `core/ladder` (`cascade`) | Here provider errors fall back in order; rung escalation with a retry bound is the ladder module |
 | US-09-R10 cost/escalation/cache/tool-call metrics | BUILT (cost, tokens, latency, outcome) / PLANNED (rest) | `router_calls`, `spend()` |
 | US-09-R11 model floor guard | PLANNED | |
-| US-09-R12 decision-model agreement gate | PLANNED | `model_admission` table not built |
+| US-09-R12 decision-model agreement gate | BUILT in `core/ladder` (`admit`, table `ladder_model_admission`) | Not consulted by `route` here: the caller asks `core/ladder` which models are admitted |
 | US-09-R13 review and proposal in different families | BUILT | reviewer excludes doer families of the same `item_id`; refuses with `no_distinct_family` |
 | US-09-R14 tier from budget | BUILT | `selectTier(budget, tiers)` |
 | US-09-R15 loop breaker | NOT COVERED | |
 
-Not built: L0 deterministic handlers, L1 cache, ensemble, distillation, draft-then-verify, persisted capability matrix.
+Not built: L0 deterministic handlers, L1 cache, ensemble, distillation. Draft-then-verify, the persisted capability matrix, shadow sampling, the demotion step and the cost-per-task view are in `core/ladder` (see its README); `router.route` still reads capabilities from configuration and does not read that matrix.
 
 ## Workers AI provider (keyless first rung)
 

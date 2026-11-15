@@ -10,6 +10,8 @@ id cited in the code repository, and reports citations of ids no specification d
   python tools/req_ids.py --spec-dir ../spec/specs --code-dir . --strict   # exit 1 if any cited id is undefined
   python tools/req_ids.py ... --json
 
+A test that writes a fixture specification inline is listed, with its reason, in tools/req-ids-fixtures.json.
+
 Stdlib only.
 """
 from __future__ import annotations
@@ -52,9 +54,23 @@ def cited_ids(code_dir: Path) -> dict[str, list[str]]:
     return {k: sorted(v) for k, v in sorted(out.items())}
 
 
-def undefined(spec_dir: Path, code_dir: Path) -> list[dict]:
+def fixture_files(code_dir: Path) -> set[str]:
+    """Files listed in tools/req-ids-fixtures.json: their ids are fixture specifications inside a test."""
+    f = code_dir / "tools" / "req-ids-fixtures.json"
+    if not f.exists():
+        return set()
+    return set(json.loads(f.read_text(encoding="utf-8")).get("files", {}))
+
+
+def undefined(spec_dir: Path, code_dir: Path, fixtures: bool = True) -> list[dict]:
     known = defined_ids(spec_dir)
-    return [{"id": i, "files": files} for i, files in cited_ids(code_dir).items() if i not in known]
+    skip = fixture_files(code_dir) if fixtures else set()
+    out = []
+    for i, files in cited_ids(code_dir).items():
+        real = [f for f in files if f not in skip]
+        if i not in known and real:
+            out.append({"id": i, "files": real})
+    return out
 
 
 def main(argv=None) -> int:
@@ -63,11 +79,12 @@ def main(argv=None) -> int:
     ap.add_argument("--code-dir", type=Path, required=True)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--strict", action="store_true")
+    ap.add_argument("--no-fixtures", action="store_true", help="also report ids in the files tools/req-ids-fixtures.json lists")
     a = ap.parse_args(argv)
     if not any(a.spec_dir.glob("US-SPEC-*.md")):
         print(f"req_ids: no specification found in {a.spec_dir}", file=sys.stderr)
         return 2
-    f = undefined(a.spec_dir, a.code_dir)
+    f = undefined(a.spec_dir, a.code_dir, fixtures=not a.no_fixtures)
     if a.json:
         print(json.dumps(f, indent=2))
     else:

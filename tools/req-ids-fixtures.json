@@ -1,0 +1,6 @@
+{
+  "_comment": "Read by tools/req_ids.py (US-19-R19). Files whose requirement ids are fixture specifications written inside a test, not citations of the real specifications. Each entry gives the reason; the ids of a listed file are still reported when --no-fixtures is passed.",
+  "files": {
+    "core/conformance/conformance.test.js": "defines the fixture specifications 90 and 91 inline to test the conformance parser"
+  }
+}

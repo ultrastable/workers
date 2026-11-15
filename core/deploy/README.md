@@ -9,19 +9,22 @@ Implements the deploy half of US-SPEC-07 section 4 independent of any cloud. `cr
 
 Ports: `db` (D1-style), `deployer` (`publish`, `liveVersion`, `rollback`; adapters in `adapters/cloudflare/deployer.js` and `adapters/gcp/deployer.js`), `fetch`, `now`, `sleep`, `lock` (`acquire(unit, holder, ttlMs) -> token|null`, `release`; built-in `dbLock`), `killSwitch`. Probes are data (`http`: url, status, contains, version; `db`: sql, expect) given in `probes[unit]` or the `deploy_units` table. HTTP: `POST /deploy`, `POST /reconcile`, `GET /ledger?unit=`, all behind an `x-deploy-token` header that must match `env.DEPLOY_TOKEN` (no token configured: everyone refused).
 
-Migration: `migrations/0001_deploy.sql` (tables `deploy_*`, idempotent). Only digests and versions are stored; any configured env value is redacted from stored text.
+Migrations: `migrations/0001_deploy.sql`, `migrations/0002_review.sql` (tables `deploy_*`, idempotent). Only digests and versions are stored; any configured env value is redacted from stored text.
 
 ## Requirement status
 
 | Requirement | Status | Where |
 |---|---|---|
 | US-07-R12 deploys of one component serialized by a lock | BUILT | `lock.js`, tests "serialized", "expired lock" |
-| US-07-R12 probe that passed before and fails after reverts | BUILT, stricter: any failing probe after publish reverts (baseline results are recorded, not used to exempt) | `index.js` |
+| US-07-R12, US-05-R09 probe that passed before and fails after reverts | BUILT, stricter: any failing probe after publish reverts (baseline results are recorded, not used to exempt). A probe marked `revert: false` (shared resource under load) is recorded and never reverts | `index.js`, `probes.js`, test "US-05-R09" |
 | US-07-R13 ledger row records the version; artifact compared with source | BUILT: versions and SHA-256 recorded; an optional `artifact.sha256` must match. No byte comparison against a source repository | ledger tests |
-| US-07-T05 failing probe reverts, failure recorded | BUILT: ledger row `reverted` with reason. Filing a work item in the seed `items` table is PLANNED (the record lives in `deploy_ledger`/`deploy_records`) | tests |
+| US-07-T05, US-05-T04 failing probe reverts, failure item filed | BUILT: ledger row `reverted` with reason, and an item `DEPLOYFAIL-<unit>-<ledger id>` in the seed `items` table whose closing probe passes when a later deploy of the unit is kept (`config.fileItems = false` turns it off; a store without `items` keeps the reason on the ledger row) | test "US-05-T04, US-07-T05" |
 | US-07-R09 control-plane change only by reviewed change | NOT COVERED here (repository policy and CI) | |
 | US-07-R01..R08, R14..R17 governance, recognition, goals | NOT COVERED (other modules) | |
-| US-07-R10, R11 two-family review gate and hold marker | NOT COVERED (review gate is a separate module) | |
+| US-07-R10 two reviewers of disjoint families, neither the author's | BUILT: `createReviewGate` picks them from the roster; a risk-class change that cannot get them is held (hold mode) | `review.js`, `review.test.js` |
+| US-07-R11 hold computed by code from verified findings; diff treated as data | BUILT: a finding without a trigger is dropped, a high finding whose evidence line is not verbatim in the diff is demoted, reviewer verdicts are ignored, the diff travels in its own field | `review.js` (`verifyFindings`), test "US-07-T04" |
+| Review gate modes `observe`, `hold`, `off`; fails open on reviewer outage; cost per run; new push releases the hold | BUILT | `review.js`, table `deploy_review_runs` |
+| Wiring the review gate into a merge step | NOT COVERED: `mergeAllowed(change_id, head)` is the surface a merge step calls; `tools/safe_merge.py` does not call it yet | |
 | US-09-R02 global kill switch refuses deploy leases | BUILT for deploys: `deploy_config kill_switch=on` or injected `killSwitch` | test "kill switch" |
 | US-06-R08/R09 gate-style record with closing probe and default in effect | BUILT in form (`deploy_records`, probe `manual`, default stated); linking to seed `gate_cards` PLANNED | loop breaker tests |
 | US-06-R10 only presence of secrets recorded | BUILT: values never stored, redacted from stored text | test "no secret value" |
@@ -39,3 +42,7 @@ Migration: `migrations/0001_deploy.sql` (tables `deploy_*`, idempotent). Only di
 ## Class D pack route (`packs-route.js`)
 
 `createPacksRoute({ deploys, plan, allow? })` returns the `deployRoute` port for `createPacks`. The pack guard calls it, instead of a channel port, for every send of a class D pack; `plan(req)` maps the approved request to `{ provider, unit, artifact, expectedVersion }`, `allow(pack, unit)` can restrict units, and the call goes through `createDeploy(...).deploy` (kill switch, lock, version check, probes, revert). Only a `kept` deploy counts as sent. Status: BUILT (`packs-route.test.js`).
+
+## Review gate (`review.js`)
+
+`createReviewGate({ db, now, config: { mode, riskClasses }, reviewers: [{ name, family, review(input) }] })` returns `{ review, mergeAllowed, runs }`. `review({ id, head, diff, files, authorFamily })` detects the risk classes (authentication, routes, caching, data migrations, workflow permissions; patterns are configuration), sends the diff as data to two reviewers of disjoint families, verifies their findings against the diff by code, and writes a hold marker (`deploy_review_holds`) when a verified high finding remains. Reviewers are ports; no model ships with the module and none has run it live. Status: BUILT (`review.test.js`).

@@ -216,3 +216,11 @@ test('step(): recompute runs every tick, the audit weekly and the card monthly, 
   assert.equal(get(db, `SELECT next_due_at FROM sla_register WHERE name='autonomy_card'`).next_due_at, stamp(t.v + 30 * D));
   assert.ok((await sla.step({}, {})).sla, 'runs without the report-card writer');
 });
+
+test('US-00-R07: the service-level numbers are defaults; other values may be set, and the values in effect are recorded in configuration', async () => {
+  const d = mk(); const c = mk({ severity_hours: { SEV1: 4, SEV2: 24, SEV3: 72, SEV4: 168 }, hard_cap_days: 7 });
+  assert.deepEqual(d.sla.config.severity_hours, { SEV1: 24, SEV2: 72, SEV3: 168, SEV4: 336 }); assert.equal(d.sla.config.hard_cap_days, 14);
+  assert.equal(c.sla.config.severity_hours.SEV1, 4); assert.equal(c.sla.config.hard_cap_days, 7);
+  item(c.db, 'A'); await c.sla.classify('A', { severity: 'SEV1' }); await c.sla.recompute();
+  assert.equal(row(c.db, 'A').due_at, stamp(T0 + 4 * H));
+});

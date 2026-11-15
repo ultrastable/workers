@@ -23,12 +23,13 @@ const mk = (config = {}, elicitConfig = {}) => {
 const IDEA = 'I want a weekly pairings page for my chess club members, called "Knight Moves". We can pay $20 a month.';
 const get = (db, sql, ...a) => db.raw.prepare(sql).get(...a);
 
-test('the shipped catalog is valid: every need makes a complete Ask card in plain words (T16-2), and names the artifact it feeds', () => {
+test('US-00-R10: the shipped catalog asks a person for no architecture, schema or stack choice; every need makes a complete Ask card in plain words (T16-2) and names the artifact it feeds', () => {
   assert.ok(CATALOG.needs.length >= 8);
   for (const c of CATALOG.needs) {
     const problems = validateCard({ need_id: c.id, question: c.question, why: c.why, cue: c.cue, options: [...(c.options || []), ...EXTRA_OPTIONS], free_text: c.free_text, default: c.default ?? 'none', default_consequence: c.default_consequence, reversibility: 'reversible', priority: 1 });
     assert.deepEqual(problems, [], c.id);
     assert.match(c.artifact, /^A-(INI|PLN)-\d+$/);
+    assert.ok(!/architecture|schema|stack|database|framework|hosting|language/i.test([c.question, c.why, c.cue, ...(c.options || [])].join(' ')), c.id);
   }
 });
 

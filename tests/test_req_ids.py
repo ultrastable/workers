@@ -40,6 +40,17 @@ class ReqIds(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(req_ids.main(["--spec-dir", str(specs), "--code-dir", str(code), "--strict"]), 0)
 
+    def test_us_19_r19_a_listed_fixture_file_is_exempt_and_every_listed_file_exists_with_a_reason(self):
+        specs, code = tree({"t/fix.test.js": "// @40-R09\n", "real.js": "// @40-R08\n", "tools/req-ids-fixtures.json": '{"files": {"t/fix.test.js": "inline fixture"}}'})
+        self.assertEqual([x["id"] for x in req_ids.undefined(specs, code)], [F("@40-R08")])
+        self.assertEqual([x["id"] for x in req_ids.undefined(specs, code, fixtures=False)], [F("@40-R08"), F("@40-R09")])
+        import json
+        listed = json.loads((ROOT / "tools" / "req-ids-fixtures.json").read_text(encoding="utf8"))["files"]
+        for path, reason in listed.items():
+            self.assertTrue((ROOT / path).is_file(), path)
+            self.assertTrue(path.endswith((".test.js", ".test.mjs")) or "/test" in path or path.startswith("tests/"), f"{path} is not a test file")
+            self.assertGreater(len(reason), 10)
+
     def test_us_19_r19_a_missing_specification_directory_is_an_error_not_a_pass(self):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(req_ids.main(["--spec-dir", tempfile.mkdtemp(), "--code-dir", str(ROOT / "tools")]), 2)

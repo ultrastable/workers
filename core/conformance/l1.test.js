@@ -109,7 +109,7 @@ test('US-14-T01 and US-14-R07: the L1 tick runs every step over the adapter stor
   assert.equal(db.raw.prepare(`SELECT verdict FROM predictions WHERE id='P'`).get().verdict, 'hit');
 });
 
-test('US-14-T04 and US-14-R04: the core is given a presence map; a secret value is in no row the tick wrote', async () => {
+test('US-14-T04, US-14-R04 and US-01-R06: the core is given a presence map; a secret value is in no row the tick wrote', async () => {
   const SECRET = 'sk-planted-4f9a2c7e1b';
   const map = presence({ SOME_KEY: SECRET, EMPTY: '', DB: { prepare() {} } });
   assert.equal(map.SOME_KEY, true); assert.ok(!map.EMPTY); assert.ok(!JSON.stringify(map).includes(SECRET));
@@ -132,7 +132,7 @@ test('US-14-R05: health reports the latest tick and fails when it did not comple
   assert.equal((await l3.state()).last_tick.steps_completed, 5);
 });
 
-test('US-SPEC-01 section 4.2: every L2 record the mapping names exists in the seed once every module migration is applied', () => {
+test('US-SPEC-01 section 4.2 and US-00-R06: the published mapping of renamed tables holds: every L2 record it names exists in the seed once every module migration is applied', () => {
   const map = JSON.parse(readFileSync(path.join(ROOT, 'core/conformance/l2-records.json'), 'utf8'));
   const listed = MODULES.map(m => path.join(ROOT, m.dir));
   const found = readdirSync(path.join(ROOT, 'core')).map(m => path.join(ROOT, 'core', m, 'migrations')).filter(existsSync);

@@ -16,7 +16,7 @@ const need = (id, extra = {}) => ({
   options: ['first', 'second', 'third'], default: 'first', default_consequence: 'We rebuild one page; change it any time.', ...extra,
 });
 
-test('T16-1: register covers the catalog and derives what the idea already answers, so it is not asked', async () => {
+test('T16-1 and US-16-R01: register covers the catalog and derives what the idea already answers, so it is not asked', async () => {
   const { e } = mk();
   const cat = [need('name', { derive_from: 'bakery', p_wrong: 0.1 }), need('colour'), need('hours')];
   const r = await e.registerNeeds(P, cat, { idea: 'I run a small bakery and want a booking page' });
@@ -27,7 +27,7 @@ test('T16-1: register covers the catalog and derives what the idea already answe
   assert.equal(rb.statements.find(s => s.need_id === 'name').provenance, 'derived');
 });
 
-test('T16-2: every Ask card has all fields, the question is 25 words or fewer, jargon needs a definition', async () => {
+test('T16-2 and US-16-R02: every Ask card has all fields, the question is 25 words or fewer, jargon needs a definition', async () => {
   const { e } = mk();
   const bad = need('x', { question: 'Which database schema should the backend use for storing every customer record you will ever have in the system today, including the ones from many years ago and others?' });
   const r = await e.registerNeeds(P, [need('ok'), bad]);
@@ -40,7 +40,7 @@ test('T16-2: every Ask card has all fields, the question is 25 words or fewer, j
   assert.deepEqual(validateCard({ ...card, question: 'Which API do you want?', defines: ['api'] }), []);
 });
 
-test('T16-3: Not sure produces the default, an assumption log entry and a revisit trigger', async () => {
+test('T16-3 and US-16-R05: Not sure produces the default, an assumption log entry and a revisit trigger', async () => {
   const { db, e } = mk();
   await e.registerNeeds(P, [need('colour')]); await e.nextAsks(P);
   const r = await e.answer(P, 'colour', { choice: 'Not sure' });
@@ -50,7 +50,7 @@ test('T16-3: Not sure produces the default, an assumption log entry and a revisi
   assert.equal(db.raw.prepare("SELECT provenance FROM elicit_needs WHERE id='colour'").get().provenance, 'default');
 });
 
-test('T16-4: a need that would spend above the cap, or is not reversible, becomes a gate card and is never defaulted', async () => {
+test('T16-4 and US-16-R06: a need that would spend above the cap, or is not reversible, becomes a gate card and is never defaulted', async () => {
   const { db, e } = mk({ spend_cap_usd: 10 });
   await e.registerNeeds(P, [need('budget', { cost_usd: 50 }), need('delete', { reversible: false }), need('who', { identity_bound: true }), need('colour')]);
   const cards = await e.nextAsks(P);
@@ -68,7 +68,7 @@ test('T16-4: a need that would spend above the cap, or is not reversible, become
   assert.equal(db.raw.prepare("SELECT status FROM gate_cards WHERE id='elicit-demo-budget'").get().status, 'closed');
 });
 
-test('T16-5: at most N Asks are open at once, the rest wait; a daily cap and the quiet period also hold', async () => {
+test('T16-5, US-16-R04 and US-16-R16: at most N Asks are open at once, the rest wait; a daily cap and the quiet period also hold', async () => {
   const cat = ['a', 'b', 'c', 'd', 'e'].map((id, i) => need(id, { p_wrong: 0.9 - i * 0.1 }));
   const { e } = mk({ max_open: 3 }); await e.registerNeeds(P, cat);
   assert.deepEqual((await e.nextAsks(P)).map(c => c.need_id), ['a', 'b', 'c']);
@@ -103,7 +103,7 @@ test('R07 and R09: the answer is stored verbatim with channel and time; Tell me 
   assert.equal(row.value, 'second'); assert.equal(row.answer_text, 'the second, my mum likes it'); assert.equal(row.channel, 'sms'); assert.equal(row.provenance, 'stated'); assert.ok(row.answered_at);
 });
 
-test('T16-6: the read-back tags every statement, lists defaults first and links them to assumption log entries', async () => {
+test('T16-6 and US-16-R11: the read-back tags every statement, lists defaults first and links them to assumption log entries', async () => {
   const { e } = mk(); await e.registerNeeds(P, [need('a'), need('b'), need('c', { derive_from: 'bakery' })], { idea: 'a bakery' });
   await e.nextAsks(P);
   await e.answer(P, 'a', { choice: 'third' }); await e.answer(P, 'b', { choice: 'Not sure' });
@@ -133,7 +133,7 @@ test('T16-7 and R15: readiness is computed; the planning gate refuses while a no
   assert.equal((await low.e.readiness(P)).g1, true);
 });
 
-test('T16-8: a correction in the read-back changes the register and queues a re-run of the affected artifact', async () => {
+test('T16-8 and US-16-R13: a correction in the read-back changes the register and queues a re-run of the affected artifact', async () => {
   const { db, e } = mk(); await e.registerNeeds(P, [need('a')]); await e.nextAsks(P); await e.answer(P, 'a', { choice: 'Not sure' });
   const r = await e.correct(P, 'a', 'third', { text: 'actually the third' });
   assert.deepEqual(r.rerun, ['ELICIT-RERUN-DEMO-CHARTER']);
@@ -230,4 +230,13 @@ test('US-16-R18: when the person stops answering the system does not ask more of
   await e.answer(P, 'd', { choice: 'second' });
   assert.equal((await e.fatigue(P)).stopped, false, 'an answer ends the fatigue state');
   assert.equal((await e.nextAsks(P)).filter(c => c.need_id !== 'i').length, 1);
+});
+
+test('US-16-R08: options are neutral: they keep the catalog order, none is pre-selected, and the default is marked as a default', async () => {
+  const { e } = mk();
+  await e.registerNeeds(P, [need('plan', { options: ['slow and careful', 'quick', 'in between'], default: 'in between' })]);
+  const [card] = await e.nextAsks(P);
+  assert.deepEqual(card.options, ['slow and careful', 'quick', 'in between', 'Not sure', 'Tell me more'], 'the default is not moved to the front');
+  assert.equal(card.default, 'in between'); assert.equal(card.default_marked, true);
+  assert.ok(!('selected' in card) && !('preselected' in card) && !('recommended' in card));
 });

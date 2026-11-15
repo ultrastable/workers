@@ -83,7 +83,7 @@
     },
     "core/governance": {
       "class": "core",
-      "role": "Self-amending governance (US-SPEC-07 section 3): signature register, recognition engine, pre-emission filter,"
+      "role": "self-amending governance"
     },
     "core/graph": {
       "class": "core",
@@ -107,7 +107,7 @@
     },
     "core/ladder": {
       "class": "core",
-      "role": "Model ladder persistence (US-SPEC-09 sections 4 and 5): the capability matrix and the admission pipeline that is the only"
+      "role": "model ladder persistence"
     },
     "core/lifecycle-gates": {
       "class": "core",
@@ -139,7 +139,7 @@
     },
     "core/predict": {
       "class": "core",
-      "role": "Predict, act, verify, score (US-SPEC-05). Decision log with parsed predictions, scorer, calibration (aggregate and binned),"
+      "role": "predict, act, verify, score"
     },
     "core/principles": {
       "class": "core",
@@ -195,7 +195,7 @@
     },
     "core/trust": {
       "class": "core",
-      "role": "Trust ledger, autonomy ladder and interrupt gate (US-SPEC-06) beyond the seed tick: beta-prior scores with a stated prior,"
+      "role": "trust ledger, ladder and interrupt gate"
     },
     "core/vault": {
       "class": "core",

@@ -37,6 +37,6 @@ Ports: `ctx = { db, now, config, github }`. `github` is `githubPort({ fetch, env
 | US-24-R54 outcome buckets sum to the scanned count | BUILT for the watchdog | `watchdog` |
 | US-24-R55 a cost change overwritten from outside is detected from the deployed state | BUILT | `enforce` (drift item, state asserted again) |
 | US-24-R03 Projects board, US-24-R05 Pages, US-24-R02 Discussions | NOT COVERED | |
-| A job entry (`file.yml:job`) in the non-essential list | BUILT as a repository variable (`DISABLED_JOBS`); the workflow must honour it with an `if:` and that workflow edit is NOT COVERED here (protected path) | `githubPort.setWorkflow` |
+| A job entry in the non-essential list (a workflow file and a job name joined by a colon) | BUILT as a repository variable (`DISABLED_JOBS`); the workflow must honour it with an `if:` and that workflow edit is NOT COVERED here (protected path) | `githubPort.setWorkflow` |
 
 Tests: `core/ghcost/ghcost.test.js`.
