@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 // Probe definitions are data. Kinds: {kind:'http', url, status?, contains?[], version?:true} and {kind:'db', sql, expect:'>0'|'=3'|...}.
+// Any probe may carry `revert: false`: it still runs and is recorded, but its failure does not revert a deploy (US-05-R09).
 function cmp(n, expect) {
   const m = /^\s*(>=|<=|>|<|=)\s*(-?\d+(?:\.\d+)?)\s*$/.exec(expect ?? '');
   if (!m) return false;
@@ -8,10 +9,12 @@ function cmp(n, expect) {
   return { '>=': n >= v, '<=': n <= v, '>': n > v, '<': n < v, '=': n === v }[m[1]];
 }
 
+export const probeName = (d) => d.name || `${d.kind}:${d.url || d.sql}`.slice(0, 120);
+
 export async function runProbes(defs, { db, fetch }, { version } = {}) {
   const out = [];
   for (const d of defs) {
-    const name = d.name || `${d.kind}:${d.url || d.sql}`.slice(0, 120);
+    const name = probeName(d);
     try {
       if (d.kind === 'http') {
         const res = await fetch(d.url, { method: 'GET' });

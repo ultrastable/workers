@@ -13,7 +13,7 @@ await runTick(db, { config, extraSteps: L2_EXTRA_STEPS });   // L1 steps, then o
 
 `extraSteps` is the one backward-compatible hook added to `core/src/tick.js` (`[{ name, run(db, ctx) }]`, guarded like any step; omitted means the seven L1 steps). `runL2(db, ctx)` runs nine guarded sub-steps in order: `read_metrics`, `risk_snapshot`, `detectors`, `allocate`, `focus`, `decisions`, `remedies`, `remediate`, `lifecycle`. Each writes a `kernel_step_evidence` row.
 
-Configuration (`config.kernel`): `enabled` (false: L2 does nothing), `manager_ops` (false: measurement and detectors keep running, allocation, focus, decisions, remedies, remediation and gate filing stop), `slots` (T, default 25), `high_priority_max` (default 10), `guard_tolerance`. Conventions: a program's items carry `items.project = <program id>` or the id of a kernel project in that program. Migrations: `core/kernel/migrations/0001_kernel.sql`, `core/kernel/migrations/0002_lifecycle.sql` (apply after the seed migrations; idempotent).
+Configuration (`config.kernel`): `enabled` (false: L2 does nothing), `manager_ops` (false: measurement and detectors keep running, allocation, focus, decisions, remedies, remediation and gate filing stop), `slots` (T, default 25), `plus_slots` (slots reserved for the plus loop, taken off T before allocation; default 0), `high_priority_max` (default 10), `guard_tolerance`. Conventions: a program's items carry `items.project = <program id>` or the id of a kernel project in that program. Migrations: `core/kernel/migrations/0001_kernel.sql`, `core/kernel/migrations/0002_lifecycle.sql` (apply after the seed migrations; idempotent).
 
 ## Requirement status
 
@@ -28,8 +28,8 @@ BUILT means implemented and covered by a passing test in this directory. Nothing
 | US-03-R15 allocation writes a decision with a parsable prediction | BUILT | `ALLOC-<tick>` rows |
 | US-03-T06 allocation 120/40/20/15/5, T=25 gives 10/5/4/3/3 | BUILT | `programs.test.js` |
 | US-03 s4 classification (constrain, escalate, accelerate, maintain, steady, idle) | BUILT | "maintain: one slot" is not enforced as a cap; the worked example gives GREEN programs more |
-| US-03 s4 ranking and focus; no-doer items first | BUILT | tiers 0 to 4, then no doer, priority, age. The queue score formula is NOT COVERED |
-| US-03 s4 operations (promote, supersede, demote, assign doer with anchor validation), daily origination | NOT COVERED | needs a research agent and a code path; PLANNED |
+| US-03 s4 ranking and focus; no-doer items first | BUILT | tiers 0 to 4, then no doer, priority, age. The queue score formula is in `core/staff/score.js` |
+| US-03 s4 operations (promote, restore, close with evidence, supersede, demote, assign doer with anchor validation), daily origination | not this layer | BUILT in `core/staff` (`core/staff/staff.test.js`); the research agent is a port there. Rerouting parked tasks is NOT COVERED |
 | US-03-R16 duplicate scheduler firing | NOT COVERED | L3 |
 | US-05-R01..R03, R05 prediction scoring in the seed | not this layer | seed (`score_predictions`) |
 | US-05-R06 decision stored with prediction, authority, revert path | BUILT | `kernel_decisions`, `recordDecision` |
@@ -40,8 +40,8 @@ BUILT means implemented and covered by a passing test in this directory. Nothing
 | Metric registry: target, guard flag, read probe, trigger by view | BUILT | `kernel_metrics`, `kernel_v_metric_trigger_state` (`hit = 1` is a breach; unmeasured is never a pass) |
 | Guard blocks a target gain from being kept | BUILT | `evaluateDecision` (guard breached, unmeasured or worse than at decision time) |
 | US-04-R09 missing or stale reading is null, never 0 | BUILT | `readMetric`, view |
-| US-04-R10 miss: revert item filed | BUILT | `REVERT-<id>`. `misses_in_row` and `rest_until` are NOT COVERED (no product registry) |
-| US-04-R01, R05..R08, R11..R14 plus loop, product registry, simplify pass, digest | NOT COVERED | PLANNED. R02 plus-share rebalance is in the seed |
+| US-04-R10 miss: revert item filed | BUILT | `REVERT-<id>` for decisions. `misses_in_row` and `rest_until` belong to the product registry in `core/plus` |
+| US-04-R01, R05..R08, R11..R14 plus loop, product registry, simplify pass, digest | not this layer | BUILT in `core/plus` (`core/plus/plus.test.js`). Here: `config.kernel.plus_slots` is taken off T before risk is read (R05). R02 plus-share rebalance is in the seed |
 | US-17-R01 one hit row per detector run | BUILT | `runDetectors` (errors are rows too) |
 | US-17-R03, R04 detector, severity and full contract required | BUILT | `registerFailureMode` |
 | US-17-R05 one outcome bucket per scanned item; accounting invariant | BUILT | `consumeRemediations`, `recordLoopRun` (incident plus reopen) |
@@ -62,8 +62,8 @@ BUILT means implemented and covered by a passing test in this directory. Nothing
 | US-15 A-CLO-3 lesson filed into the plus queue | BUILT | `addLesson` |
 | US-15 s7 tick files missing gate artifacts | BUILT | `lifecycleGaps` |
 | US-15-T1, T2, T3, T6 | BUILT | `lifecycle.test.js` |
-| US-15-R02, R03, R08..R10, R12..R14, T4, T5 (mode selection rule, iterations, scope gate, status report, portfolio cap) | NOT COVERED | PLANNED. G1 readiness score (US-SPEC-16) and the charter probe check are also NOT COVERED |
+| US-15-R02, R03, R08..R10, R12..R14, T4, T5 (mode selection rule, iterations, scope gate, status report, portfolio cap), G1 readiness score and charter probe | not this layer | BUILT in `core/lifecycle-gates` (`core/lifecycle-gates/lifecycle-gates.test.js`), which calls `advancePhase` after its own checks |
 
 ## Deviation list (US-00-R02)
 
-Level claim: partial L2. Not met: the NOT COVERED rows above. Records for risk review (A-MON-4), status report (A-MON-1) and variance (A-MON-2) are tables only; no step produces them yet.
+Level claim: partial L2. Not met: the NOT COVERED rows above. The status report (A-MON-1) and variance (A-MON-2) are produced by `core/lifecycle-gates`; the risk review (A-MON-4) is a table only, no step produces it yet.

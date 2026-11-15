@@ -28,6 +28,9 @@ import { createAgents } from '../agents/index.js';
 import { createContainers } from '../containers/index.js';
 import { createInfra, heartbeat } from '../infra/index.js';
 import { createElicit } from '../elicit/index.js';
+import { step as specloopStep } from '../specloop/index.js';
+import { steps as criticalitySteps } from '../criticality/index.js';
+import { evalProbe } from '../src/tick.js';
 import { guardSteps, seedBacklog } from '../runner/selfdoer.js';
 import { createDownstreamGithub } from '../githubapp/downstream.js';
 import { sweep as codeloopSweep } from '../codeloop/index.js';
@@ -97,15 +100,21 @@ export function createOrg({
     }
   }
 
+  const runnerOn = () => !(config.runner?.enabled === false || (config.runner?.enabled !== true && !config.vcs?.repo));
   function runnerSteps(env) {
-    if (config.runner?.enabled !== true) return [];
+    // On by default wherever a repository is configured: a deployment builds its own backlog without being switched on.
+    // config.runner.enabled === false is the only way to turn it off; missing credentials become cards, never a silent idle.
+    if (!runnerOn()) return [];
     const need = runnerNeeds(config, env, { vcsInjected: !!vcs, appCredentials: appReady });
     if (need.length) return [{ name: 'runner_needs', run: async (_db, ctx) => { await fileRunnerCards(need); ctx.notes.push(`runner skipped: needs ${need.join(', ')}`); } }];
+    // Nothing is missing any more: every runner-needs card is answered, including ones for a route that was never used
+    // because another provider covered it (a card whose probe can never pass would otherwise stay open for ever).
+    const answered = { name: 'runner_needs_close', run: async (_db, ctx) => { const u = await db.prepare(`UPDATE gate_cards SET status='closed' WHERE id LIKE 'runner-needs-%' AND status='open'`).run(); if (u.meta.changes) ctx.notes.push(`runner_needs_close: ${u.meta.changes} card(s) closed, the runner has what it needs`); } };
     const r = router || createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null });
     const v = vcs || createGithubVcs({ fetch: doFetch, repo: config.vcs.repo, base: config.vcs.base || 'main', env, tokenEnv: config.vcs?.token_env || 'VCS_TOKEN', ...(!env[config.vcs?.token_env || 'VCS_TOKEN'] && appReady && tokenProvider ? { tokenProvider } : {}) });
-    const steps = runnerExtraSteps(createRunner({ db, now: clock, config, env, router: r, claims, vcs: v }));
+    const steps = runnerExtraSteps(createRunner({ db, now: clock, config: { ...config, runner: { ...(config.runner || {}), enabled: true } }, env, router: r, claims, vcs: v }));
     // Self-hosting (issue #13): an outer spend cap around every runner step, on top of the router's own caps.
-    return on('selfdoer') ? guardSteps(steps, { db, now: clock, caps: config.selfdoer.caps || {} }) : steps;
+    return [answered, ...(on('selfdoer') ? guardSteps(steps, { db, now: clock, caps: config.selfdoer.caps || {} }) : steps)];
   }
 
   // Opt-in modules: each is off unless config.<name>.enabled === true; its ports come from the injections above.
@@ -178,16 +187,37 @@ export function createOrg({
       }
       ctx.notes.push(`downstream_issues: ${opened} opened, ${failed} failed`);
     } });
+    // Specification-to-code loop, before the runner so the items it files this tick are takeable this tick. On by default:
+    // the specifications are read from config.specloop (file paths or repositories), else from the repository the runner
+    // writes to. Nobody files, targets or closes these items by hand.
+    // Criticality (CRIT-1..7): work nobody can start on is given a specification to write, and the loop measures whether it
+    // moves. On wherever the runner is; config.criticality.enabled === false turns it off.
+    const crit = runnerOn() ? criticalitySteps({ db, now: clock, config: { spec_dir: config.specloop?.spec_dir, ...(config.criticality || {}) },
+      evalProbe: it => evalProbe(db, { env: presence(env_) }, it), needs: async () => runnerNeeds(config, env_, { vcsInjected: !!vcs, appCredentials: appReady }) }) : { before: [], after: [] };
+    steps.push(...crit.before);
+    {
+      const sc = { spec_repo: config.vcs?.repo, code_repo: config.vcs?.repo, ref: config.vcs?.base, ...(config.specloop || {}) };
+      const tokenEnv = config.vcs?.token_env || 'VCS_TOKEN';
+      const st = specloopStep({ db, now: clock, config: sc, readFile, fetch: doFetch, token: typeof env_[tokenEnv] === 'string' ? env_[tokenEnv] : null });
+      if (st) steps.push(st);
+    }
     steps.push(...runnerSteps(env_));
     // Merge under the trust ladder (issue #183, opt-in config.codeloop.enabled): a runner pull request that passed checks and
     // review is merged by core/codeloop only when its gate allows it (rung of <trust_surface>/merge in the trust ledger at or
     // above merge_min_rung, no protected path, file limit, kill switch off). The route is the GitHub App installation token
     // (or injected `mergeHosts`); a merge is recorded as an outcome so the same ledger keeps scoring it. After the runner
     // steps, so a PR opened this tick can merge in it.
-    if (on('codeloop')) steps.push({ name: 'codeloop_merge', run: async (_db, ctx) => {
-      const c = config.codeloop, surface = c.trust_surface || 'repo', repo = c.repo || config.vcs?.repo;
-      const hosts = mergeHosts || (appReady && tokenProvider && repo ? [createDownstreamGithub({ fetch: doFetch, repo, tokenProvider, base: config.vcs?.base || 'main' }).mergeHost()] : null);
-      if (!hosts) { ctx.notes.push('codeloop_merge skipped: needs the GitHub App connected and vcs.repo'); return; }
+    // On by default wherever the runner is (CRIT-5): a reviewed, green pull request that nothing merges is a loop left open.
+    // merge_min_rung defaults to 'delegated', the rung the policy defines as "merges after a different agent's review passes",
+    // which is exactly what the gate checks (reviewer approved, checks passed); the ledger then scores every merge.
+    const codeloopOn = config.codeloop?.enabled === true || (config.codeloop?.enabled !== false && runnerOn());
+    if (codeloopOn) steps.push({ name: 'codeloop_merge', run: async (_db, ctx) => {
+      const c = { merge_min_rung: 'delegated', ...(config.codeloop || {}) }, surface = c.trust_surface || 'repo', repo = c.repo || config.vcs?.repo;
+      const tokenEnv = config.vcs?.token_env || 'VCS_TOKEN';
+      // Two routes to the merge (no single route): the GitHub App installation token, else the repository token the runner already uses.
+      const provider = appReady && tokenProvider ? tokenProvider : (typeof env_[tokenEnv] === 'string' && env_[tokenEnv] ? async () => env_[tokenEnv] : null);
+      const hosts = mergeHosts || (provider && repo ? [createDownstreamGithub({ fetch: doFetch, repo, tokenProvider: provider, base: config.vcs?.base || 'main' }).mergeHost()] : null);
+      if (!hosts) { ctx.notes.push('codeloop_merge skipped: needs a repository token or the GitHub App, and vcs.repo'); return; }
       const rung = async () => (await db.prepare(`SELECT rung FROM trust_ledger WHERE surface=? AND action_class='merge'`).bind(surface).first())?.rung
         || config.policy?.surfaces?.[surface]?.start_rung || 'observed';
       // The files a run changed come from its stored patch. A run with no readable patch is refused, never merged blind.
@@ -226,6 +256,7 @@ export function createOrg({
     } });
     if (on('console_l3') && typeof stepRuns === 'function') steps.push({ name: 'console_l3', run: async (_db, ctx) => { const f = await l3.sweepStepBudgets(await stepRuns()); ctx.notes.push(`console_l3: ${f.length} step-budget findings`); } });
     if (on('infra')) steps.push({ name: 'infra', run: async (_db, ctx) => { await heartbeat({ db, now: clock }, 'tick', config.infra.tick_every_minutes ?? null); ctx.notes.push('infra: tick heartbeat recorded'); } });
+    steps.push(...crit.after);
     return steps;
   }
 
@@ -234,7 +265,7 @@ export function createOrg({
     const e = await mergedEnv();
     // Let an unclaimed first-run window expire (and file its card) even if nobody visits; not a tick step, so the step list is unchanged.
     if (config.doors) await sweepFirstRun(db, { now: clock(), config: config.doors, hasKey: Boolean(e.CONSOLE_TOKEN) || Boolean(config.doors?.access?.team_domain) }).catch(() => {});
-    return runTick(db, { config, env: presence(e), now: clock(), extraSteps: extraSteps(e), metrics });
+    return runTick(db, { config: { ...config, executor_takes_targeted: runnerOn() }, env: presence(e), now: clock(), extraSteps: extraSteps(e), metrics });
   }
 
   async function handle(request) {

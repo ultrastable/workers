@@ -9,6 +9,8 @@
 Rules: W01 permissions, W02 concurrency (or a `# no-concurrency: <reason>` comment), W03 timeout-minutes on every job
 (and <= 15), W04 no schedule trigger, W05 no pull_request_target, W06 actions pinned (no @main/@master/@HEAD, no bare ref),
 W07 no secrets in a job reachable from a pull_request without a guard, W08 no macOS or Windows runners.
+W09 (only with --require-sha, for public repositories, US-24-R18): every third-party action pinned to a full 40-character
+commit SHA; a version tag is reported. `--sha-report` prints the unpinned actions and exits 0 (the measure, not the gate).
 Stdlib only, line based (no YAML library); it expects the conventional two-space layout. Exit 0 clean, 1 findings.
 """
 from __future__ import annotations
@@ -62,7 +64,7 @@ def _jobs(code):
     return jobs, (indent or 2)
 
 
-def lint_text(text: str, name: str = "workflow.yml"):
+def lint_text(text: str, name: str = "workflow.yml", require_sha: bool = False):
     raw = text.splitlines()
     code = _strip(raw)
     f = []
@@ -98,6 +100,8 @@ def lint_text(text: str, name: str = "workflow.yml"):
             continue
         if m.group(2) is None or m.group(2) in ("main", "master", "HEAD"):
             add("W06", f"action `{m.group(1)}` is not pinned to a tag or SHA (`@{m.group(2)}`)" if m.group(2) else f"action `{m.group(1)}` has no ref")
+        elif require_sha and not re.fullmatch(r"[0-9a-f]{40}", m.group(2)):
+            add("W09", f"action `{m.group(1)}@{m.group(2)}` is pinned to a tag, not to a full commit SHA")
     if re.search(r"\bpull_request\b(?!_target)", on_block):
         for j, b in jobs.items():
             body = "\n".join(b)
@@ -112,14 +116,22 @@ def lint_text(text: str, name: str = "workflow.yml"):
 
 
 def main(argv):
-    paths = [Path(a) for a in argv] or sorted(Path(".github/workflows").glob("*.y*ml"))
+    flags = {a for a in argv if a.startswith("--")}
+    unknown = flags - {"--require-sha", "--sha-report"}
+    if unknown:
+        print(f"workflow_lint: unknown option(s) {sorted(unknown)}")
+        return 2
+    paths = [Path(a) for a in argv if not a.startswith("--")] or sorted(Path(".github/workflows").glob("*.y*ml"))
+    report = "--sha-report" in flags
     findings = []
     for p in paths:
-        findings += lint_text(p.read_text(encoding="utf8"), p.as_posix())
+        findings += lint_text(p.read_text(encoding="utf8"), p.as_posix(), require_sha=report or "--require-sha" in flags)
+    if report:
+        findings = [x for x in findings if " W09 " in x]
     for x in findings:
         print(x)
-    print(f"workflow_lint: {len(paths)} file(s), {len(findings)} finding(s)")
-    return 1 if findings else 0
+    print(f"workflow_lint: {len(paths)} file(s), {len(findings)} finding(s)" + (" not pinned to a commit SHA" if report else ""))
+    return 0 if report else (1 if findings else 0)
 
 
 if __name__ == "__main__":

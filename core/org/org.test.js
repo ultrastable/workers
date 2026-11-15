@@ -87,7 +87,7 @@ test('end to end: every loop runs on one tick, a run reaches a draft PR, nothing
   last = await tick();
 
   const names = org.extraSteps().map(s => s.name);
-  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs', 'runner']);
+  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs', 'criticality_specify', 'specloop', 'runner_needs_close', 'runner', 'codeloop_merge', 'criticality']);
 
   // L2 kernel step recorded its snapshot, every tick
   assert.ok(one(db, `SELECT COUNT(*) n FROM kernel_step_evidence WHERE step='risk_snapshot' AND ok=1`).n >= 3);
@@ -222,7 +222,7 @@ test('issue #183: a cycle opens an issue and a PR and merges it when the trust l
 });
 
 test('issue #183: below the merge rung the PR is opened and never merged; the refusal is recorded once, not per tick', async () => {
-  const { db, tick, vcs, merges } = cycle(); // no ledger row: the surface start rung applies
+  const { db, tick, vcs, merges } = cycle({ codeloop: { merge_min_rung: 'autonomous' } }); // no ledger row: the surface start rung (delegated) applies
   for (let i = 0; i < 14 && !vcs.prs.length; i++) await tick();
   await tick(); await tick(); await tick();
   assert.equal(vcs.prs.length, 1); assert.equal(merges.length, 0);
@@ -249,7 +249,19 @@ test('issue #183: the kill switch, a protected path and an unreadable patch each
 
 test('issue #183: without the GitHub App and without an injected host the merge step skips and says why', async () => {
   const config = { ...baseConfig(), codeloop: { enabled: true } };
-  const { db, tick } = boot({ config });
+  const { VCS_TOKEN: _omit, ...noToken } = SECRETS; // neither route to the merge: no repository token, no App
+  const { db, tick } = boot({ config, env: noToken, extra: { vcs: fakeVcs() } });
   await tick();
-  assert.match(one(db, `SELECT report FROM tick_runs ORDER BY id DESC LIMIT 1`).report, /codeloop_merge skipped: needs the GitHub App connected/);
+  assert.match(one(db, `SELECT report FROM tick_runs ORDER BY id DESC LIMIT 1`).report, /codeloop_merge skipped: needs a repository token or the GitHub App/);
+});
+
+test('CRIT-5: with no codeloop configuration a reviewed green pull request merges at the surface start rung (delegated)', async () => {
+  const merges = [];
+  const mergeHosts = [{ name: 'github-app', merge: async a => { merges.push(a); return { merged: true }; } }];
+  const vcs = fakeVcs({ files: { 'core/example/widget.js': '// widget v1\n', 'core/example/widget.test.js': '// test\n' } });
+  const { db, tick } = boot({ config: baseConfig(), extra: { vcs, mergeHosts } });
+  seedItem(db);
+  for (let i = 0; i < 20 && !merges.length; i++) await tick();
+  assert.equal(merges.length, 1);
+  assert.equal(one(db, `SELECT status FROM items WHERE id='US-SPEC-11-1'`).status, 'done');
 });

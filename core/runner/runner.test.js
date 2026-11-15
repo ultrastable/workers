@@ -228,9 +228,13 @@ test('max work in progress, enabled flag and staff-only selection', async () => 
   const off = setup({ config: { enabled: false } });
   await off.runner.step();
   assert.equal(runs(off.db).length, 0);
-  const other = setup(); other.db.raw.prepare(`UPDATE items SET owner_role='operations'`).run();
+  // CRIT-3: an item that names its target is the runner's whatever role owns it; without a target another role's item is not.
+  const other = setup(); other.db.raw.prepare(`UPDATE items SET owner_role='operations', done_check='no file named'`).run();
   await other.runner.step();
   assert.equal(runs(other.db).length, 0);
+  const targeted = setup(); targeted.db.raw.prepare(`UPDATE items SET owner_role='product-manager'`).run();
+  await targeted.runner.step();
+  assert.equal(runs(targeted.db).length, 1);
   assert.equal((await off.runner.startRun('US-SPEC-11-1')).ok, true); // an explicit start still works
 });
 

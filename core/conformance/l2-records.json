@@ -1,0 +1,36 @@
+{
+  "about": "US-SPEC-01 section 4.2: the L2 records and the seed tables that hold them. The specification's column names are illustrative and the roles of the tables are normative (US-00-R06), so this file is the published mapping. l1.test.js applies every module migration and fails if a table named here is missing. A record with no seed table is listed under missing with the reason.",
+  "records": {
+    "management_personas": ["staff_personas"],
+    "program_charters": ["kernel_programs"],
+    "program_risk_now": ["kernel_risk_snapshot"],
+    "portfolio_allocations": ["kernel_allocations"],
+    "program_focus": ["kernel_focus"],
+    "issue_priority_scores": ["staff_priority_scores"],
+    "queue_pulls": ["claims_pulls"],
+    "persona_actions": ["staff_actions"],
+    "persona_briefs": ["staff_briefs"],
+    "decision_log": ["kernel_decisions", "predict_decisions"],
+    "decision_predictions": ["predict_predictions"],
+    "decision_outcomes": ["predict_outcomes"],
+    "trust_transitions": ["trust_transitions"],
+    "product_registry": ["plus_product_registry"],
+    "plus_ledger": ["plus_ledger"],
+    "work_claims": ["claims_lock"],
+    "human_actions": ["gate_cards", "tasks_owner_steps"],
+    "failure_modes": ["kernel_failure_modes"],
+    "failure_mode_hits": ["kernel_failure_mode_hits"],
+    "false_stop_register": ["governance_false_stop_register"],
+    "false_stop_phrases": ["governance_false_stop_phrases"],
+    "false_stop_hits": ["governance_false_stop_hits"],
+    "doctrine_proposals": ["governance_proposals"],
+    "ops_config": ["router_switches", "packs_switches"],
+    "metric_registry": ["kernel_metrics"],
+    "metric_triggers": ["kernel_v_metric_trigger_state"],
+    "model_admission": ["router_calibration", "router_gate_records"]
+  },
+  "missing": {
+    "program_focus_log": "kernel_focus holds the current focus set with the tick that wrote it; no table keeps the history of earlier sets",
+    "model_task_matrix": "the model for each kind of task is configuration read by core/router (router.rungs and providers), not a stored table"
+  }
+}

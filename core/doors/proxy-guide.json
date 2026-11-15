@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "about": "Identity-aware proxy deployment guide (US-SPEC-18 section 8). Data, read by core/doors/proxy.js: each step names the check that observes it done, so the guide cannot drift from the code. A step a person must do outside the console becomes a decision card that closes when its check passes (US-18-R09). The console's own sign-in stays on as the inner lock.",
+  "proxies": {
+    "cloudflare-access": {
+      "name": "Cloudflare Access",
+      "header": "cf-access-jwt-assertion",
+      "config": ["doors.access.team_domain", "doors.access.aud"],
+      "steps": [
+        { "id": "application", "who": "person", "what": "Add the console address as a self-hosted application in your Zero Trust dashboard, covering /console and /api/console", "default_in_effect": "the console stays behind its own sign-in only", "check": "config:doors.access.team_domain" },
+        { "id": "policy", "who": "person", "what": "Add an Allow policy that lists the people who may open the console, and copy the application audience tag into the settings", "default_in_effect": "nobody is let in by the proxy; the console's own sign-in still works", "check": "config:doors.access.aud" },
+        { "id": "outer_lock", "who": "system", "what": "A request with no proxy sign-in is turned away before it reaches the console", "default_in_effect": "the console's own sign-in is the only lock", "check": "probe:unauthenticated_refused" },
+        { "id": "inner_lock", "who": "system", "what": "The console's own sign-in is still required behind the proxy", "default_in_effect": "the proxy would be the only lock", "check": "inner:lock_present" }
+      ]
+    },
+    "google-iap": {
+      "name": "Google Identity-Aware Proxy",
+      "header": "x-goog-iap-jwt-assertion",
+      "config": ["doors.iap.audience"],
+      "steps": [
+        { "id": "load_balancer", "who": "person", "what": "Put the service behind an HTTPS load balancer and switch Identity-Aware Proxy on for its backend service", "default_in_effect": "the console stays behind its own sign-in only", "check": "config:doors.iap.audience" },
+        { "id": "ingress", "who": "person", "what": "Set the service to accept traffic from the load balancer only, so the proxy cannot be bypassed", "default_in_effect": "the service address stays reachable directly; the console's own sign-in still guards it", "check": "probe:unauthenticated_refused" },
+        { "id": "inner_lock", "who": "system", "what": "The console's own sign-in is still required behind the proxy", "default_in_effect": "the proxy would be the only lock", "check": "inner:lock_present" }
+      ]
+    }
+  }
+}
