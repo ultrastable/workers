@@ -31,7 +31,7 @@ test('the alarm runs the real tick, records last_tick, and re-arms itself', asyn
   const h = await health(env);
   assert.ok(h.last_tick && h.last_tick.at, 'last_tick is non-null');
   assert.equal(h.last_tick.errors, 0);
-  assert.match(h.last_tick.steps, /^7\/7$/);
+  assert.match(h.last_tick.steps, /^8\/8$/);
   assert.equal(env.DB.raw.prepare('SELECT COUNT(*) AS n FROM tick_runs').get().n, 1);
   assert.ok(w.alarmAt() > Date.now() && w.alarmAt() <= Date.now() + TICK_EVERY_MS, 're-armed');
   await w.obj.alarm();

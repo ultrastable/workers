@@ -287,7 +287,7 @@ test('plugs into runTick through extraSteps next to the seed steps', async () =>
   for (let i = 0; i < 12 && !done(db); i++) { clock.t += 60000; result = await runTick(db, { config, now: clock.t, extraSteps: runnerExtraSteps(runner) }); }
   assert.equal(runs(db)[0].state, 'pr_opened');
   assert.deepEqual(result.errors, []);
-  assert.equal(result.total, 8);
+  assert.equal(result.total, 9);
 });
 
 test('only a keyless small model configured: the item becomes a decision card, no PR', async () => {

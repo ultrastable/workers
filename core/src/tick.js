@@ -51,6 +51,56 @@ async function ensureItem(db, item) {
   return true;
 }
 
+// ---- execute (issue #173): the tick's own doer ----
+// A dispatched item whose closing probe the tick can read by itself is settled in the tick that claimed it, so a claim is never
+// left for an executor that does not exist. Anything else keeps its claim for an outside executor (core/runner, a code agent);
+// if none heartbeats, reap_claims releases it with a disposition and parks it after max_unworked_releases.
+const DOER = 'tick-doer';
+const WAITING = 'waiting on probe:';
+
+/** Read an item's closing probe. Returns { ok, detail }, or null when the probe is not one the tick can evaluate. */
+export async function evalProbe(db, ctx, item) {
+  const p = String(item.closing_probe || '').trim();
+  let m;
+  if ((m = /^TICKFAIL-([a-z0-9_]+)-/i.exec(item.id))) { // done check: "next tick completes step <name>"
+    const t = await first(db, `SELECT id FROM tick_runs WHERE started_at > ? AND finished_at IS NOT NULL AND (errors IS NULL OR errors NOT LIKE ?) ORDER BY id LIMIT 1`,
+      item.created_at || '', `%"${m[1]}:%`);
+    return { ok: Boolean(t), detail: t ? `tick ${t.id} completed step ${m[1]} with no error` : `no tick since ${item.created_at} completed step ${m[1]}` };
+  }
+  if ((m = /^env:(\w+)$/.exec(p))) return { ok: Boolean(ctx.env && ctx.env[m[1]]), detail: `setting ${m[1]} is ${ctx.env && ctx.env[m[1]] ? 'present' : 'absent'}` };
+  if ((m = /^item_done:(\S+)$/.exec(p))) {
+    const d = await first(db, `SELECT 1 AS x FROM items WHERE id=? AND status='done'`, m[1]);
+    return { ok: Boolean(d), detail: `item ${m[1]} is ${d ? 'done' : 'not done'}` };
+  }
+  if ((m = /^trust_ledger rung = (\S+)$/.exec(p)) && item.surface && item.action_class) {
+    const r = await first(db, `SELECT rung FROM trust_ledger WHERE surface=? AND action_class=?`, item.surface, item.action_class);
+    return { ok: Boolean(r && r.rung === m[1]), detail: `${item.surface}/${item.action_class} rung is ${r ? r.rung : 'unset'}` };
+  }
+  if (/^select\s[^;]+\sfrom\s[^;]+$/i.test(p)) { // one read-only statement; a first value above 0 passes
+    try {
+      const v = Number(Object.values((await first(db, p)) || {})[0]);
+      return { ok: v > 0, detail: `probe returned ${Number.isFinite(v) ? v : 'no number'}` };
+    } catch (e) { return { ok: false, detail: `probe could not run: ${String(e && e.message).slice(0, 80)}` }; }
+  }
+  return null;
+}
+
+async function settle(db, ctx, item, probe) {
+  await run(db, `DELETE FROM claims WHERE item_id=?`, item.id);
+  if (probe.ok) {
+    await run(db, `UPDATE items SET status='done', blocker=NULL, disposition=?, updated_at=? WHERE id=?`,
+      `done by ${DOER} in tick ${ctx.tickId}: ${probe.detail}`.slice(0, 300), ctx.nowIso, item.id);
+    await run(db, `INSERT INTO outcomes (item_id, agent, surface, action_class, result, evidence, at) VALUES (?, ?, 'work_tracker', 'execute', 'verified', ?, ?)`,
+      item.id, DOER, probe.detail.slice(0, 300), ctx.nowIso);
+    await run(db, `UPDATE dispatches SET status='done' WHERE item_id=? AND status='queued'`, item.id);
+    return 'done';
+  }
+  await run(db, `UPDATE items SET status='blocked', blocker=?, disposition=?, updated_at=? WHERE id=?`,
+    `${WAITING} ${item.closing_probe || item.done_check} (${probe.detail})`.slice(0, 300),
+    `parked by ${DOER} in tick ${ctx.tickId}: closes by its probe, rechecked every tick`, ctx.nowIso, item.id);
+  return 'parked';
+}
+
 export const STEPS = {
   // Every item that left the active set has a disposition; items whose trigger is done become ready.
   async reconcile(db, ctx) {
@@ -204,6 +254,29 @@ export const STEPS = {
     ctx.notes.push(`dispatched ${n} item(s)`);
   },
 
+  // Issue #173: every item claimed by dispatch whose probe the tick can read ends done (with evidence) or parked on that probe;
+  // parked items are re-read every tick (a bounded, rotating window) and close themselves when the probe passes.
+  async execute(db, ctx) {
+    const max = ctx.config.execute_max_items ?? 20;
+    const count = { done: 0, parked: 0, left: 0, reopened: 0 };
+    const parkedN = (await first(db, `SELECT COUNT(*) AS n FROM items WHERE status='blocked' AND blocker LIKE ?`, `${WAITING}%`)).n;
+    const waiting = await all(db, `SELECT * FROM items WHERE status='blocked' AND blocker LIKE ? ORDER BY id LIMIT ? OFFSET ?`,
+      `${WAITING}%`, max, parkedN > max ? (ctx.tickId * max) % parkedN : 0);
+    for (const it of waiting) {
+      const probe = await evalProbe(db, ctx, it);
+      if (probe && probe.ok) { await settle(db, ctx, it, probe); count.done++; count.reopened++; }
+    }
+    const claimed = await all(db, `SELECT i.* FROM items i JOIN claims c ON c.item_id = i.id JOIN roles r ON r.id = c.agent
+      WHERE i.status='claimed' AND c.heartbeat_at = c.claimed_at ORDER BY i.priority, c.claimed_at LIMIT ?`, max);
+    for (const it of claimed) {
+      const probe = await evalProbe(db, ctx, it);
+      if (!probe) { count.left++; continue; }
+      count[await settle(db, ctx, it, probe)]++;
+    }
+    ctx.executed = count;
+    ctx.notes.push(`executed: ${count.done} done (${count.reopened} from parked), ${count.parked} parked on a probe, ${count.left} left for an executor`);
+  },
+
   // Plus share over the last 20 closed items; below target opens a rebalance item for the portfolio manager.
   async check_plus_share(db, ctx) {
     const rows = await all(db, `SELECT kind FROM items WHERE status='done' ORDER BY updated_at DESC LIMIT 20`);
@@ -222,9 +295,9 @@ export const STEPS = {
   },
 };
 
-export const STEP_ORDER = ['reconcile', 'reap_claims', 'probe_gates', 'score_predictions', 'accrue_trust', 'dispatch', 'check_plus_share'];
+export const STEP_ORDER = ['reconcile', 'reap_claims', 'probe_gates', 'score_predictions', 'accrue_trust', 'dispatch', 'execute', 'check_plus_share'];
 
-// extraSteps: optional [{ name, run(db, ctx) }] appended after the seven L1 steps (extension point for higher layers).
+// extraSteps: optional [{ name, run(db, ctx) }] appended after the eight L1 steps (extension point for higher layers).
 // metrics: optional { name: async (db, nowMs, predictionRow) => number }, consulted before the built-ins when a due prediction is scored.
 export async function runTick(db, { config, env = {}, now = Date.now(), extraSteps = [], metrics = {} } = {}) {
   const steps = [...STEP_ORDER.map(name => ({ name, run: STEPS[name] })), ...extraSteps];
