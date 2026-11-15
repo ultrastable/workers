@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "updated": "2026-11-11",
+  "updated": "2026-11-15",
   "tagline": "A system is autonomous if it has self-referential loops and the privilege to close them.",
   "one_line_each": [
     "Knowing something and being unable to act on it is useless: autonomy is doing.",
@@ -426,16 +426,33 @@
       "date": "2026-11-11",
       "owner_words": "Somebody's not going to know the details. The ignorance part of this is really important.",
       "meaning": "The system knows what it needs, asks in plain words with options and defaults, and writes its own specifications from the answers.",
-      "status": "planned",
+      "status": "enforced",
       "tracking_issue": 60,
-      "enforced_by": []
+      "enforced_by": [
+        {
+          "kind": "file",
+          "path": "core/elicit/index.js"
+        },
+        {
+          "kind": "test",
+          "path": "core/elicit/elicit.test.js"
+        },
+        {
+          "kind": "file",
+          "path": "core/principles/enforcement.js"
+        },
+        {
+          "kind": "test",
+          "path": "core/principles/enforcement.test.js"
+        }
+      ]
     },
     {
       "id": "D-SCOPE-AND-PACKS",
       "date": "2026-11-11",
       "owner_words": "Know what our core mission is and what boundaries we're willing to push that out to. Talking about it is totally insufficient. It has to be implemented in code.",
       "meaning": "Core, packs (classes A to D) and out-of-bounds tiers are enforced by manifest validation and a single outbound guard.",
-      "status": "partial",
+      "status": "enforced",
       "tracking_issue": 28,
       "enforced_by": [
         {
@@ -445,6 +462,26 @@
         {
           "kind": "file",
           "path": "SCOPE.md"
+        },
+        {
+          "kind": "file",
+          "path": "core/packs/manifest.js"
+        },
+        {
+          "kind": "file",
+          "path": "core/packs/guard.js"
+        },
+        {
+          "kind": "test",
+          "path": "core/packs/packs.test.js"
+        },
+        {
+          "kind": "file",
+          "path": "core/principles/enforcement.js"
+        },
+        {
+          "kind": "test",
+          "path": "core/principles/enforcement.test.js"
         }
       ]
     },
@@ -453,9 +490,34 @@
       "date": "2026-11-11",
       "owner_words": "Outreach, marketing and branding all need to be managers, part of the plussing and part of the code loops.",
       "meaning": "Email, social, video and similar capabilities are packs built as agents and code loops with managers, metrics and plussing.",
-      "status": "planned",
+      "status": "enforced",
       "tracking_issue": 30,
-      "enforced_by": []
+      "enforced_by": [
+        {
+          "kind": "file",
+          "path": "packs/email/pack.json"
+        },
+        {
+          "kind": "file",
+          "path": "packs/social/pack.json"
+        },
+        {
+          "kind": "file",
+          "path": "packs/video/pack.json"
+        },
+        {
+          "kind": "file",
+          "path": "core/packs/index.js"
+        },
+        {
+          "kind": "file",
+          "path": "core/principles/enforcement.js"
+        },
+        {
+          "kind": "test",
+          "path": "core/principles/enforcement.test.js"
+        }
+      ]
     },
     {
       "id": "D-SEPARATE-FROM-FIRST-INSTALLATION",

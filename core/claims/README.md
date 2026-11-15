@@ -17,7 +17,7 @@ const claim = await acquire(ctx, { path: 'src/app.js', holder: 'agent-1', intent
 
 Ports: `db` (D1-style), `now()` (ms, Date or `YYYY-MM-DD HH:MM:SS`), `config`, optional `killSwitch()` and `authorize(request)`. `handle(request, ctx)` routes `/work-lock|/deploy-lock|/secret-lock` + `acquire|heartbeat|release|check` (POST) and `status` (GET); POST is refused with 401 unless `ctx.authorize` exists or `config.allow_unauthenticated` is true. Config: `claim_ttl_minutes` (120), `lease_ttl_minutes` (2), `deploy_ttl_minutes` (15), `max_ttl_minutes` (240), `rework_threshold` (3), `escalation_role`.
 
-Migration: `migrations/0001_claims.sql` (tables `claims_*`; a partial unique index makes "one live claim per key" a store guarantee, so a race has exactly one winner). Tokens are 256-bit values from `crypto.getRandomValues`; only a SHA-256 hash is stored, and no event, status, log line or idempotency record contains one. Item claims are mirrored into the seed `claims` table so the seed tick's dispatch and reaper keep working (the seed tests are unchanged).
+Migrations: `migrations/0002_gate.sql` (parent links, closure blocks, visibility readings, gate lines) and `migrations/0001_claims.sql` (tables `claims_*`; a partial unique index makes "one live claim per key" a store guarantee, so a race has exactly one winner). Tokens are 256-bit values from `crypto.getRandomValues`; only a SHA-256 hash is stored, and no event, status, log line or idempotency record contains one. Item claims are mirrored into the seed `claims` table so the seed tick's dispatch and reaper keep working (the seed tests are unchanged).
 
 ## Requirements
 
@@ -33,7 +33,7 @@ Migration: `migrations/0001_claims.sql` (tables `claims_*`; a partial unique ind
 | US-08-R08 write only for live token and current fence | L2 | BUILT as `check` for the protected resource to call | `check`; T05 |
 | US-08-R09 do not duplicate a live claim | L2 | BUILT | refusal with `same_intent` and shepherd advice |
 | US-08-R10 record queue pulls | L2 | BUILT (`recordPull`; the caller must invoke it) | |
-| US-08-R11 accounting invariant | L2 | BUILT per loop run; reopens unaccounted items, opens incident. Blocking parent closure is PLANNED | `recordLoopRun`; T06 |
+| US-08-R11 accounting invariant | L2 | BUILT per loop run; reopens unaccounted items, opens incident. As a gate: ancestors of unaccounted items cannot close, a parent closed around the gate is reopened, and a loop with an open gap does not pass | `recordLoopRun`; T06; `gate.js` (`recordLoopRunGated`, `closureAllowed`, `closeItem`, `enforceGate`, `loopGate`), `gate.test.js` |
 | US-08-R12 rework escalation | L2 | BUILT (`recordRework`; caller reports each failed review) | |
 | US-08-R13 orphan metric | L2 | BUILT | `metrics().orphaned_claims` |
 | US-08-R14 interrupt-eligible step becomes one gate card | L2 | BUILT | `escalateToGate` |
@@ -41,8 +41,8 @@ Migration: `migrations/0001_claims.sql` (tables `claims_*`; a partial unique ind
 | US-09 kill switch refuses claims, renewals, leases | cross-ref | BUILT (via `killSwitch()` port or `config.kill_switch`) | |
 | US-14-R01 / R02 ports only | L1 | BUILT | no platform imports |
 | US-14-R11 contention on a scale-out store | L3 | NOT COVERED: proven on one SQLite handle only; a multi-writer store needs the same unique-index semantics | |
-| Visibility ratio across multiple issue stores (US-08 section 5) | L2 | PLANNED | |
-| Principal-queue reroute of cards lacking an identity-bound line, beyond `escalateToGate` | L2 | PARTIAL | |
+| Visibility ratio across multiple issue stores (US-08 section 5) | L2 | BUILT against a `stores` port (each store lists key and status); adapters for real trackers are the caller's | `gate.js` `visibilityRatio` |
+| Principal-queue reroute of cards lacking an identity-bound line (US-08 section 6) | L2 | BUILT: `routeToPrincipal` holds or reroutes a step; `cardsWithoutIdentityLine` is the metric (target 0); `rerouteCards` closes such cards and moves the step to the staff. A card filed by another module counts as having a line only if its `why_gated` text names one of `identity_patterns` | `gate.js` |
 
 Secret lease: exclusive, TTL fixed by `lease_ttl_minutes`, keyed by secret name; any request carrying a value field is refused. Deploy lock: same primitives, TTL `deploy_ttl_minutes`.
 
