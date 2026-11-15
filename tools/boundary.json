@@ -29,6 +29,10 @@
       "class": "core",
       "role": "item to merged change"
     },
+    "core/conformance": {
+      "class": "core",
+      "role": "Conformance (US-SPEC-00): the level declaration, the map from every requirement to the tests that prove it, and the"
+    },
     "core/console-l3": {
       "class": "core",
       "role": "Operator console L3 (US-SPEC-13, US-SPEC-18; issue #46): the fleet view over the L1 console. One state function feeds the"
@@ -67,11 +71,11 @@
     },
     "core/fleet": {
       "class": "core",
-      "role": "Fleet runtime (US-SPEC-11): worker contract and registry reconciliation, row-driven dispatcher, typed executor with an"
+      "role": "the fleet runtime"
     },
     "core/ghcost": {
       "class": "core",
-      "role": "core/ghcost (US-SPEC-24): the Actions minutes watchdog as a tick step, the monthly ledger, the workflow kill switch with"
+      "role": "code-host substrate cost control"
     },
     "core/githubapp": {
       "class": "core",
@@ -79,7 +83,7 @@
     },
     "core/governance": {
       "class": "core",
-      "role": "Recognition engine and pre-emission filter (US-SPEC-07 section 3.1). A draft is matched against the signature register;"
+      "role": "Self-amending governance (US-SPEC-07 section 3): signature register, recognition engine, pre-emission filter,"
     },
     "core/graph": {
       "class": "core",
@@ -91,7 +95,7 @@
     },
     "core/install": {
       "class": "core",
-      "role": "core/install (US-SPEC-10 s7 one-command install, US-10-R14): take a slug, a runtime and an idea; verify preconditions;"
+      "role": "one-command install"
     },
     "core/intent": {
       "class": "core",
@@ -101,9 +105,13 @@
       "class": "core",
       "role": "the L2 managerial layer"
     },
+    "core/ladder": {
+      "class": "core",
+      "role": "Model ladder persistence (US-SPEC-09 sections 4 and 5): the capability matrix and the admission pipeline that is the only"
+    },
     "core/lifecycle-gates": {
       "class": "core",
-      "role": "Management lifecycle beyond the gate tables of core/kernel (US-SPEC-15): the delivery-mode rule and tailoring, the"
+      "role": "mode tailoring, iterations, status report, scope gate"
     },
     "core/migrations": {
       "class": "core",
@@ -127,7 +135,7 @@
     },
     "core/plus": {
       "class": "core",
-      "role": "The plus loop (US-SPEC-04): a reserved share of capacity, a product registry, one plus at a time per product with a"
+      "role": "the plus loop"
     },
     "core/predict": {
       "class": "core",
@@ -139,7 +147,7 @@
     },
     "core/remediation": {
       "class": "core",
-      "role": "Failure modes and remediation, the parts beside the kernel register (US-SPEC-17): a status view over the register, the"
+      "role": "failure modes beside the register"
     },
     "core/router": {
       "class": "core",
@@ -151,7 +159,7 @@
     },
     "core/signals": {
       "class": "core",
-      "role": "Signal pipeline (US-SPEC-12 Part A): intake, triage, boundary, synthesis, ignorance audit, strict-shrink refinement,"
+      "role": "the signal pipeline"
     },
     "core/sla": {
       "class": "core",
@@ -167,7 +175,7 @@
     },
     "core/staff": {
       "class": "core",
-      "role": "Virtual staff (US-SPEC-02): personas with an enumerated decision authority, a tool layer that enforces the lane from"
+      "role": "virtual staff, their authority and their lane"
     },
     "core/steward": {
       "class": "core",
@@ -179,7 +187,7 @@
     },
     "core/tenancy": {
       "class": "core",
-      "role": "core/tenancy (US-SPEC-10 s7, US-10-R13): tenant registry, the hourly aggregate a tenant pushes to a control plane that"
+      "role": "tenant isolation"
     },
     "core/test": {
       "class": "core",
