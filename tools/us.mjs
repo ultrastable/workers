@@ -17,6 +17,7 @@ export const COMMANDS = {
   test: { run: 'node', script: 'tools/run-suites.mjs', about: 'Run every test suite from one list' },
   'spec-truth': { run: 'python', script: 'tools/spec_truth.py', about: 'Report specification status lines that claim code which is not there' },
   'spec-backlog': { run: 'python', script: 'tools/spec_backlog.py', about: 'Count BUILT, RUNNING and PLANNED across the specifications' },
+  'req-ids': { run: 'python', script: 'tools/req_ids.py', about: 'Report requirement ids cited in code that no specification defines' },
   selfhost: { run: 'python', script: 'tools/selfhost_check.py', about: 'Check a pull request record against the self-hosting contract' },
   'lint-workflows': { run: 'python', script: 'tools/workflow_lint.py', about: 'Lint CI workflows for the cost and safety rules (add --require-sha for public repositories)' },
   budget: { run: 'python', script: 'tools/actions_budget.py', about: 'CI minutes watchdog: usage against the budget file, decision and exit status' },
