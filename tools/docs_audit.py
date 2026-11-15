@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 """Doc-consumption audit. Ultrastable is the foundation for any autonomous system. (owner, 2026-11-12)
 
 Nobody reads documents here; the system runs on code. So a document may exist only if something consumes it: an agent instruction

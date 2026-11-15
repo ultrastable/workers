@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 """The heartbeat. One call to Engine.tick() is one pass of the control loop.
 
 Every step is guarded: a failing step is recorded as an error and as a backlog item, and the

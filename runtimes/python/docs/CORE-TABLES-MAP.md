@@ -1,6 +1,6 @@
 # Core tables: product database map (issue #3)
 
-The product database is the `Store` schema in `ultrastable/store.py` (SQLite by default, Postgres through `pg_store.py`). Each table in `core-manifest/boundary.json` `core_tables` has a home there. Nothing in `platform/core` reads `qnfo-audit`; `tests/test_boundary.py` enforces both facts.
+The product database is the `Store` schema in `runtimes/python/ultrastable/store.py` (SQLite by default, Postgres through `runtimes/python/ultrastable/pg_store.py`). Each table in `extraction/boundary.json` `core_tables` has a home there. Nothing in `platform/core` reads `qnfo-audit`; `runtimes/python/tests/test_boundary.py` enforces both facts.
 
 | QNFO core table | Product table |
 |---|---|

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 # SELF-CLOSED-LOOPS-1: instruction files carry the rule, and a change adds no text that waits on a person.
 # Usage: self_closed_lint.py [--base origin/main] [--selftest]
 import re, subprocess, sys

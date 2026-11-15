@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
+# Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 # AGENT-BOOTSTRAP-1: write (or check) the generated pointer block that makes every agent fetch the unified bootstrap.
 # Usage: sync_agent_bootstrap.py [--check] FILE...   (after the first H1; replaces an existing block)
 import sys
