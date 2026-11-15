@@ -127,3 +127,68 @@ test('issue #173: a claim that was heartbeated is released without an unworked o
   await runTick(db, { config, now: T0 + 3 * 3600e3 });
   assert.equal(db.raw.prepare("SELECT COUNT(*) AS n FROM outcomes WHERE result='unworked'").get().n, 0);
 });
+
+test('issue #173 execute: a dispatched item whose probe passes ends done with evidence in the same tick', async () => {
+  const db = makeDb();
+  db.raw.exec(`INSERT INTO roles (id, role, tick_every, model) VALUES ('op-1','operations',1,'m');
+    INSERT INTO items (id,title,owner_role,done_check,closing_probe,status) VALUES ('DEP','dep','nobody','x',NULL,'done');
+    UPDATE items SET disposition='done: seeded' WHERE id='DEP';
+    INSERT INTO items (id,title,owner_role,done_check,closing_probe,priority,status) VALUES ('P1','p','operations','dep is done','item_done:DEP',1,'ready');`);
+  const r = await runTick(db, { config, now: T0 });
+  assert.deepEqual(r.errors, []);
+  const it = db.raw.prepare("SELECT status, disposition FROM items WHERE id='P1'").get();
+  assert.equal(it.status, 'done'); assert.match(it.disposition, /done by tick-doer in tick 1: item DEP is done/);
+  assert.equal(db.raw.prepare("SELECT COUNT(*) AS n FROM claims").get().n, 0);
+  const o = db.raw.prepare("SELECT agent, result, evidence FROM outcomes WHERE item_id='P1'").get();
+  assert.deepEqual([o.agent, o.result], ['tick-doer', 'verified']);
+  assert.equal(db.raw.prepare("SELECT status FROM dispatches WHERE item_id='P1'").get().status, 'done');
+  assert.match(r.report, /executed: 1 done \(0 from parked\), 0 parked on a probe, 0 left for an executor/);
+});
+
+test('issue #173 execute: a failing probe parks the item with a reason, and it closes by itself when the probe passes', async () => {
+  const db = makeDb();
+  db.raw.exec(`INSERT INTO roles (id, role, tick_every, model) VALUES ('op-1','operations',1,'m');
+    INSERT INTO items (id,title,owner_role,done_check,closing_probe,priority,status) VALUES ('E1','needs a setting','operations','setting present','env:SOME_SETTING',1,'ready'),
+      ('S1','sql probe','operations','two ticks ran','SELECT COUNT(*) FROM tick_runs WHERE id >= 2',2,'ready');`);
+  await runTick(db, { config, now: T0 });
+  const e1 = db.raw.prepare("SELECT status, blocker, disposition FROM items WHERE id='E1'").get();
+  assert.equal(e1.status, 'blocked');
+  assert.match(e1.blocker, /^waiting on probe: env:SOME_SETTING \(setting SOME_SETTING is absent\)/);
+  assert.match(e1.disposition, /parked by tick-doer/);
+  assert.equal(db.raw.prepare("SELECT COUNT(*) AS n FROM claims").get().n, 0, 'a parked item holds no claim');
+  // never re-dispatched while parked, never counted as released unworked
+  await runTick(db, { config, now: T0 + 3 * 3600e3 });
+  assert.equal(db.raw.prepare("SELECT COUNT(*) AS n FROM dispatches WHERE item_id='E1'").get().n, 1);
+  assert.equal(db.raw.prepare("SELECT COUNT(*) AS n FROM outcomes WHERE result='unworked'").get().n, 0);
+  assert.equal(db.raw.prepare("SELECT status FROM items WHERE id='S1'").get().status, 'done', 'the SELECT probe passed on tick 2');
+  const r = await runTick(db, { config, env: { SOME_SETTING: true }, now: T0 + 4 * 3600e3 });
+  assert.equal(db.raw.prepare("SELECT status FROM items WHERE id='E1'").get().status, 'done');
+  assert.match(r.report, /\(1 from parked\)/);
+});
+
+test('issue #173 execute: an item with no machine-readable probe keeps its claim for an outside executor; a worked claim is not touched', async () => {
+  const db = makeDb(); seed(db);
+  db.raw.exec(`INSERT INTO items (id,title,owner_role,done_check,closing_probe,priority,status) VALUES ('W1','worked','operations','x','env:NOPE',1,'ready')`);
+  const r = await runTick(db, { config: { ...config, execute_max_items: 0 }, now: T0 }); // nothing executed this tick: both stay claimed
+  assert.match(r.report, /0 left for an executor/);
+  db.raw.exec(`UPDATE claims SET heartbeat_at='2026-11-10 00:30:00' WHERE item_id='W1'`); // an executor is working it
+  const r2 = await runTick(db, { config, now: T0 + 60e3 });
+  assert.equal(db.raw.prepare("SELECT status FROM items WHERE id='W1'").get().status, 'claimed');
+  assert.equal(db.raw.prepare("SELECT status FROM items WHERE id='A'").get().status, 'claimed');
+  assert.match(r2.report, /0 parked on a probe, 2 left for an executor/); // A and B wait for an executor; W1 is being worked
+});
+
+test('issue #173 execute: a TICKFAIL item closes when a later tick completes the step, and an unreadable SELECT probe parks instead of throwing', async () => {
+  const db = makeDb();
+  db.raw.exec(`INSERT INTO roles (id, role, tick_every, model) VALUES ('op-1','operations',1,'m');
+    INSERT INTO items (id,title,kind,owner_role,done_check,priority,status,created_at) VALUES ('TICKFAIL-score_predictions-2026-11-09T23','failed','fix','operations','next tick completes step score_predictions',0,'ready','2026-11-09 23:00:00');
+    INSERT INTO tick_runs (started_at, finished_at, steps_completed, steps_total, errors) VALUES ('2026-11-09 23:10:00','2026-11-09 23:10:00',7,8,'["score_predictions: boom"]'), ('2026-11-09 23:20:00','2026-11-09 23:20:00',8,8,NULL);
+    INSERT INTO items (id,title,owner_role,done_check,closing_probe,priority,status) VALUES ('BADSQL','bad','operations','x','select n from no_such_table',1,'ready');`);
+  const r = await runTick(db, { config: { ...config, max_wip_per_role: 5 }, now: T0 });
+  assert.deepEqual(r.errors, []);
+  const t = db.raw.prepare("SELECT status, disposition FROM items WHERE id LIKE 'TICKFAIL-%'").get();
+  assert.equal(t.status, 'done'); assert.match(t.disposition, /tick 2 completed step score_predictions/);
+  await runTick(db, { config, now: T0 + 60e3 });
+  const b = db.raw.prepare("SELECT status, blocker FROM items WHERE id='BADSQL'").get();
+  assert.equal(b.status, 'blocked'); assert.match(b.blocker, /probe could not run/);
+});

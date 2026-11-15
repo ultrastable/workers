@@ -29,7 +29,7 @@ The same command is safe to run repeatedly: seed rows use `INSERT OR IGNORE`, D1
 
 ## The tick (what the server does forever)
 
-`reconcile` (disposition for every closed item, triggers become ready), `reap_claims`, `probe_gates` (owner-step cards close themselves when their probe passes), `score_predictions`, `accrue_trust`, `dispatch`, `check_plus_share`. A failing step is recorded and filed as work; the other steps still run. Each tick writes a four-line report to `tick_runs` and `/health`.
+`reconcile` (disposition for every closed item, triggers become ready), `reap_claims`, `probe_gates` (owner-step cards close themselves when their probe passes), `score_predictions`, `accrue_trust`, `dispatch`, `execute` (a dispatched item whose closing probe the tick can read ends done with evidence or parked on that probe, and a parked item closes by itself when the probe passes), `check_plus_share`. A failing step is recorded and filed as work; the other steps still run. Each tick writes a four-line report to `tick_runs` and `/health`.
 
 ## Autonomy
 
