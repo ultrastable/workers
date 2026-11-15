@@ -172,7 +172,7 @@
         "id": "ORG-TOKEN",
         "what": "Mint the org admin token with the listed scopes",
         "why": "minting the owner's credential is identity-bound",
-        "default": "holding page only; profile content staged in the repo",
+        "default": "profile content staged in the repo only",
         "probe": "org-manage probe passes"
       }
     },
@@ -203,14 +203,14 @@
     },
     {
       "id": "BC-8",
-      "title": "Nothing may be public until the invention is filed",
+      "title": "The owner asked that nothing be public yet",
       "when": {
         "priority_filed": false,
         "public_disclosure_allowed": false
       },
       "routes": [
         {
-          "step": "Keep repos private; serve a generic holding page; allow only SAFE NOW text in posts, packets and the site",
+          "step": "Keep repos private; serve a generic placeholder page; allow only SAFE NOW text in posts, packets and the site",
           "probe": "disclosure guard check passes on the live page"
         },
         {

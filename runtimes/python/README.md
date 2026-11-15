@@ -2,7 +2,7 @@
 
 **The self-governing layer around the coding agents a team already uses.** Agents are cheap; managing them is not. Ultrastable runs the backlog, hands each item to the agent that fits, has a *different* agent verify every result, scores its own predictions, earns autonomy from a verified record, and interrupts a person only for steps that are both irreversible and identity-bound.
 
-> Proprietary and confidential. Private until the provisional patent is filed. See [LICENSE](LICENSE).
+> Source-available under the Ultrastable License; see [LICENSE](LICENSE).
 
 ![status](https://img.shields.io/badge/tests-12%20passing-brightgreen) ![runtime](https://img.shields.io/badge/runtime-python%203.11%2B%20stdlib-blue) ![cloud](https://img.shields.io/badge/cloud-agnostic-lightgrey)
 
