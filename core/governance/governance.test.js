@@ -351,7 +351,7 @@ test('US-07-R15 an adopted goal has a parent objective and an alignment sentence
     c('G5', 'Reduce checkout service error rate under 1 percent', { alignment: 'Fewer errors serve reliability.' }),
     c('G6', 'Add a cache for the reliable checkout service', { alignment: 'Speed.' }),
   ], { now: NOW });
-  assert.deepEqual(r.adopted.map(g => [g.id, g.kind, g.status, g.parent_objective]), [['G1', 'derived', 'adopted', 'O1'], ['G5', 'derived', 'adopted', 'O1'], ['G2', 'novel', 'probation', null]]);
+  assert.deepEqual(r.adopted.map(g => [g.id, g.kind, g.status, g.parent_objective]), [['G1', 'derived', 'adopted', 'O1'], ['G2', 'novel', 'probation', null], ['G5', 'derived', 'adopted', 'O1']]);
   assert.deepEqual(r.rejected.map(x => x.id).sort(), ['G3', 'G4', 'G6']);
   assert.match(r.rejected.find(x => x.id === 'G6').reason, /cycle limit of 3/);
   const g2 = one(db, `SELECT probation_until, dispatchable, parent_objective FROM governance_goals WHERE id='G2'`);

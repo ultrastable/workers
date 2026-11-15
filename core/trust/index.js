@@ -145,7 +145,12 @@ export async function recompute(db, { policy, config = {}, now = Date.now() } = 
     FROM outcomes ${byAgent ? `WHERE agent IS NOT NULL AND agent <> ''` : ''} GROUP BY surface, action_class${byAgent ? ', agent' : ''}`, since);
   const keys = new Map();
   for (const r of [...await agg(false), ...await agg(true)]) keys.set(`${r.surface}\u0000${r.action_class}\u0000${r.executor}`, { ...r, events: 0 });
-  for (const e of await all(db, `SELECT surface, action_class, executor, SUM(weight) AS w, MAX(at) AS last FROM trust_events GROUP BY surface, action_class, executor`)) {
+  // As with outcomes, the pair's events are those of all its executors; an executor's are its own.
+  const events = [
+    ...await all(db, `SELECT surface, action_class, '' AS executor, SUM(weight) AS w, MAX(at) AS last FROM trust_events GROUP BY surface, action_class`),
+    ...await all(db, `SELECT surface, action_class, executor, SUM(weight) AS w, MAX(at) AS last FROM trust_events WHERE executor <> '' GROUP BY surface, action_class, executor`),
+  ];
+  for (const e of events) {
     const k = `${e.surface}\u0000${e.action_class}\u0000${e.executor}`;
     const cur = keys.get(k) || { surface: e.surface, action_class: e.action_class, executor: e.executor, ok: 0, n: 0, severe: 0, last: null, events: 0 };
     cur.events = e.w; cur.last = !cur.last || e.last > cur.last ? e.last : cur.last;
