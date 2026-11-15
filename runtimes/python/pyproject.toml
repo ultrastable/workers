@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "A self-governing control loop around the coding agents a team already uses."
 requires-python = ">=3.11"
 dependencies = []
-license = { text = "Proprietary" }
+license = { text = "LicenseRef-Ultrastable-USL-1.0" }
 
 [project.scripts]
 ultrastable = "ultrastable.cli:main"
