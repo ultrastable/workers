@@ -121,7 +121,7 @@ test('event-weighted trust deductions per recognition: each non-excluded hit ded
   const before = (await Trust.recompute(db, { policy: POLICY, now: NOW }))[0].score;
   const deduct = (d) => Trust.recordEvent(db, d, { now: NOW });
   const r = await G.recognize(db, { draft: 'You should rotate the key. The fix is to edit the config.', source: 'doer-1', ctx: { surface: 'repo', action_class: 'open_pr', agent: 'doer-1' } }, { now: NOW, deduct });
-  assert.deepEqual(r.deductions.map(d => [d.event, d.weight]), [['narration', -0.05], ['principal_actor', -0.10]].map(([k, w]) => [k === 'narration' ? 'unnecessary_question' : 'handoff_of_executable_step', w]));
+  assert.deepEqual(r.deductions.map(d => [d.event, d.weight]), [['unnecessary_question', -0.05], ['handoff_of_executable_step', -0.10]]);
   assert.deepEqual(rows(db, `SELECT pattern_key, weight FROM governance_deductions ORDER BY pattern_key`).map(x => [x.pattern_key, x.weight]), [['narration', -0.05], ['principal_actor', -0.10]]);
   const after = (await Trust.recompute(db, { policy: POLICY, now: NOW })).find(x => x.executor === '').score;
   assert.ok(Math.abs((before - after) - 0.15) < 1e-9);
