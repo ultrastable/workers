@@ -1,0 +1,31 @@
+{
+  "_doc": "Cloudflare list prices, USD. ESTIMATE-GRADE: copied from the public pricing pages on as_of; Cloudflare can change them, so the spend probe reports the as_of date and the numbers are never a bill. Re-verify before relying on them.",
+  "as_of": "2026-11-16",
+  "sources": [
+    "https://developers.cloudflare.com/durable-objects/platform/pricing/",
+    "https://developers.cloudflare.com/d1/platform/pricing/",
+    "https://developers.cloudflare.com/vectorize/platform/pricing/",
+    "https://developers.cloudflare.com/r2/pricing/",
+    "https://developers.cloudflare.com/kv/platform/pricing/"
+  ],
+  "workers_paid_base_month": 5.0,
+  "do_sqlite": {
+    "requests": { "included_month": 1000000, "per_million": 0.15 },
+    "duration_gb_s": { "included_month": 400000, "per_million": 12.5 },
+    "rows_read": { "included_month": 25000000000, "per_million": 0.001 },
+    "rows_written": { "included_month": 50000000, "per_million": 1.0 },
+    "storage_gb_month": { "included": 5, "per_gb": 0.2 }
+  },
+  "d1": {
+    "rows_read": { "included_month": 25000000000, "per_million": 0.001 },
+    "rows_written": { "included_month": 50000000, "per_million": 1.0 },
+    "storage_gb_month": { "included": 5, "per_gb": 0.75 },
+    "free_daily": { "rows_read": 5000000, "rows_written": 100000 }
+  },
+  "vectorize": {
+    "queried_dimensions": { "included_month": 50000000, "per_million": 0.01 },
+    "stored_dimensions": { "included": 10000000, "per_100_million": 0.05 }
+  },
+  "r2": { "storage_gb_month": 0.015, "free_gb": 10, "class_a_per_million": 4.5, "class_b_per_million": 0.36 },
+  "kv": { "reads": { "included_month": 10000000, "per_million": 0.5 }, "writes": { "included_month": 1000000, "per_million": 5.0 } }
+}

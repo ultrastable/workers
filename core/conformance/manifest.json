@@ -28,7 +28,8 @@
   "US-SPEC-21": "0.1.0 (draft)",
   "US-SPEC-22": "0.1.0 (draft)",
   "US-SPEC-23": "0.1.0 (draft)",
-  "US-SPEC-24": "0.1.0 (draft)"
+  "US-SPEC-24": "0.1.0 (draft)",
+  "US-SPEC-25": "0.1.0 (draft)"
  },
  "conformance_tests": [
   {
