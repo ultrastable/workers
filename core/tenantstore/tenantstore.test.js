@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import { openTenantSql } from '../../adapters/sqlite/tenant-sqlite.js';
 import { TenantStore, BudgetError } from './store.js';
 import { estimateMonth, worstCase, probe } from './spend.js';
-import { DEFAULT_BUDGET } from './budget.js';
-import { doSqlPort, tenantStub } from '../../adapters/cloudflare/src/tenant-do.js';
+import { PAID_PLAN_BUDGET, FREE_PLAN_BUDGET } from './budget.js';
+import { doSqlPort, tenantStub, makeTenantDO } from '../../adapters/cloudflare/src/tenant-do.js';
 
 const mk = (budget = {}, now) => new TenantStore({ tenantId: 'acme', sql: openTenantSql(), budget, now });
 
@@ -61,7 +61,7 @@ test('hot read falls back to stale cache when the budget is spent', async () => 
 });
 
 test('worst case is bounded by the budgets and spend probe flags a breach', () => {
-  const wc = worstCase([DEFAULT_BUDGET, DEFAULT_BUDGET, DEFAULT_BUDGET, DEFAULT_BUDGET, DEFAULT_BUDGET]);
+  const wc = worstCase([PAID_PLAN_BUDGET, PAID_PLAN_BUDGET, PAID_PLAN_BUDGET, PAID_PLAN_BUDGET, PAID_PLAN_BUDGET]);
   assert.ok(wc.estimate && wc.total < 8, 'five tenants at full budget stay under the ceiling: ' + wc.total);
   const heavy = estimateMonth({ reads: 60e9, writes: 100e6, requests: 5e6 });
   assert.ok(heavy.total > 50);
@@ -75,4 +75,28 @@ test('DO port aborts a runaway cursor and tenant ids are validated', () => {
   const r = doSqlPort({ exec: () => it }, 10).exec('SELECT 1');
   assert.ok(r.rows.length < 50);
   assert.throws(() => tenantStub({ TENANT: {} }, '../other'), /bad_tenant_id/);
+});
+
+test('free profile: five tenants fit inside the free plan account-wide daily limits, and metering is batched', () => {
+  const sum = (f) => 5 * FREE_PLAN_BUDGET.day[f];
+  assert.ok(sum('requests') <= 100_000 && sum('writes') <= 100_000 && sum('reads') <= 5_000_000);
+  const s = new TenantStore({ tenantId: 'acme', sql: openTenantSql(), budget: {} });
+  s.query('CREATE TABLE a(x)');
+  const before = s.sql.exec('SELECT COUNT(*) n FROM _budget').rows[0].n;
+  for (let i = 0; i < 10; i++) s.query('SELECT 1');
+  assert.equal(s.sql.exec('SELECT COUNT(*) n FROM _budget').rows[0].n, before, 'no storage writes per operation below flushEvery');
+  s.guard.flush();
+  assert.equal(s.sql.exec('SELECT requests FROM _budget WHERE period LIKE ?', ['d:%']).rows[0].requests, 11);
+});
+
+test('TenantDO runs behind a fake platform base and returns errors as data', () => {
+  const sql = openTenantSql();
+  const fakeStorage = { sql: { exec: (t, ...p) => { const r = sql.exec(t, p); const it = r.rows[Symbol.iterator](); return { [Symbol.iterator]: () => it, rowsRead: r.rowsRead, rowsWritten: r.rowsWritten }; }, databaseSize: 1 } };
+  const DO = makeTenantDO(class { constructor(ctx, env) { this.base = true; } });
+  const d = new DO({ storage: fakeStorage }, { TENANT_BUDGETS: JSON.stringify({ acme: { day: { writes: 1 } } }) });
+  assert.equal(d.base, true);
+  assert.equal(d.query('acme', 'CREATE TABLE a(x)').ok, true);
+  assert.equal(d.query('acme', 'INSERT INTO a VALUES(1)').ok, true);
+  const e = d.query('acme', 'INSERT INTO a VALUES(2)');
+  assert.equal(e.ok, false); assert.equal(e.error.code, 'budget_exceeded');
 });

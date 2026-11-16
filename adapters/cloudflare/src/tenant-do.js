@@ -16,9 +16,11 @@ export function doSqlPort(sqlStorage, perQueryReads = DEFAULT_BUDGET.perQueryRea
   };
 }
 
-// Durable Object class. Export it from the Worker entry and bind it as TENANT with new_sqlite_classes in wrangler config.
-export class TenantDO {
+// Durable Object class, built on the platform's DurableObject base (passed in, so this file imports nothing Cloudflare-only and tests run in Node).
+// RPC works only on a class that extends DurableObject, which is why the entry file calls makeTenantDO(DurableObject).
+export const makeTenantDO = (Base) => class TenantDO extends Base {
   constructor(ctx, env) {
+    super(ctx, env);
     this.ctx = ctx; this.env = env;
     this.budgetFor = env.TENANT_BUDGETS ? JSON.parse(env.TENANT_BUDGETS) : {};
   }
@@ -27,12 +29,18 @@ export class TenantDO {
     return this._store;
   }
   // RPC methods (Workers RPC): the caller never gets raw SQL access across tenants because it can only reach its own stub.
-  query(tenantId, text, params) { return this.store(tenantId).query(text, params); }
-  vectorUpsert(tenantId, id, v, o) { return this.store(tenantId).vectors.upsert(id, v, o); }
-  vectorQuery(tenantId, v, o) { return this.store(tenantId).vectors.query(v, o); }
-  rollupAdd(tenantId, name, key, d) { return this.store(tenantId).rollups.add(name, key, d); }
-  status(tenantId) { return { ...this.store(tenantId).status(), storageBytes: this.ctx.storage.sql.databaseSize }; }
-}
+  // Errors become data ({ error: { code, ... } }) because a thrown custom error loses its fields across the RPC boundary.
+  _do(tenantId, fn) {
+    try { return { ok: true, value: fn(this.store(tenantId)) }; }
+    catch (e) { return { ok: false, error: { code: e.code || 'error', message: String(e.message || e), limit: e.limit, period: e.period, resetsAt: e.resetsAt } }; }
+  }
+  query(tenantId, text, params) { return this._do(tenantId, s => s.query(text, params)); }
+  vectorUpsert(tenantId, id, v, o) { return this._do(tenantId, s => s.vectors.upsert(id, v, o) ?? true); }
+  vectorQuery(tenantId, v, o) { return this._do(tenantId, s => s.vectors.query(v, o)); }
+  rollupAdd(tenantId, name, key, d) { return this._do(tenantId, s => s.rollups.add(name, key, d) ?? true); }
+  rollupGet(tenantId, name, key) { return this._do(tenantId, s => s.rollups.get(name, key)); }
+  status(tenantId) { return this._do(tenantId, s => ({ ...s.status(), storageBytes: this.ctx.storage.sql.databaseSize })); }
+};
 
 // Router: one stub per tenant, never a shared namespace id. Tenant ids are validated so a caller cannot reach another tenant's object.
 export function tenantStub(env, tenantId) {
