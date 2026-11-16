@@ -75,3 +75,7 @@ Today the repositories are at **stage 1**. Say so; do not claim more.
 - Modules take their dependencies as arguments (`db`, `fetch`, `now`, `config`); see `core/README.md`.
 - Specifications live in `ultrastable/spec`. Change a status label there in the same piece of work as the code that makes it true.
 - The product's own agent protocol for the organizations it creates is in `agents/AGENTS.md` (in `ultrastable/workers`); this contract is how *this* repository is run.
+
+## Code-only order (CODE-ONLY-ORDER, every repo)
+
+> CODE-ONLY-ORDER (Rowan, 2026-11-16): chat threads, sessions and reports are temporary and are never storage. Every decision, instruction and standing rule lives in the system itself as code the system consumes: the seed, agent instructions, doctrine and policy files, checks and loops. A rule that exists only in a thread or a report does not count. Agents decide on their own, implement, deploy to production and verify live; they never present a decision to the owner. A merged change that records a decision with no code consumer, or an agent report that hands a decision to the owner, fails a check and files a work item. Enforced in `ultrastable/ultrastable` by `python3 -m foundation standingorder --check` (doctrine/standing-order.json).
