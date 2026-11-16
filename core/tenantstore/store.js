@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
-// TenantStore: the one door to a tenant's data. SqlPort contract (every adapter implements it):
+// core/tenantstore (spec: US-SPEC-25). TenantStore: the one door to a tenant's data. SqlPort contract (every adapter implements it):
 //   sql.exec(text, params[]) -> { rows: object[], rowsRead: number, rowsWritten: number }
 // The tenant's store is private to the tenant (one Durable Object, one SQLite file, one D1 database, one Postgres schema),
 // which is the sandbox; the guard meters it; hot reads can be served from a cache port and survive a spent budget.

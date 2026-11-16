@@ -1,3 +1,6 @@
+---
+consumer: core/tenantstore/store.js
+---
 <!-- SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0 -->
 <!-- Copyright (c) 2026 Rowan Brad Quni-Gudzinas -->
 
@@ -14,7 +17,7 @@ Implements US-SPEC-25 (tenant storage). One private store per tenant behind a `S
 | TS-5 vector search in the tenant store, int8, capped by `maxVectors` | BUILT | `vector.js` |
 | TS-6 hot reads from a cache port, stale value served when the budget is spent | BUILT | `store.js` `cached` |
 | TS-7 spend probe and worst-case bound from list prices | BUILT (estimates, see `prices.json` `as_of`) | `spend.js` |
-| TS-8 Durable Object adapter | BUILT against a fake `ctx.storage.sql`; NOT deployed to a real account | `adapters/cloudflare/src/tenant-do.js` |
+| TS-8 Durable Object adapter | BUILT against a fake `the Durable Object SQL storage`; NOT deployed to a real account | `adapters/cloudflare/src/tenant-do.js` |
 | TS-9 spill to a per-tenant Vectorize index past `maxVectors` | PLANNED | none yet |
 | TS-10 cross-check of self-metered usage against Cloudflare GraphQL analytics | PLANNED | none yet |
 
