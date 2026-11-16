@@ -48,6 +48,7 @@ export const MODULES = [
   { id: 'modelport', dir: 'core/modelport/migrations' },
   { id: 'walkthrough', dir: 'core/walkthrough/migrations' },
   { id: 'sharedslots', dir: 'adapters/shared/migrations' },
+  { id: 'outreach', dir: 'core/outreach/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.
