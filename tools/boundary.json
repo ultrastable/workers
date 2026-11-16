@@ -77,6 +77,10 @@
       "class": "core",
       "role": "code-host substrate cost control"
     },
+    "core/tenantstore": {
+      "class": "core",
+      "role": "Sandboxed per-tenant store with hard read and write budgets, vector search and a spend probe (US-SPEC-25)"
+    },
     "core/githubapp": {
       "class": "core",
       "role": "One-click GitHub access (US-SPEC-18 door github-app-install). A GitHub App is created from a manifest, installed on"
