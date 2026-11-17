@@ -7,13 +7,21 @@
 // still validated and tagged unverified by sanitizeModel; a failing route degrades to the rule-based red team, never to silence.
 const est = s => Math.ceil(String(s || '').length / 4);
 
-export const githubModelsEndpoint = ({ fetch: f = globalThis.fetch, token, url = 'https://models.github.ai/inference/chat/completions' } = {}) => async ({ model, messages, max_tokens = 900 }) => {
+export const GITHUB_MODELS_URLS = ['https://models.github.ai/inference/chat/completions', 'https://models.inference.ai.azure.com/chat/completions'];
+// Tries each URL in turn: a route that answers without a JSON completion (seen: 200 "OK") is a failed route, not an answer.
+export const githubModelsEndpoint = ({ fetch: f = globalThis.fetch, token, url, urls = url ? [url] : GITHUB_MODELS_URLS } = {}) => async ({ model, messages, max_tokens = 900 }) => {
   if (!token) throw new Error('no token for GitHub Models');
-  const r = await f(url, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ model, messages, max_tokens, temperature: 0.4 }) });
-  if (!r.ok) throw new Error(`GitHub Models HTTP ${r.status}`);
-  const j = await r.json(), text = j?.choices?.[0]?.message?.content;
-  if (typeof text !== 'string') throw new Error('GitHub Models returned no text');
-  return { text, tokens_in: j.usage?.prompt_tokens ?? est(JSON.stringify(messages)), tokens_out: j.usage?.completion_tokens ?? est(text) };
+  const fails = [];
+  for (const u of urls) {
+    const name = u.includes('azure') ? String(model).replace(/^[^/]+\//, '') : model;
+    const r = await f(u, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ model: name, messages, max_tokens, temperature: 0.4 }) });
+    const raw = await r.text(); let j = null;
+    try { j = JSON.parse(raw); } catch { /* not JSON: recorded below */ }
+    const text = j?.choices?.[0]?.message?.content;
+    if (r.ok && typeof text === 'string') return { text, tokens_in: j.usage?.prompt_tokens ?? est(JSON.stringify(messages)), tokens_out: j.usage?.completion_tokens ?? est(text) };
+    fails.push(`${new URL(u).host} HTTP ${r.status} ${raw.slice(0, 60).replace(/\s+/g, ' ')}`);
+  }
+  throw new Error(`GitHub Models failed: ${fails.join('; ')}`);
 };
 
 export const workersAiEndpoint = ({ ai }) => async ({ model, messages, max_tokens = 900 }) => {
