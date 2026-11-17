@@ -7,6 +7,9 @@ import { esc, safeHref } from './html.js';
 
 export const skipLink = (target = 'main', text = 'Skip to main content') => `<a class="skip" href="#${esc(target)}">${esc(text)}</a>`;
 
+// familyBar: the slim strip that ties a product to the Ultrastable family (FAMILY-1): two homes, one design language, always one tap apart.
+export const familyBar = ({ label, links = [] }) => `<aside class="fam" aria-label="${esc(label)}"><div class="wrap"><span>${esc(label)}</span><ul>${links.map(l => `<li><a href="${esc(safeHref(l.href))}">${esc(l.label)}</a></li>`).join('')}</ul></div></aside>`;
+
 export function siteHeader({ brand, nav = [], current = '', search = null }) {
   const cur = n => n.match ? n.match.test(current) : n.href === current;
   return `<header class="site-h"><div class="wrap"><a class="brand" href="${esc(safeHref(brand.href || '/'))}">${esc(brand.name)}${brand.tag ? `<small>${esc(brand.tag)}</small>` : ''}</a>
@@ -66,5 +69,5 @@ export function siteFooter({ columns = [], note = '' }) {
 }
 
 // Every part a product can place on a page. Stories and tests refer to these ids; adding a component means adding it here.
-export const COMPONENTS = { skipLink, siteHeader, breadcrumbs, badge, card, cardGrid, summaryList, callout, keyMessages, stats, meter, bar, box, details, cite, table, toc, facets, pagination, hero, section, list, siteFooter };
+export const COMPONENTS = { skipLink, familyBar, siteHeader, breadcrumbs, badge, card, cardGrid, summaryList, callout, keyMessages, stats, meter, bar, box, details, cite, table, toc, facets, pagination, hero, section, list, siteFooter };
 
