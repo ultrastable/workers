@@ -132,7 +132,7 @@ test('with no credentials the deployment does not idle silently: the stall names
   assert.ok(stall, 'the stall is an item, not a silence');
   assert.match(stall.title, /no doer: missing GITHUB_TOKEN, .*ANTHROPIC_API_KEY/);
   const cards = d.q(`SELECT id, default_in_effect, closing_probe FROM gate_cards WHERE id LIKE 'runner-needs-%'`);
-  assert.deepEqual(cards.map(c => c.closing_probe).sort(), ['env:AI', 'env:ANTHROPIC_API_KEY', 'env:GITHUB_TOKEN']);
+  assert.deepEqual(cards.map(c => c.closing_probe).sort(), ['env:GITHUB_TOKEN']);
   assert.ok(cards.every(c => c.default_in_effect));
   // the work was still prepared: the outcomes already carry the specification they need, so nothing is lost while waiting
   assert.ok(d.q(`SELECT COUNT(*) n FROM criticality_specs`)[0].n >= 3);

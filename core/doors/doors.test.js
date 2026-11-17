@@ -11,7 +11,7 @@ import { verifyAccessJwt, _clearJwksCache } from './index.js';
 import { runnerNeeds, createOrg } from '../org/index.js';
 
 const dir = p => fileURLToPath(new URL(p, import.meta.url));
-const MIGS = [dir('../vault/migrations/'), dir('./migrations/'), dir('../access/migrations/')];
+const MIGS = [dir('../vault/migrations/'), dir('./migrations/'), dir('../access/migrations/'), dir('../ownerlink/migrations/')];
 const U = 'https://x.example';
 const T0 = Date.parse('2026-11-11T00:00:00Z');
 const newDb = (tick = true) => {
@@ -169,7 +169,7 @@ test('a vault secret satisfies the runner needs at tick time; without it a card 
   const fetch = async () => new Response('{}', { status: 500 });
   const empty = makeDb(MIGS);
   await createOrg({ db: empty, env: {}, config, fetch, now: () => T0 }).tick();
-  assert.deepEqual(empty.raw.prepare("SELECT id FROM gate_cards WHERE id LIKE 'runner-needs-%' ORDER BY id").all().map(r => r.id), ['runner-needs-ANTHROPIC-API-KEY', 'runner-needs-VCS-TOKEN']);
+  assert.deepEqual(empty.raw.prepare("SELECT id FROM gate_cards WHERE id LIKE 'runner-needs-%' ORDER BY id").all().map(r => r.id), ['runner-needs-VCS-TOKEN'] /* OWNERLINK-1: a provider key has no one-click flow, so it is a staff item, not an owner card */);
   const filled = makeDb(MIGS); const vault = createVault({ db: filled });
   await vault.put('VCS_TOKEN', 'ghp-vault-token-1'); await vault.put('ANTHROPIC_API_KEY', SECRET);
   await createOrg({ db: filled, env: {}, config, fetch, now: () => T0 }).tick();

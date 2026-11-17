@@ -43,6 +43,8 @@ const channels = {
     if (!r.ok) throw new Error('mastodon HTTP ' + r.status);
   },
   async bluesky(ctx, cfg, [i]) {
+    // OWNERLINK-1: a connected OAuth session (core/ownerlink createBlueskyClient) wins over an app password.
+    if (ctx.bluesky && !(ctx.env?.BLUESKY_IDENTIFIER && ctx.env?.BLUESKY_APP_PASSWORD)) { await ctx.bluesky.post(i.text); return; }
     const { BLUESKY_IDENTIFIER: id, BLUESKY_APP_PASSWORD: pw } = ctx.env || {};
     if (!id || !pw) throw Object.assign(new Error('credentials missing'), { skip: true });
     const base = (cfg.service || 'https://bsky.social').replace(/\/+$/, '');
