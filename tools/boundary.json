@@ -300,6 +300,18 @@
     "products/gaplint": {
       "class": "app",
       "role": "open-loop linter for any repository"
+    },
+    "core/ignorance": {
+      "class": "core",
+      "role": "Registry of known unknowns, red-team, inversion and pre-mortem passes, and a frontier of new questions; tenant-agnostic (IGN-1)"
+    },
+    "core/access": {
+      "class": "core",
+      "role": "Access preflight: probes the real state of every capability a tenant depends on"
+    },
+    "core/deploygate": {
+      "class": "core",
+      "role": "Deploy gate: hash read-back of the stored module before a deploy counts as verified"
     }
   },
   "core_scripts": [
