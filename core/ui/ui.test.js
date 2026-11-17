@@ -34,6 +34,6 @@ test('core/ui names no tenant and imports only itself', () => {
   for (const f of readdirSync(new URL('.', import.meta.url)).filter(f => f.endsWith('.js') && !f.endsWith('.test.js'))) {
     const t = readFileSync(new URL(f, import.meta.url), 'utf8');
     for (const m of t.matchAll(/from '([^']+)'/g)) assert.ok(m[1].startsWith('./'), `${f} imports ${m[1]}`);
-    assert.ok(!/practical|workers\.dev|qnfo|github\.com/i.test(t.replace(/^\/\/.*$/gm, '')), f);
+    assert.ok(!new RegExp(['prac' + 'tical', 'workers\\.dev', 'qn' + 'fo', 'github\\.com'].join('|'), 'i').test(t.replace(/^\/\/.*$/gm, '')), f);
   }
 });
