@@ -342,7 +342,8 @@
   "core_workflows": [
     ".github/workflows/ci.yml",
     ".github/workflows/release.yml",
-    ".github/workflows/selfhost.yml"
+    ".github/workflows/selfhost.yml",
+    ".github/workflows/idea-intake.yml"
   ],
   "core_tables": [
     "org",
