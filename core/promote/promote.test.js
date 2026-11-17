@@ -43,3 +43,10 @@ test('idea becomes a complete work item', () => {
   const i = ideaToItem({ number: 7, title: 'Add a thing', body: 'because' });
   assert.ok(i.labels.includes('agent-ready')); assert.match(i.body, /Closing probe/);
 });
+
+test('fetch is called unbound (a Worker throws Illegal invocation otherwise) and a failed post is retried', async () => {
+  const ctx = mk(); let boom = true;
+  ctx.fetch = function (u) { if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation'); if (boom) return { ok: false, status: 500 }; return { ok: true, status: 200, json: async () => ({}) }; };
+  const a = await run(ctx, [e('a')]); assert.equal(a.failed.filter(x => x.ch === 'indexnow').length, 1);
+  boom = false; const b = await run(ctx, [e('a')]); assert.equal(b.sent.filter(x => x.ch === 'indexnow').length, 1);
+});
