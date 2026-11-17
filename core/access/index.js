@@ -75,9 +75,10 @@ export const CAPABILITIES = {
       const r = await api(ctx, 'github', `/repos/${repo}`);
       if (r.none) return unknown('no GitHub token in the environment');
       if (r.failed) return unknown(`repository not readable: ${r.failed.join(' ')}`);
-      const p = r.body?.permissions;
-      if (!p) return unknown('the token did not report permissions');
-      return p[level || 'push'] ? present(`${level || 'push'} granted on ${repo} via ${r.token}`) : absent(`${level || 'push'} not granted on ${repo}`);
+      // A readable repository proves read. Whether the token may push is read from `permissions`, which installation tokens (an
+      // Actions run's own token) report inaccurately, so a missing flag is unknown here, never absent.
+      if ((level || 'push') === 'read') return present(`${repo} is readable via ${r.token}`);
+      return r.body?.permissions?.[level || 'push'] ? present(`${level || 'push'} granted on ${repo} via ${r.token}`) : unknown(`the token reported no ${level || 'push'} permission on ${repo}; installation tokens do not report it reliably`);
     } },
   ] },
   // subject: '<owner>/<repo>:<workflow file>'. Proof by the capability's own use: the workflow has succeeded. A workflow that never
