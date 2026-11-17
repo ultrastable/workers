@@ -10,4 +10,4 @@ the statement is false, and optional `evidence` naming the code. `defineStatemen
 A page is built from the registry with `statement(reg, id, ctx)` inside `region(...)`; live data (tables, counts) goes in `live(...)`. `proof(reg, html, ctx)`
 runs every probe and `auditHtml` fails on prose that is not bound to a statement, an id the registry does not know, and a registry entry the page never shows.
 A test that asserts `proof().ok` makes CI fail when a claim and the code disagree. `describe()` is the machine-readable list (serve it as `/claims.json`).
-Tenant-agnostic. Code: `index.js`; tests: `statements.test.js`; used first by Practical Solutions (`worker/src/method-claims.js`).
+Tenant-agnostic. Code: `index.js`; tests: `statements.test.js`.

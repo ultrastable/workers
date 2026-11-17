@@ -4,7 +4,7 @@
 // is rendered from the live configuration (a number is a template, never typed prose) and every entry carries a `verify` probe that exercises the
 // real behaviour and throws when the statement is false. A page built from the registry marks each statement with data-claim; `audit` then fails
 // on a statement with no probe, a probe that fails, a registry entry the page never shows, a data-claim the registry does not know, and any prose
-// on the page that is not bound to a statement. Tenant-agnostic: the registry, the config and the probes are the tenant's.
+// on the page that is not bound to a statement. Tenant-agnostic: the registry, the config and the probes are the tenant's. See README.md.
 //   statement = { id, section?, text: string | (ctx) => string (HTML, no <span>), verify: async (ctx) => void (throws when false), env?: 'any' | 'ci' (a 'ci' probe needs files or tools and runs only there), evidence?: 'file or test that holds the behaviour' }
 export const START = '<!--statements:start-->', END = '<!--statements:end-->', LIVE_START = '<!--live:start-->', LIVE_END = '<!--live:end-->';
 const ID = /^[a-z0-9][a-z0-9-]*$/;
