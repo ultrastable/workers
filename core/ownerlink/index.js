@@ -10,6 +10,7 @@ import { openActions, recentDone, complete, goLink } from './actions.js';
 import * as mastodon from './mastodon.js';
 import * as bluesky from './atproto.js';
 import { syncPullRequests } from './prs.js';
+import { syncStatic } from './static.js';
 export { actionForAsk, putAction, flowFor, goLink } from './actions.js';
 export { createBlueskyClient } from './atproto.js';
 export { syncPullRequests };
@@ -86,6 +87,7 @@ export function createOwnerlink(ctx) {
 
   /** Tick step: waiting PRs become actions; an action whose card closed, or whose secret now exists, is done. */
   async function step() {
+    const fixed = await syncStatic(h).catch(e => ({ error: String(e?.message || e).slice(0, 100) }));
     const prs = await syncPullRequests(h).catch(e => ({ error: String(e?.message || e).slice(0, 100) }));
     let closed = 0;
     for (const a of await openActions(h)) {
@@ -93,7 +95,7 @@ export function createOwnerlink(ctx) {
       const secret = a.flow === 'mastodon' ? 'MASTODON_TOKEN' : a.flow === 'bluesky' ? 'BLUESKY_OAUTH' : null;
       if ((card && card.status === 'closed') || (secret && await ctx.vault.has(secret))) { await complete(h, a.id); closed++; }
     }
-    return { prs, closed };
+    return { prs, fixed, closed };
   }
 
   return { handle, step, link: id => goLink(h, id) };

@@ -141,3 +141,14 @@ test('pull requests waiting on a human reviewer become one-click actions and clo
   assert.equal((await (await get('/api/owner/actions')).json()).actions.length, 0);
   void ctx;
 });
+
+test('a settings page declared as data is an action until its probe passes', async () => {
+  let status = 403;
+  const f = async url => { assert.equal(String(url), 'https://models.example/catalog'); return resp(status, {}); };
+  const { ol, get } = await mk(f, { static_actions: [{ id: 'models', title: 'Turn on GitHub Models', why: 'The org setting is off.', link: 'https://github.com/organizations/o/settings/models', probe: { url: 'https://models.example/catalog', auth: 'github' } }] });
+  assert.equal((await ol.step()).fixed.open, 1);
+  assert.match(await (await get('/owner')).text(), /Turn on GitHub Models/);
+  status = 200;
+  assert.equal((await ol.step()).fixed.done, 1);
+  assert.equal((await (await get('/api/owner/actions')).json()).actions.length, 0);
+});
