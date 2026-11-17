@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+// Status of every piece is kept in core/promote/README.md.
 // Promotion engine, tenant-agnostic. A tenant hands over entries it already described ({ id, title, url, summary, tags, label });
 // the engine turns each into a short post per channel, labels it automated, and publishes within caps. Enforced in code:
 //   - one kill switch (config.promote.halt or env.HALT='1') stops everything; a channel without its credentials is skipped, never faked
