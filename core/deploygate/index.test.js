@@ -14,15 +14,15 @@ async function token(over = {}, key = kp.privateKey) {
   const sig = Buffer.from(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(h + '.' + p))).toString('base64url');
   return h + '.' + p + '.' + sig;
 }
-function setup({ cfOk = true, readBack = true } = {}) {
+function setup({ cfOk = true, readBack = true, rule = {} } = {}) {
   const calls = [];
   const fetch = async (u, init = {}) => {
-    calls.push({ u: String(u), method: init.method || 'GET' });
+    calls.push({ u: String(u), method: init.method || 'GET', body: init.body });
     if (String(u).endsWith('/.well-known/jwks')) return new Response(JSON.stringify({ keys: [jwk] }));
     if (String(u).endsWith('/content/v2')) return new Response(readBack ? 'BUNDLE' : 'other');
     return new Response(JSON.stringify({ success: cfOk, errors: [] }), { status: cfOk ? 200 : 400 });
   };
-  const gate = createGate({ fetch, now: () => NOW, config: { rules: [{ repo: 'org/app', refs: ['refs/heads/main'], script: 'app-web' }], accountId: 'acct', token: 't' } });
+  const gate = createGate({ fetch, now: () => NOW, config: { rules: [{ repo: 'org/app', refs: ['refs/heads/main'], script: 'app-web', ...rule }], accountId: 'acct', token: 't' } });
   return { gate, calls };
 }
 async function post(gate, tok, script = 'app-web') {
@@ -55,4 +55,11 @@ test('another repo, another ref or another script is forbidden', async () => {
 test('a failed upload or a read-back mismatch is an error, never reported as deployed', async () => {
   assert.equal((await post(setup({ cfOk: false }).gate, await token())).status, 502);
   assert.equal((await post(setup({ readBack: false }).gate, await token())).status, 502);
+});
+test('per-rule compatibility flags are sent and send_email bindings are kept', async () => {
+  const { gate, calls } = setup({ rule: { compat_flags: ['nodejs_compat'] } });
+  assert.equal((await post(gate, await token())).status, 200);
+  const meta = JSON.parse(await calls.find(c => c.method === 'PUT').body.get('metadata').text());
+  assert.deepEqual(meta.compatibility_flags, ['nodejs_compat']);
+  assert.ok(meta.keep_bindings.includes('send_email'));
 });
