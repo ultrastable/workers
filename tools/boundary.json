@@ -77,6 +77,10 @@
       "class": "core",
       "role": "code-host substrate cost control"
     },
+    "core/kgraph": {
+      "class": "core",
+      "role": "Knowledge graph with provenance whose gaps generate the next questions; tenant-agnostic"
+    },
     "core/feed": {
       "class": "core",
       "role": "Changelog feed rendered as RSS and JSON Feed, tenant-agnostic"
