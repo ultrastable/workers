@@ -11,7 +11,7 @@ import { verifyAccessJwt, _clearJwksCache } from './index.js';
 import { runnerNeeds, createOrg } from '../org/index.js';
 
 const dir = p => fileURLToPath(new URL(p, import.meta.url));
-const MIGS = [dir('../vault/migrations/'), dir('./migrations/')];
+const MIGS = [dir('../vault/migrations/'), dir('./migrations/'), dir('../access/migrations/')];
 const U = 'https://x.example';
 const T0 = Date.parse('2026-11-11T00:00:00Z');
 const newDb = (tick = true) => {

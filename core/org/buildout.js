@@ -19,10 +19,11 @@ import * as ladder from '../ladder/index.js';
 import { createSla } from '../sla/index.js';
 import { ghcostSteps } from '../ghcost/index.js';
 import { tenancySteps } from '../tenancy/index.js';
+import { accessSteps } from '../access/index.js';
 
 /** The step names this module adds, in order. core/org tests assert each appears in org.extraSteps(). */
 export const BUILDOUT_STEPS = ['staff', 'plus', 'lifecycle_gates', 'fleet', 'signals', 'remediation', 'claims_gate', 'graph_wiring',
-  'predict', 'trust', 'governance', 'ladder', 'sla', 'ghcost_watchdog', 'tenancy'];
+  'predict', 'trust', 'governance', 'ladder', 'sla', 'ghcost_watchdog', 'tenancy', 'access'];
 
 const off = (config, key) => config?.[key]?.enabled === false;
 const nowMs = (ctx, clock) => (typeof ctx.now === 'number' ? ctx.now : clock());
@@ -65,5 +66,7 @@ export function buildoutSteps({ db, config = {}, now = () => Date.now(), fetch, 
     // Opt-in by their own switches because they need an account (an org and a budget) or a role to do anything.
     ...ghcostSteps({ fetch, github: ports.github, publish: ports.publish }),
     ...tenancySteps({ access: ports.access, push: ports.push }),
+    // The access preflight (core/access): probes config.access.needs each tick; its database trigger already refuses unpermitted owner asks.
+    ...accessSteps({ db, now: clock, fetch, env: ports.env, config }),
   ];
 }
