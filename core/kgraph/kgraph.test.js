@@ -53,8 +53,9 @@ test('edges need both ends, nodes merge provenance, validate flags unsourced con
   await g.addNode({ id: 'p:a', kind: 'problem', props: { z: 1 }, provenance: { source: 'second' } });
   const n = await g.node('p:a');
   assert.equal(n.provenance.length, 2); assert.equal(n.props.z, 1); assert.equal(n.label, 'A');
-  await g.addEdge({ src: 'g:1', rel: 'knows', dst: 's:x' });
-  assert.deepEqual((await g.validate()).map(v => v.kind), ['no_provenance']);
+  await g.propose({ src: 'g:1', rel: 'knows', dst: 's:x' });
+  assert.deepEqual(await g.validate(), []);
+  await assert.rejects(() => g.addEdge({ src: 'g:1', rel: 'knows', dst: 's:x' }), /needs provenance/);
 });
 
 test('the graph persists through the store and round-trips through export/import', async () => {
@@ -63,4 +64,26 @@ test('the graph persists through the store and round-trips through export/import
   const b = createGraph({ store }); assert.equal((await b.edges()).length, 1);
   const c = createGraph({ store: mem() }); await c.import(await b.export());
   assert.deepEqual(await c.stats(), { nodes: { k: 2 }, edges: { 'r:confirmed': 1 } });
+});
+
+test('two instances on one store see each other\'s writes; results are copies', async () => {
+  const store = mem(); const a = createGraph({ store }), b = createGraph({ store });
+  await a.addNode({ id: 'n1', kind: 'k' }); await b.addNode({ id: 'n2', kind: 'k' });
+  assert.equal((await a.nodes()).length, 2);
+  const n = await a.node('n1'); n.label = 'changed';
+  assert.equal((await b.node('n1')).label, 'n1');
+});
+
+test('reach honours depth and limit, counting found nodes only', async () => {
+  const g = createGraph({ store: mem() });
+  for (const i of [1, 2, 3, 4]) await g.addNode({ id: 'n' + i, kind: 'k' });
+  for (const i of [1, 2, 3]) await g.addEdge({ src: 'n' + i, rel: 'r', dst: 'n' + (i + 1), provenance: P });
+  assert.deepEqual((await g.reach('n1', { depth: 2 })).map(r => r.node.id), ['n2', 'n3']);
+  assert.equal((await g.reach('n1', { limit: 1 })).length, 1);
+});
+
+test('rules without an id or an ask are rejected', async () => {
+  const g = await seeded();
+  await assert.rejects(() => g.gaps([{ kind: 'problem', lacks: { rel: 'x' } }]), /needs id/);
+  await assert.rejects(() => g.questions([{ id: 'a', kind: 'problem', lacks: { rel: 'x' } }]), /needs ask/);
 });

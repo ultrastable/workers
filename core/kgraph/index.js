@@ -10,8 +10,9 @@ const ek = e => `${e.src}|${e.rel}|${e.dst}`;
 const prov = p => (Array.isArray(p) ? p : p ? [p] : []).map(x => ({ source: String(x.source || ''), url: x.url || null, at: x.at || null }));
 
 export function createGraph({ store, key = KEY } = {}) {
-  let g = null;
-  const load = async () => (g ||= JSON.parse((await store.get(key)) || '{"nodes":{},"edges":{}}'));
+  let g = null; // re-read from the store on every call, so instances sharing a store see each other's writes
+  const load = async () => (g = JSON.parse((await store.get(key)) || '{"nodes":{},"edges":{}}'));
+  const clone = v => (v == null ? v : JSON.parse(JSON.stringify(v)));
   const save = () => store.put(key, JSON.stringify(g));
 
   return {
@@ -20,44 +21,48 @@ export function createGraph({ store, key = KEY } = {}) {
       await load();
       const o = g.nodes[id];
       g.nodes[id] = { id, kind, label: label ?? (o && o.label) ?? id, props: { ...(o ? o.props : {}), ...props }, provenance: [...(o ? o.provenance : []), ...prov(provenance)] };
-      await save(); return g.nodes[id];
+      await save(); return clone(g.nodes[id]);
     },
     // status 'confirmed' (default) or 'proposed': a proposed edge is a lead and never counts toward a gap being filled
     async addEdge({ src, rel, dst, why = '', provenance, status = 'confirmed' }) {
       await load();
       if (!g.nodes[src] || !g.nodes[dst]) throw new Error(`edge ${src} -${rel}-> ${dst} has a missing end`);
       const e = { src, rel, dst, why, status, provenance: prov(provenance) };
+      const old = g.edges[ek(e)];
+      if (status === 'confirmed' && !e.provenance.length && !(old && old.status === 'confirmed')) throw new Error('a confirmed edge needs provenance; use propose() for a lead');
       const o = g.edges[ek(e)];
       g.edges[ek(e)] = o ? { ...o, why: why || o.why, provenance: [...o.provenance, ...e.provenance], status: o.status === 'confirmed' ? 'confirmed' : status } : e;
-      await save(); return g.edges[ek(e)];
+      await save(); return clone(g.edges[ek(e)]);
     },
     propose(e) { return this.addEdge({ ...e, status: 'proposed' }); },
     async confirm({ src, rel, dst, provenance }) {
       await load(); const e = g.edges[ek({ src, rel, dst })];
       if (!e) throw new Error('no such edge');
       if (!prov(provenance).length) throw new Error('confirming needs provenance');
-      e.status = 'confirmed'; e.provenance.push(...prov(provenance)); await save(); return e;
+      e.status = 'confirmed'; e.provenance.push(...prov(provenance)); await save(); return clone(e);
     },
-    async node(id) { await load(); return g.nodes[id] || null; },
-    async nodes({ kind } = {}) { await load(); return Object.values(g.nodes).filter(n => !kind || n.kind === kind); },
-    async edges({ rel, status = 'confirmed' } = {}) { await load(); return Object.values(g.edges).filter(e => (!rel || e.rel === rel) && (status === 'any' || e.status === status)); },
+    async node(id) { await load(); return clone(g.nodes[id]) || null; },
+    async nodes({ kind } = {}) { await load(); return clone(Object.values(g.nodes).filter(n => !kind || n.kind === kind)); },
+    async edges({ rel, status = 'confirmed' } = {}) { await load(); return clone(Object.values(g.edges).filter(e => (!rel || e.rel === rel) && (status === 'any' || e.status === status))); },
     // out: edges from id; in: edges to id (backlinks, "what links here")
     async neighbors(id, { rel, dir = 'out', status = 'confirmed' } = {}) {
-      return (await this.edges({ rel, status })).filter(e => (dir === 'out' ? e.src === id : e.dst === id)).map(e => ({ rel: e.rel, why: e.why, node: g.nodes[dir === 'out' ? e.dst : e.src] }));
+      const es = (await this.edges({ rel, status })).filter(e => (dir === 'out' ? e.src === id : e.dst === id));
+      return es.map(e => ({ rel: e.rel, why: e.why, node: clone(g.nodes[dir === 'out' ? e.dst : e.src]) })).filter(x => x.node);
     },
     // breadth-first reach from a node over chosen relations; bounded and cycle safe
     async reach(id, { rels, depth = 3, limit = 200 } = {}) {
-      await load(); const seen = new Map([[id, 0]]); let frontier = [id];
+      await load(); const seen = new Map([[id, 0]]); let frontier = [id]; limit += 1; // the start node does not count toward the limit
       for (let d = 1; d <= depth && frontier.length && seen.size < limit; d++) {
         const next = [];
         for (const e of Object.values(g.edges)) if (e.status === 'confirmed' && frontier.includes(e.src) && (!rels || rels.includes(e.rel)) && !seen.has(e.dst) && seen.size < limit) { seen.set(e.dst, d); next.push(e.dst); }
         frontier = next;
       }
-      return [...seen].filter(([n]) => n !== id).map(([n, d]) => ({ node: g.nodes[n], distance: d }));
+      return [...seen].filter(([n]) => n !== id).map(([n, d]) => ({ node: clone(g.nodes[n]), distance: d }));
     },
     // rule: { kind, lacks: { rel, dir?, to? }, ask: (node) => string, id }. A gap is a node of `kind` with no confirmed edge matching `lacks`.
     async gaps(rules) {
       await load(); const out = [];
+      for (const r of rules) if (!r.id || !r.kind || !r.lacks || !r.lacks.rel) throw new Error('a rule needs id, kind and lacks.rel');
       for (const r of rules) for (const n of Object.values(g.nodes)) {
         if (n.kind !== r.kind) continue;
         const l = r.lacks, has = Object.values(g.edges).some(e => e.status === 'confirmed' && e.rel === l.rel && ((l.dir || 'out') === 'out' ? e.src === n.id : e.dst === n.id)
@@ -69,6 +74,7 @@ export function createGraph({ store, key = KEY } = {}) {
     // the questions a loop should work on next, in a stable order; `ask` is the tenant's wording
     async questions(rules) {
       const by = Object.fromEntries(rules.map(r => [r.id, r]));
+      for (const r of rules) if (typeof r.ask !== 'function') throw new Error('rule ' + r.id + ' needs ask(node)');
       return (await this.gaps(rules)).map(x => ({ id: `${x.rule}:${x.node}`, subject: x.node, rule: x.rule, text: by[x.rule].ask(g.nodes[x.node]) })).sort((a, b) => a.id.localeCompare(b.id));
     },
     // structural health: dangling edges and facts with no provenance
@@ -78,7 +84,7 @@ export function createGraph({ store, key = KEY } = {}) {
       return problems;
     },
     async stats() { await load(); const k = {}; for (const n of Object.values(g.nodes)) k[n.kind] = (k[n.kind] || 0) + 1; const r = {}; for (const e of Object.values(g.edges)) r[e.rel + ':' + e.status] = (r[e.rel + ':' + e.status] || 0) + 1; return { nodes: k, edges: r }; },
-    async export() { await load(); return { nodes: Object.values(g.nodes), edges: Object.values(g.edges) }; },
+    async export() { await load(); return clone({ nodes: Object.values(g.nodes), edges: Object.values(g.edges) }); },
     async import({ nodes = [], edges = [] }) { for (const n of nodes) await this.addNode(n); for (const e of edges) await this.addEdge(e); return this.stats(); },
   };
 }
