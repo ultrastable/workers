@@ -1,3 +1,6 @@
+---
+consumer: tools/boundary.json
+---
 <!-- SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0 -->
 <!-- Copyright (c) 2026 Rowan Brad Quni-Gudzinas -->
 

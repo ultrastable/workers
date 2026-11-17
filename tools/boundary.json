@@ -305,6 +305,14 @@
       "class": "core",
       "role": "Registry of known unknowns, red-team, inversion and pre-mortem passes, and a frontier of new questions; tenant-agnostic (IGN-1)"
     },
+    "core/ownerlink": {
+      "class": "core",
+      "role": "Owner action page: every thing only the owner can do is one sign-in and one click (OAuth, atproto OAuth, review links), tenant-agnostic (OWNERLINK-1)"
+    },
+    "core/promote": {
+      "class": "core",
+      "role": "Autonomous promotion engine: channel publishers, caps, kill switch, referral tuning, idea intake; tenant-agnostic"
+    },
     "core/access": {
       "class": "core",
       "role": "Access preflight: probes the real state of every capability a tenant depends on"

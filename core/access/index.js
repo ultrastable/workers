@@ -8,8 +8,10 @@
 // - askOwner() is the only way to put an access request in front of the owner: it needs that state, and it writes the permit
 //   that the database trigger (migrations/0001_access.sql) demands. Any other gate card about access is closed by the database
 //   on insert and becomes a staff item. Rules written in the database cannot be skipped by a module that forgets to call this.
+// OWNERLINK-1: an ask also needs a one-click flow (core/ownerlink); with none the ask is refused ('no_owner_link') and the step goes to the staff.
 // Ports: ctx = { db, now() -> ms, fetch, env, config: { ttl_minutes?, tokens?: {github: [envNames], cloudflare: [envNames]}, vaultHas? } }.
 // Tenant-agnostic: a tenant lists the capabilities it needs in its own config; nothing here names a tenant.
+import { actionForAsk, goLink } from '../ownerlink/actions.js';
 const iso = ctx => new Date(ctx.now()).toISOString();
 const all = async (db, sql, ...a) => (await db.prepare(sql).bind(...a).all()).results || [];
 const first = async (db, sql, ...a) => (await db.prepare(sql).bind(...a).first()) || null;
@@ -185,10 +187,18 @@ export async function askOwner(ctx, g = {}) {
     return { asked: false, reason: why, state: st };
   }
   const tried = st.routes.map(r => `${r.route}: ${r.outcome} (${r.detail})`).join('; ');
+  // The link comes first: a card with no way for the owner to do it in one click is never filed.
+  const action = await actionForAsk(ctx, g);
+  if (!action) {
+    await run(ctx.db, `INSERT OR IGNORE INTO access_blocked_asks (card_id, what, why_gated, reason, blocked_at) VALUES (?,?,?,?,?)`, g.id, g.what, g.why_gated, `no_owner_link: no one-click flow can obtain ${g.capability} ${g.subject}`, st.checked_at);
+    await run(ctx.db, `INSERT OR IGNORE INTO items (id, title, kind, owner_role, done_check, closing_probe, priority, status, blocker) VALUES (?,?,?,?,?,?,?,?,?)`,
+      `OWNERLINK-${g.id}`, `Build the one-click flow for: ${String(g.what).slice(0, 200)}`, 'work', 'staff', 'core/ownerlink has a flow that obtains this by link, or the capability is acquired by code', g.closing_probe, 20, 'blocked', `waiting on probe: ${g.closing_probe}`);
+    return { asked: false, reason: 'no_owner_link', state: st };
+  }
   await run(ctx.db, `INSERT OR IGNORE INTO access_permits (card_id, capability, subject, at) VALUES (?,?,?,?)`, g.id, g.capability, g.subject, st.checked_at);
   await run(ctx.db, `INSERT OR IGNORE INTO gate_cards (id, what, why_gated, default_in_effect, prepared_by_fleet, closing_probe) VALUES (?,?,?,?,?,?)`,
-    g.id, g.what, `${g.why_gated} Routes tried: ${tried}`, g.default_in_effect, g.prepared_by_fleet || 'access preflight', g.closing_probe);
-  return { asked: true, card: g.id, state: st };
+    g.id, g.what, `${g.why_gated} Routes tried: ${tried}. One click: ${action.link || goLink(ctx, g.id)}`, g.default_in_effect, g.prepared_by_fleet || 'access preflight', g.closing_probe);
+  return { asked: true, card: g.id, link: action.link, state: st };
 }
 
 /** Probes for every listed need, in the form config.needs = [{ capability, subject, owner_only? }]. */
