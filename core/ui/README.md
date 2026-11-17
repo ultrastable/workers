@@ -7,4 +7,4 @@ Pure functions from plain data to escaped, accessible HTML: `tokens` (colour pai
 
 A tenant supplies words, links and data and builds its own templates from these parts; it never edits them, and core never names a tenant. Colour is never the only signal, targets are 44px, nothing needs script, and every page prints.
 
-Spec: none yet (filed as a spec gap). Owner role: operations. Trigger: a tenant renders pages. Closing probe: `ui.test.js` here, and the tenant's own crawl, story and axe runs against its live site. Status: BUILT. First tenant: Practical Solutions.
+Spec: none yet (filed as a spec gap). Owner role: operations. Trigger: a tenant renders pages. Closing probe: `ui.test.js` here, and the tenant's own crawl, story and axe runs against its live site. Status: BUILT.
