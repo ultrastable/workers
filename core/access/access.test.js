@@ -124,3 +124,11 @@ test('a workflow that has succeeded proves its own deploy path; one that never h
   const never = mk({ '/repos/o/r/actions/workflows/deploy.yml/runs?status=success&per_page=1': { status: 200, body: { workflow_runs: [] } } });
   assert.equal((await probe(never, 'github.workflow_ran_ok', 'o/r:deploy.yml')).status, 'unknown');
 });
+
+test('repository permission: a readable repository proves read; a token that reports no push flag is unknown, never missing', async () => {
+  const w = { '/repos/o/r': { status: 200, body: { permissions: { admin: false, push: false, pull: false } } } };
+  assert.equal((await probe(mk(w), 'github.repo_permission', 'o/r:read')).status, 'present');
+  assert.equal((await probe(mk(w), 'github.repo_permission', 'o/r:push')).status, 'unknown');
+  const pushOk = { '/repos/o/r': { status: 200, body: { permissions: { push: true } } } };
+  assert.equal((await probe(mk(pushOk), 'github.repo_permission', 'o/r:push')).status, 'present');
+});
