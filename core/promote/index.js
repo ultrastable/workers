@@ -82,7 +82,11 @@ export async function run(ctx, entries) {
   const w = await weights(ctx), day = iso(ctx).slice(0, 10);
   const order = Object.keys(c.channels || {}).filter(k => channels[k] && c.channels[k].enabled !== false).sort((a, b) => (w[b] ?? 1) - (w[a] ?? 1));
   for (const ch of order) {
-    const cfg = c.channels[ch], used = (await ctx.db.prepare("SELECT COUNT(*) AS n FROM promote_posts WHERE tenant=? AND channel=? AND substr(at,1,10)=? AND status='sent'").bind(c.tenant, ch, day).first()).n;
+    const cfg = c.channels[ch];
+    // A 429 from a platform means slow down: no attempts on that channel for backoffHours (default 24).
+    const throttled = await ctx.db.prepare("SELECT MAX(at) AS t FROM promote_posts WHERE tenant=? AND channel=? AND status='failed' AND detail LIKE '%HTTP 429%'").bind(c.tenant, ch).first();
+    if (throttled?.t && Date.parse(iso(ctx)) - Date.parse(throttled.t) < (cfg.backoffHours ?? 24) * 3600e3) { out.skipped.push({ ch, why: 'backoff after 429' }); continue; }
+    const used = (await ctx.db.prepare("SELECT COUNT(*) AS n FROM promote_posts WHERE tenant=? AND channel=? AND substr(at,1,10)=? AND status='sent'").bind(c.tenant, ch, day).first()).n;
     let room = Math.max(1, Math.round((cfg.perDay ?? 3) * Math.min(1, Math.max(0.34, w[ch] ?? 1)))) - used;
     const items = [];
     for (const e of entries) {
