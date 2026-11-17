@@ -312,6 +312,10 @@
     "core/deploygate": {
       "class": "core",
       "role": "Deploy gate: hash read-back of the stored module before a deploy counts as verified"
+    },
+    "core/benefitcost": {
+      "class": "core",
+      "role": "Common-metric (WELLBY) benefit-cost engine with graded causal chains, higher-order effects and Monte Carlo uncertainty; tenant-agnostic"
     }
   },
   "core_scripts": [
