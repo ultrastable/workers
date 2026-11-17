@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 // The access preflight as a command, for CI and for any loop that is not the Worker tick.
-//   node core/access/cli.mjs --config access.json [--out access-report.json]
+//   node core/access/cli.mjs --config access.json|access.mjs [--out access-report.json]   (.mjs exports the config as default)
 // config: { needs: [{ capability, subject, require?: 'present' }], tokens?, github_sample_repos?, ttl_minutes?,
 //           ask_phrases?: [{ pattern, capability, subject }], lint_paths?: [file or directory] }
 // Exit 1 when (a) a need marked require:'present' is not present, or (b) a file under lint_paths contains an ask phrase for a
 // capability the probe shows present or unproven missing (text that asks a person for what exists, or for what was never
 // tried on every route). Probe results and every route's detail are printed; secrets are never read, only presence.
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { makeDb } from '../_shared/testdb.js';
 import { probeAll } from './index.js';
@@ -41,7 +41,7 @@ export function lintAsks(files, phrases, states) {
 export async function main() {
   const cfgPath = arg('--config');
   if (!cfgPath) { console.error('usage: cli.mjs --config access.json [--out report.json]'); return 2; }
-  const config = JSON.parse(readFileSync(cfgPath, 'utf8'));
+  const config = /\.m?js$/.test(cfgPath) ? (await import(pathToFileURL(path.resolve(cfgPath)).href)).default : JSON.parse(readFileSync(cfgPath, 'utf8'));
   const db = makeDb([path.join(HERE, 'migrations/')]);
   const states = await probeAll({ db, now: () => Date.now(), fetch: globalThis.fetch, env: process.env, config }, config.needs || []);
   const failures = [];
