@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
+// Status of every piece is kept in core/promote/README.md.
 // Promotion engine, tenant-agnostic. A tenant hands over entries it already described ({ id, title, url, summary, tags, label });
 // the engine turns each into a short post per channel, labels it automated, and publishes within caps. Enforced in code:
 //   - one kill switch (config.promote.halt or env.HALT='1') stops everything; a channel without its credentials is skipped, never faked
@@ -7,6 +8,8 @@
 //   - channel order and budget follow measured referrals per post (tune), with an exploration floor so no channel starves
 //   - reach targets are metrics; evaluate() returns the breaches for the tenant's loop to file as items
 // Ports: db, fetch, now, env (secrets by name only), config.promote. No tenant names here.
+// A Worker's fetch must be called unbound from any object (`ctx.fetch(...)` as a method call throws Illegal invocation).
+const F = ctx => { const f = ctx.fetch; return (...a) => f(...a); };
 const iso = ctx => new Date((ctx.now || Date.now)()).toISOString();
 const sha = async s => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map(b => b.toString(16).padStart(2, '0')).join('');
 const clip = (s, n) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…');
@@ -28,13 +31,13 @@ export function compose(channel, e, cfg, c) {
 const channels = {
   async indexnow(ctx, cfg, items) {
     const origin = new URL(ctx.config.promote.origin), key = cfg.key || await indexnowKey(ctx.config.promote.tenant);
-    const r = await ctx.fetch('https://api.indexnow.org/indexnow', { method: 'POST', headers: { 'content-type': 'application/json' },
+    const r = await F(ctx)('https://api.indexnow.org/indexnow', { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ host: origin.host, key, keyLocation: `${origin.origin}/${key}.txt`, urlList: items.map(i => i.entry.url) }) });
     if (!(r.status === 200 || r.status === 202)) throw new Error('indexnow HTTP ' + r.status);
   },
   async mastodon(ctx, cfg, [i]) {
     if (!ctx.env?.[cfg.tokenEnv || 'MASTODON_TOKEN']) throw Object.assign(new Error('credentials missing'), { skip: true });
-    const r = await ctx.fetch(cfg.base.replace(/\/+$/, '') + '/api/v1/statuses', { method: 'POST',
+    const r = await F(ctx)(cfg.base.replace(/\/+$/, '') + '/api/v1/statuses', { method: 'POST',
       headers: { authorization: 'Bearer ' + ctx.env[cfg.tokenEnv || 'MASTODON_TOKEN'], 'content-type': 'application/json', 'idempotency-key': i.idem },
       body: JSON.stringify({ status: i.text, visibility: 'public', language: cfg.language || 'en' }) });
     if (!r.ok) throw new Error('mastodon HTTP ' + r.status);
@@ -45,9 +48,9 @@ const channels = {
     const { BLUESKY_IDENTIFIER: id, BLUESKY_APP_PASSWORD: pw } = ctx.env || {};
     if (!id || !pw) throw Object.assign(new Error('credentials missing'), { skip: true });
     const base = (cfg.service || 'https://bsky.social').replace(/\/+$/, '');
-    const s = await (await ctx.fetch(base + '/xrpc/com.atproto.server.createSession', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identifier: id, password: pw }) })).json();
+    const s = await (await F(ctx)(base + '/xrpc/com.atproto.server.createSession', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identifier: id, password: pw }) })).json();
     if (!s.accessJwt) throw new Error('bluesky login failed');
-    const r = await ctx.fetch(base + '/xrpc/com.atproto.repo.createRecord', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + s.accessJwt },
+    const r = await F(ctx)(base + '/xrpc/com.atproto.repo.createRecord', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + s.accessJwt },
       body: JSON.stringify({ repo: s.did, collection: 'app.bsky.feed.post', record: { $type: 'app.bsky.feed.post', text: i.text, createdAt: iso(ctx), langs: ['en'] } }) });
     if (!r.ok) throw new Error('bluesky HTTP ' + r.status);
   },
@@ -84,7 +87,7 @@ export async function run(ctx, entries) {
     const items = [];
     for (const e of entries) {
       const text = compose(ch, e, cfg, ctx.config), idem = `${ch}:${e.id}:${(await sha(text)).slice(0, 12)}`;
-      if (await ctx.db.prepare('SELECT 1 AS x FROM promote_posts WHERE idem=?').bind(idem).first()) continue;
+      if (await ctx.db.prepare("SELECT 1 AS x FROM promote_posts WHERE idem=? AND status='sent'").bind(idem).first()) continue;
       if (!BATCH.has(ch) && room <= 0) { out.skipped.push({ ch, id: e.id, why: 'daily cap' }); continue; }
       if (!String(e.url || '').startsWith(c.origin)) { out.skipped.push({ ch, id: e.id, why: 'foreign link' }); continue; }
       items.push({ entry: e, text, idem }); if (!BATCH.has(ch)) room--;
@@ -94,7 +97,7 @@ export async function run(ctx, entries) {
       try { await channels[ch](ctx, cfg, group); } catch (err) { status = err.skip ? 'skipped' : 'failed'; detail = err.message; }
       for (const i of group) {
         if (status === 'skipped') { out.skipped.push({ ch, id: i.entry.id, why: detail }); continue; }
-        await ctx.db.prepare('INSERT INTO promote_posts (idem, tenant, channel, entry_id, text, status, detail, at) VALUES (?,?,?,?,?,?,?,?)').bind(i.idem, c.tenant, ch, i.entry.id, i.text, status, detail, iso(ctx)).run();
+        await ctx.db.prepare('INSERT OR REPLACE INTO promote_posts (idem, tenant, channel, entry_id, text, status, detail, at) VALUES (?,?,?,?,?,?,?,?)').bind(i.idem, c.tenant, ch, i.entry.id, i.text, status, detail, iso(ctx)).run();
         (status === 'sent' ? out.sent : out.failed).push({ ch, id: i.entry.id, idem: i.idem });
       }
     }

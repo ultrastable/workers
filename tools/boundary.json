@@ -311,7 +311,7 @@
     },
     "core/promote": {
       "class": "core",
-      "role": "Autonomous promotion engine: channel publishers, caps, kill switch, referral tuning, idea intake; tenant-agnostic"
+      "role": "Autonomous promotion: channel publishers, caps, kill switch, referral tuning, reach targets, idea intake; tenant-agnostic (PROMOTE-1)"
     },
     "core/access": {
       "class": "core",
@@ -324,6 +324,10 @@
     "core/benefitcost": {
       "class": "core",
       "role": "Common-metric (WELLBY) benefit-cost engine with graded causal chains, higher-order effects and Monte Carlo uncertainty; tenant-agnostic"
+    },
+    "core/statements": {
+      "class": "core",
+      "role": "Claims are code: a registry of published statements, each rendered from live config and bound to a probe of the real behaviour; page audit fails on unbound prose; tenant-agnostic"
     }
   },
   "core_scripts": [
