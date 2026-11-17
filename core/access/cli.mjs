@@ -49,8 +49,9 @@ export async function main() {
     const s = states.find(x => x.capability === n.capability && x.subject === n.subject);
     if (n.require === 'present' && s.status !== 'present') failures.push({ kind: 'required_not_present', capability: n.capability, subject: n.subject, status: s.status, routes: s.routes });
   }
-  const root = path.dirname(path.resolve(cfgPath));
-  const files = (config.lint_paths || []).flatMap(p => walk(path.resolve(root, p)));
+  // lint_paths are relative to the working directory (the repository root in CI). A path that does not exist is a failure, never a silent skip.
+  for (const p of config.lint_paths || []) if (!existsSync(path.resolve(p))) failures.push({ kind: 'lint_path_missing', path: p });
+  const files = (config.lint_paths || []).flatMap(p => walk(path.resolve(p)));
   for (const b of lintAsks(files, config.ask_phrases, states)) failures.push({ kind: 'ask_for_granted_capability', ...b });
   const report = { at: new Date().toISOString(), states: states.map(s => ({ capability: s.capability, subject: s.subject, status: s.status, routes: s.routes })), failures };
   if (arg('--out')) writeFileSync(arg('--out'), JSON.stringify(report, null, 2));

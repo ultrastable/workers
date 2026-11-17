@@ -17,3 +17,10 @@ test('text that asks a person for a capability the probe shows present or unprov
   assert.equal(lintAsks([f], phrases, st('missing')).length, 0);
   assert.equal(lintAsks([f], phrases, []).length, 0);
 });
+
+test('a lint path that does not exist is a failure, not a silent skip', async () => {
+  const d = mkdtempSync(path.join(tmpdir(), 'cfg-'));
+  const cfg = path.join(d, 'a.json'); writeFileSync(cfg, JSON.stringify({ needs: [], lint_paths: ['no-such-dir-xyz'] }));
+  const { main } = await import('./cli.mjs'); const old = process.argv; process.argv = ['node', 'cli.mjs', '--config', cfg];
+  try { assert.equal(await main(), 1); } finally { process.argv = old; }
+});
