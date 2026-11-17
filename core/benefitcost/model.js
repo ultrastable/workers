@@ -4,9 +4,9 @@
 // multipliers) or be negative (unintended consequences). A child inherits its parent's credibility haircut, so a long chain of weak links is
 // automatically worth less than a short chain of strong ones. Everything is propagated by Monte Carlo; nothing is a point estimate.
 //   model = { id, title, cost:{ upfront, annual, years }, nodes:[{ id, label, kind:'direct'|'spillover'|'multiplier'|'unintended', parent?, order?, amount, unit,
-//             years?, lag?, decay?, grade:'A'..'D', source, sign?, life_years? }], params?:{ id: dist }, benchmark?:{ id, label, wellby_per_1000: dist } }
+//             years?, lag?, decay?, grade:'A'..'D', source, sign? }], params?:{ id: dist }, benchmark?:{ id, label, wellby_per_1000: dist } }
 import { rng, sample, validDist, summarize } from './dist.js';
-import { PARAMS, GRADES, UNITS, LIFE_YEARS_DEFAULT, streamFactor, annuity } from './conversions.js';
+import { PARAMS, GRADES, UNITS, streamFactor, annuity } from './conversions.js';
 
 export function validate(m) {
   const errs = [], ids = new Set();
@@ -41,13 +41,12 @@ function rankCorr(a, b) {
 export function score(model, { draws = 4000, seed = 1 } = {}) {
   const errs = validate(model); if (errs.length) throw new Error('invalid model: ' + errs.join('; '));
   const rand = rng(seed), nodes = order(model.nodes), by = new Map(nodes.map(n => [n.id, n]));
-  const params = { ...Object.fromEntries(Object.entries(PARAMS).map(([k, v]) => [k, v.dist])), life_years_default: LIFE_YEARS_DEFAULT, ...(model.params || {}) };
+  const params = { ...Object.fromEntries(Object.entries(PARAMS).map(([k, v]) => [k, v.dist])), ...(model.params || {}) };
   const orders = new Map(nodes.map(n => [n.id, n.order ?? depth(n, by)]));
   const total = [], ratio = [], first = [], costs = [], unintended = [], beat = [], contrib = new Map(nodes.map(n => [n.id, []])), pdraw = new Map(Object.keys(params).map(k => [k, []]));
   const gradeShare = { A: 0, B: 0, C: 0, D: 0 }, orderShare = {}; let absTotal = 0, beats = 0, positive = 0;
   for (let i = 0; i < draws; i++) {
     const p = {}; for (const k of Object.keys(params)) { p[k] = sample(params[k], rand); pdraw.get(k).push(p[k]); }
-    p.life_discount = node => annuity(node.life_years ?? p.life_years_default, p.discount) / Math.max(1, node.life_years ?? p.life_years_default);
     const amt = new Map(), H = new Map(); let sum = 0, sumFirst = 0, neg = 0;
     for (const n of nodes) {
       const a = (n.parent ? amt.get(n.parent) : 1) * sample(n.amount, rand); amt.set(n.id, a);

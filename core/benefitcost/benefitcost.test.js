@@ -31,11 +31,11 @@ test('first-order-only and full results differ when there are higher-order effec
   const m = cash({ nodes: [{ id: 's', label: 's', kind: 'multiplier', parent: 'direct', amount: 0.5, unit: 'wellby', years: 3, grade: 'B', source: 'x' }] });
   assert.ok(score(m, { seed: 1 }).higher_order_uplift_p50 > 0);
 });
-test('deaths averted convert through two routes and carry the neutral point as the dominant uncertainty', () => {
-  const m = { id: 'd', cost: { upfront: 100000 }, nodes: [{ id: 'deaths', label: 'deaths averted', kind: 'direct', amount: { kind: 'ci90', low: 8, high: 14, shape: 'normal' }, unit: 'death_averted', life_years: 50, grade: 'A', source: 'review' }] };
+test('deaths averted use the two cited views and the view chosen dominates the uncertainty', () => {
+  const m = { id: 'd', cost: { upfront: 100000 }, nodes: [{ id: 'deaths', label: 'deaths averted', kind: 'direct', amount: { kind: 'ci90', low: 8, high: 14, shape: 'normal' }, unit: 'death_averted', grade: 'A', source: 'review' }] };
   const r = score(m, { seed: 2 }); assert.ok(r.wellby_per_1000_usd.p50 > 0 && r.prob_net_positive > 0.9);
-  assert.ok(r.sensitivity.slice(0, 4).some(s => ['neutral_point', 'moral_weight_death_u5', 'consumption_doubling_wellby'].includes(s.id)));
-  assert.equal(r.assumptions_used.sd_ls, 'cited');
+  assert.ok(r.sensitivity.slice(0, 4).some(s => ['death_u5_deprivationism', 'death_u5_tria', 'neutral_point'].includes(s.id)));
+  assert.equal(r.assumptions_used.sd_ls, 'cited'); assert.equal(r.assumptions_used.discount, 'assumption');
 });
 test('invalid models are refused: unknown unit, missing source, cycle', () => {
   assert.ok(validate(cash({ nodes: [{ id: 'x', amount: 1, unit: 'dollars', grade: 'A', source: 's' }] })).length);
