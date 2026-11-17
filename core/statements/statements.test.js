@@ -40,3 +40,9 @@ test('verifyAll and describe give a machine-readable list', async () => {
   assert.equal((await verifyAll(reg, ctx)).passed, 2);
   assert.equal(describe(reg, ctx)[0].text, 'The engine runs 3000 draws.');
 });
+test('a ci-only probe is skipped outside CI and run in CI', async () => {
+  let ran = 0;
+  const r = defineStatements([{ id: 'needs-files', text: 'Files exist.', env: 'ci', verify: async () => { ran++; } }]);
+  const a = await verifyAll(r, {}, { env: 'worker' }); assert.equal(ran, 0); assert.equal(a.skipped, 1); assert.equal(a.passed, 0);
+  const b = await verifyAll(r, {}); assert.equal(ran, 1); assert.equal(b.passed, 1);
+});

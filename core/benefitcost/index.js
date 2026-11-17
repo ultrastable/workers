@@ -5,5 +5,5 @@
 export { rng, sample, summarize, validDist, moments } from './dist.js';
 export { PARAMS, GRADES, UNITS } from './conversions.js';
 export { validate, score, order } from './model.js';
-export { pool, applyEvidence, nextEvidenceTargets, refineLoop } from './refine.js';
+export { PRIOR_WEIGHT, pool, applyEvidence, nextEvidenceTargets, refineLoop } from './refine.js';
 export { inContext, scoreIn, scoreAcross } from './context.js';

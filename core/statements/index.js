@@ -5,7 +5,7 @@
 // real behaviour and throws when the statement is false. A page built from the registry marks each statement with data-claim; `audit` then fails
 // on a statement with no probe, a probe that fails, a registry entry the page never shows, a data-claim the registry does not know, and any prose
 // on the page that is not bound to a statement. Tenant-agnostic: the registry, the config and the probes are the tenant's.
-//   statement = { id, section?, text: string | (ctx) => string (HTML, no <span>), verify: async (ctx) => void (throws when false), evidence?: 'file or test that holds the behaviour' }
+//   statement = { id, section?, text: string | (ctx) => string (HTML, no <span>), verify: async (ctx) => void (throws when false), env?: 'any' | 'ci' (a 'ci' probe needs files or tools and runs only there), evidence?: 'file or test that holds the behaviour' }
 export const START = '<!--statements:start-->', END = '<!--statements:end-->', LIVE_START = '<!--live:start-->', LIVE_END = '<!--live:end-->';
 const ID = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -28,13 +28,14 @@ export const live = html => `${LIVE_START}${html}${LIVE_END}`;
 export const region = html => `${START}${html}${END}`;
 
 // run every probe; a probe that throws (or is not a function) fails its statement
-export async function verifyAll(reg, ctx) {
+export async function verifyAll(reg, ctx, { env = 'ci' } = {}) {
   const results = [];
   for (const s of reg) {
+    if (s.env === 'ci' && env !== 'ci') { results.push({ id: s.id, ok: true, skipped: 'ci-only', evidence: s.evidence || null }); continue; }
     try { await s.verify(ctx); results.push({ id: s.id, ok: true, evidence: s.evidence || null }); }
     catch (e) { results.push({ id: s.id, ok: false, error: String((e && e.message) || e), evidence: s.evidence || null }); }
   }
-  return { total: results.length, passed: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok), results };
+  return { total: results.length, passed: results.filter(r => r.ok && !r.skipped).length, skipped: results.filter(r => r.skipped).length, failed: results.filter(r => !r.ok), results };
 }
 
 const visible = h => h.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/[^\p{L}]+/gu, ' ').trim();
@@ -50,8 +51,8 @@ export function auditHtml(reg, html) {
   return { ok: !unknown.length && !unrendered.length && !unbound.length, unbound, unknown, unrendered, problems: [] };
 }
 // the whole proof: probes pass and the page matches the registry. This is what a test asserts.
-export async function proof(reg, html, ctx) {
-  const v = await verifyAll(reg, ctx), a = auditHtml(reg, html);
-  return { ok: v.failed.length === 0 && a.ok, total: v.total, passed: v.passed, failed: v.failed, audit: a };
+export async function proof(reg, html, ctx, opts) {
+  const v = await verifyAll(reg, ctx, opts), a = auditHtml(reg, html);
+  return { ok: v.failed.length === 0 && a.ok, total: v.total, passed: v.passed, skipped: v.skipped, failed: v.failed, audit: a };
 }
-export const describe = (reg, ctx) => reg.map(s => ({ id: s.id, section: s.section || null, text: textOf(s, ctx).replace(/<[^>]+>/g, ''), evidence: s.evidence || null }));
+export const describe = (reg, ctx) => reg.map(s => ({ id: s.id, section: s.section || null, env: s.env || 'any', text: textOf(s, ctx).replace(/<[^>]+>/g, ''), evidence: s.evidence || null }));
