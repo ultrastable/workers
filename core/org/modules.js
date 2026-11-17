@@ -50,6 +50,7 @@ export const MODULES = [
   { id: 'sharedslots', dir: 'adapters/shared/migrations' },
   { id: 'outreach', dir: 'core/outreach/migrations' },
   { id: 'access', dir: 'core/access/migrations' }, // last, so earlier migration numbers never shift
+  { id: 'ignorance', dir: 'core/ignorance/migrations' },
 ];
 
 // config.pack_migrations: ['<pack id>', ...] adds packs/<id>/migrations after the core modules, in the order given.

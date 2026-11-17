@@ -21,6 +21,10 @@ Method: Quni-Gudzinas, *Universal Ignorance Audit* (doi 10.5281/zenodo.21901984)
 
 Subjects are plain data: `{ id, type, title, claim, domain, evidence[], design, verdict, works_where, limits, who, assumptions[], problem_ids, effect{value,low,high,unit}, bca{higher_order[], counterfactual} }`. Map your entries into that shape.
 
+## Configuration (org tick)
+
+`config.ignorance = { enabled, budget, model_alias, author_family, token_env, models: { <alias>: { endpoint: 'github_models' | 'workers_ai', model, family } } }`. The token is read by name from the environment (`GITHUB_TOKEN` by default; in Actions, grant the job `models: read`); nothing is stored in config.
+
 ## Rules the code enforces
 
 - A gap leaves the open set only by `close()` with a disposition (`resolved`, `accepted`, `superseded`) and evidence; nothing is dropped silently. `audit()` balances.
@@ -37,4 +41,6 @@ Subjects are plain data: `{ id, type, title, claim, domain, evidence[], design, 
 | IGN-3 red-team, inversion, pre-mortem with deterministic floor and untrusted model | BUILT |
 | IGN-4 frontier of questions and candidates; stagnation widens the pass | BUILT |
 | IGN-5 fifteen-question administration and protocol check | BUILT |
-| IGN-6 wiring into the org tick for Ultrastable's own items | PLANNED (`Q-IGN-SELF`) |
+| IGN-3b model-backed red team through GitHub Models (an Actions run's own token, `models: read`) or Workers AI, behind core/modelport; failure degrades to the rule floor | BUILT (`org.test.js`, `models.js`) |
+| IGN-6 org-tick step `ignorance` (opt-in `config.ignorance.enabled`) over the org's open items: no closing probe, aged, blocked; records in `ignorance_state` | BUILT (`org.test.js`) |
+| IGN-7 enabled in the Ultrastable tick Worker (`seed/worker`) | PLANNED (cross-repo, `Q-IGN-SELF`) |
