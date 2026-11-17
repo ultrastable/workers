@@ -122,14 +122,14 @@ test('end to end: every loop runs on one tick, a run reaches a draft PR, nothing
 });
 
 test('the console API reports the open decision card for a missing secret when the runner lacks its key', async () => {
-  const { org, tick } = boot({ env: { VCS_TOKEN: SECRETS.VCS_TOKEN, CONSOLE_TOKEN: SECRETS.CONSOLE_TOKEN } });
+  const { org, tick } = boot({ env: { CONSOLE_TOKEN: SECRETS.CONSOLE_TOKEN } });
   await tick(); await tick();
   const login = await org.handle(new Request('https://x.test/console/login', { method: 'POST', body: new URLSearchParams({ key: SECRETS.CONSOLE_TOKEN }) }));
   assert.equal(login.status, 303);
   const cookie = login.headers.get('set-cookie').split(';')[0];
   const api = await (await org.handle(new Request('https://x.test/api/console', { headers: { cookie } }))).json();
   const cards = api.needs_you.cards;
-  assert.ok(cards.some(c => c.what === 'runner needs: PROVIDER_A_API_KEY' && c.kind === 'secret' && c.closing_probe === 'env:PROVIDER_A_API_KEY'), JSON.stringify(cards));
+  assert.ok(cards.some(c => c.what === 'runner needs: VCS_TOKEN' && c.kind === 'secret' && c.closing_probe === 'env:VCS_TOKEN'), JSON.stringify(cards));
   assert.match(api.headline, /need/);
 });
 
@@ -141,8 +141,9 @@ test('with NO secrets the org ticks cleanly and files exactly one card per missi
     assert.deepEqual(r.errors, []);
   }
   const cards = rows(db, `SELECT what, closing_probe FROM gate_cards WHERE id LIKE 'runner-needs-%' ORDER BY what`);
-  assert.deepEqual(cards.map(c => c.what), ['runner needs: PROVIDER_A_API_KEY', 'runner needs: PROVIDER_B_API_KEY', 'runner needs: VCS_TOKEN']);
-  assert.deepEqual(cards.map(c => c.closing_probe), ['env:PROVIDER_A_API_KEY', 'env:PROVIDER_B_API_KEY', 'env:VCS_TOKEN']);
+  // OWNERLINK-1: only an ask with a one-click flow (the GitHub connection) reaches the owner; provider keys go to the staff as items.
+  assert.deepEqual(cards.map(c => c.what), ['runner needs: VCS_TOKEN']);
+  assert.deepEqual(cards.map(c => c.closing_probe), ['env:VCS_TOKEN']);
   assert.equal(rows(db, `SELECT 1 FROM runner_runs`).length, 0);
   assert.ok(!org.extraSteps().some(s => s.name === 'runner'));
   // a secret that arrives closes its card by the seed probe

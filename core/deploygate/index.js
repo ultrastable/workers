@@ -7,7 +7,7 @@
 const ISSUER = 'https://token.actions.githubusercontent.com';
 const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
-const KEEP = ['kv_namespace', 'plain_text', 'secret_text', 'service', 'd1', 'durable_object_namespace', 'send_email'];
+const KEEP = ['kv_namespace', 'plain_text', 'secret_text', 'service', 'd1', 'durable_object_namespace', 'send_email', 'ai'];
 
 export async function verifyToken(jwt, { audience, fetch, now, issuer = ISSUER }) {
   const [h, p, s] = String(jwt).split('.');
@@ -24,6 +24,10 @@ export async function verifyToken(jwt, { audience, fetch, now, issuer = ISSUER }
   if (claims.iss !== issuer || claims.aud !== audience || !(claims.exp > t) || claims.nbf > t + 60) throw new Error('bad claims');
   return claims;
 }
+
+const hex = async t => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map(b => b.toString(16).padStart(2, '0')).join('');
+// The stored script comes back as multipart: take the first part's body.
+export function modulePart(body) { const i = body.indexOf('\r\n\r\n'), j = body.lastIndexOf('\r\n--'); return i < 0 ? body : body.slice(i + 4, j > i ? j : undefined); }
 
 export function createGate({ fetch = globalThis.fetch, now = Date.now, config }) {
   const issuer = config.issuer || ISSUER;
@@ -49,10 +53,14 @@ export function createGate({ fetch = globalThis.fetch, now = Date.now, config })
     const put = await fetch(base, { method: 'PUT', headers: auth, body: out });
     const j = await put.json();
     if (!put.ok || !j.success) return json({ error: 'deploy failed', status: put.status, errors: j.errors }, 502);
-    const back = await (await fetch(base + '/content/v2', { headers: auth })).text();
-    if (!back.includes(text)) return json({ error: 'read-back mismatch' }, 502);
-    const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('');
-    return json({ deployed: true, script, sha256, sha: claims.sha, run: claims.run_id });
+    const sha256 = await hex(text);
+    // Read-back (DEPLOYGATE-READBACK-1): compare the stored module by hash. A read the token cannot make is reported, not called a mismatch:
+    // the upload already succeeded, and the caller's own live check is the independent verification.
+    const rb = await fetch(base + '/content/v2', { headers: auth });
+    if (!rb.ok) return json({ deployed: true, verified: false, readback_status: rb.status, script, sha256, sha: claims.sha, run: claims.run_id });
+    const back = await rb.text();
+    if (!back.includes(text) && await hex(modulePart(back)) !== sha256) return json({ error: 'read-back mismatch', sha256 }, 502);
+    return json({ deployed: true, verified: true, script, sha256, sha: claims.sha, run: claims.run_id });
   }
   return { handle };
 }

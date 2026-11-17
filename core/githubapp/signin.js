@@ -50,7 +50,9 @@ export function createSignin({ vault, fetch, repo, now = () => Date.now(), apiBa
       const permission = rp.ok ? ((await rp.json())?.permissions?.admin ? 'admin' : 'other') : 'none'; // no access to the repository: a viewer
       if (!login) return html('<h1>GitHub did not say who you are</h1>', 502);
       const session = await issueSession({ login, role: roleFor({ permission }), key: await sessionKey(vault), now: clock() });
-      return new Response(null, { status: 303, headers: { location: '/console', 'cache-control': 'no-store', 'set-cookie': [`${SESSION_COOKIE}=${session}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=28800`] } });
+      const ret = cookie(request, 'us_return'); // OWNERLINK-1: the owner page asked to come back to itself (only /owner paths)
+      const back = ret && /^\/owner(\/[A-Za-z0-9._-]+)*$/.test(ret) ? ret : '/console';
+      return new Response(null, { status: 303, headers: { location: back, 'cache-control': 'no-store', 'set-cookie': [`${SESSION_COOKIE}=${session}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=28800`] } });
     }
     return html('<h1>Not found</h1>', 404);
   };

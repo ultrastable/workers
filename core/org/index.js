@@ -28,6 +28,7 @@ import { createAgents } from '../agents/index.js';
 import { createContainers } from '../containers/index.js';
 import { createInfra, heartbeat } from '../infra/index.js';
 import { createElicit } from '../elicit/index.js';
+import { ignoranceStep } from '../ignorance/org.js';
 import { step as specloopStep } from '../specloop/index.js';
 import { steps as criticalitySteps } from '../criticality/index.js';
 import { evalProbe } from '../src/tick.js';
@@ -37,6 +38,7 @@ import { sweep as codeloopSweep } from '../codeloop/index.js';
 import { handlePublicMetrics } from './public-metrics.js';
 import { buildoutSteps } from './buildout.js';
 import { askOwner } from '../access/index.js';
+import { createOwnerlink } from '../ownerlink/index.js';
 
 export { MODULES, moduleList } from './modules.js';
 
@@ -123,6 +125,9 @@ export function createOrg({
 
   // Opt-in modules: each is off unless config.<name>.enabled === true; its ports come from the injections above.
   const on = name => config[name]?.enabled === true;
+  // OWNERLINK-1: the owner action page is always served; its tick step (waiting PRs, closed asks) runs when config.ownerlink is present.
+  const ownerlink = () => createOwnerlink({ db, vault: vaultStore, fetch: doFetch, now: clock, config, env: env_cache, doors: config.doors });
+  let env_cache = env;
   let built = null; // built on first use, so an agents flag without router config costs nothing until a turn runs
   const lazyRouter = { call: (...a) => (built ||= createRouter({ db, fetch: doFetch, now: clock, config: config.router, env, ai: env.AI || null })).call(...a) };
   const agents = on('agents')
@@ -253,6 +258,8 @@ export function createOrg({
     if (on('ownerwatch')) steps.push({ name: 'ownerwatch', run: async (_db, ctx) => { const r = await watchOwnerSteps({ db, now: clock, config: config.ownerwatch, env: presence(env_), fetch: doFetch }); ctx.notes.push(`ownerwatch: ${JSON.stringify(r)}`); } });
     const containers = containersFor(env_);
     if (containers) steps.push({ name: 'containers', run: async (_db, ctx) => { const reaped = await containers.reap(); const ran = await containers.runNext(); ctx.notes.push(`containers: reaped ${JSON.stringify(reaped)}, ran ${ran ? ran.status || ran.skipped : 'none'}`); } });
+    if (config.ownerlink && config.ownerlink.enabled !== false) steps.push({ name: 'ownerlink', run: async (_db, ctx) => { env_cache = env_; const r = await ownerlink().step(); ctx.notes.push(`ownerlink: ${JSON.stringify(r)}`); } });
+    if (on('ignorance')) steps.push(ignoranceStep({ db, now: clock, config, env: env_, fetch: doFetch }));
     if (agents) steps.push({ name: 'agents', run: async (_db, ctx) => { await agents.expire(); ctx.notes.push('agents: expired approvals swept'); } });
     if (elicit) steps.push({ name: 'elicit', run: async (_db, ctx) => {
       let n = 0; for (const r of (await db.prepare(`SELECT DISTINCT project FROM elicit_needs WHERE state='asked'`).all()).results || []) n += await elicit.expire(r.project);
@@ -286,6 +293,7 @@ export function createOrg({
       try { unworked = (await db.prepare(`SELECT COUNT(*) AS n FROM outcomes WHERE surface='dispatch' AND action_class='claim_release' AND result='unworked' AND at >= ?`).bind(since).first())?.n ?? 0; } catch { /* store without the table */ }
       return Response.json({ ok, org: config.org_slug, last_tick: last || null, claims_released_unworked_24h: unworked }, { status: ok ? 200 : 503 });
     }
+    if (p === '/owner' || p.startsWith('/owner/') || p === '/api/owner/actions') { env_cache = await mergedEnv(); const r = await ownerlink().handle(request); if (r) return r; }
     if (secrets && config.vcs?.repo && p.startsWith('/console/github/signin')) return createSignin({ vault: secrets, fetch: doFetch, now: clock, repo: config.vcs.repo })(request);
     if (githubApp && p.startsWith('/console/github/')) return githubApp(request, url.origin);
     if (p === '/console' || p.startsWith('/console/') || p.startsWith('/api/console')) {

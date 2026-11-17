@@ -20,6 +20,7 @@ Each directory here is one module of the Ultrastable core, written to the specif
 
 | Module | Spec | Status |
 |---|---|---|
+| `benefitcost` | WELLBY benefit-cost with causal chains, evidence grades, Monte Carlo and an evidence-pooling loop | BUILT (see its README) |
 | `claims`, `deploy`, `kernel`, `router` | US-SPEC-08, 07, 03-05, 09 | BUILT |
 | `yield` | cost per output, waste findings | BUILT |
 | `docgate` | documents traced to work | BUILT |
@@ -37,4 +38,6 @@ Each directory here is one module of the Ultrastable core, written to the specif
 | `org` | composition root: one tick runs every loop, one handle serves every route; the Worker and Cloud Run call it | BUILT (see its README) |
 | `codeloop`, `graph`, `tasks`, `router/calibration` | merge gate, blast radius, task runner, model probes | BUILT (see their READMEs) |
 | rest | see [extraction/INVENTORY.md](../extraction/INVENTORY.md) | PLANNED |
+| `ignorance/` | registry of known unknowns, red-team, inversion and pre-mortem passes, frontier of new questions | BUILT (see its README); org-tick step and model route BUILT |
+| `promote/` | autonomous promotion: channel publishers, caps, kill switch, referral tuning, reach targets, idea intake | BUILT (see its README) |
 | `principles/` | Principles register: tagline, glossary, owner directives with their enforcers; renders `docs/GLOSSARY.md` | US-SPEC-23, BUILT |

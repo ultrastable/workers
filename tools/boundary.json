@@ -77,6 +77,10 @@
       "class": "core",
       "role": "code-host substrate cost control"
     },
+    "core/kgraph": {
+      "class": "core",
+      "role": "Knowledge graph with provenance whose gaps generate the next questions; tenant-agnostic"
+    },
     "core/feed": {
       "class": "core",
       "role": "Changelog feed rendered as RSS and JSON Feed, tenant-agnostic"
@@ -296,6 +300,34 @@
     "products/gaplint": {
       "class": "app",
       "role": "open-loop linter for any repository"
+    },
+    "core/ignorance": {
+      "class": "core",
+      "role": "Registry of known unknowns, red-team, inversion and pre-mortem passes, and a frontier of new questions; tenant-agnostic (IGN-1)"
+    },
+    "core/ownerlink": {
+      "class": "core",
+      "role": "Owner action page: every thing only the owner can do is one sign-in and one click (OAuth, atproto OAuth, review links), tenant-agnostic (OWNERLINK-1)"
+    },
+    "core/promote": {
+      "class": "core",
+      "role": "Autonomous promotion: channel publishers, caps, kill switch, referral tuning, reach targets, idea intake; tenant-agnostic (PROMOTE-1)"
+    },
+    "core/access": {
+      "class": "core",
+      "role": "Access preflight: probes the real state of every capability a tenant depends on"
+    },
+    "core/deploygate": {
+      "class": "core",
+      "role": "Deploy gate: hash read-back of the stored module before a deploy counts as verified"
+    },
+    "core/benefitcost": {
+      "class": "core",
+      "role": "Common-metric (WELLBY) benefit-cost engine with graded causal chains, higher-order effects and Monte Carlo uncertainty; tenant-agnostic"
+    },
+    "core/statements": {
+      "class": "core",
+      "role": "Claims are code: a registry of published statements, each rendered from live config and bound to a probe of the real behaviour; page audit fails on unbound prose; tenant-agnostic"
     }
   },
   "core_scripts": [
@@ -314,7 +346,8 @@
   "core_workflows": [
     ".github/workflows/ci.yml",
     ".github/workflows/release.yml",
-    ".github/workflows/selfhost.yml"
+    ".github/workflows/selfhost.yml",
+    ".github/workflows/idea-intake.yml"
   ],
   "core_tables": [
     "org",

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { makeDb } from '../_shared/testdb.js';
 import { probe, askOwner, step, report, stateOf } from './index.js';
 
-const dirs = ['./migrations/'].map(d => fileURLToPath(new URL(d, import.meta.url)));
+const dirs = ['./migrations/', '../ownerlink/migrations/'].map(d => fileURLToPath(new URL(d, import.meta.url)));
 const T0 = Date.parse('2026-11-17T12:00:00Z');
 // A fake world: path -> { status, body }. Unlisted paths answer 403.
 const world = routes => async (url, init) => {
@@ -95,10 +95,10 @@ test('a permit cannot be written without a fresh missing probe: the database rai
 test('when the capability turns up, the permitted card closes by itself', async () => {
   const reg = { 'secret.available': { routes: [{ id: 'environment', run: (c, s) => (c.env[s] ? { outcome: 'present', detail: 'set' } : { outcome: 'absent', detail: 'no' }) }] } };
   const ctx = { ...mk({}, {}), registry: reg };
-  await askOwner(ctx, { ...card('need-foo', 'provide the credential FOO'), capability: 'secret.available', subject: 'FOO' });
+  await askOwner(ctx, { ...card('need-foo', 'provide the credential MASTODON_TOKEN'), capability: 'secret.available', subject: 'MASTODON_TOKEN' });
   assert.equal(cards(ctx)[0].status, 'open');
-  ctx.env.FOO = 'set';
-  await probe(ctx, 'secret.available', 'FOO', { registry: reg });
+  ctx.env.MASTODON_TOKEN = 'set';
+  await probe(ctx, 'secret.available', 'MASTODON_TOKEN', { registry: reg });
   assert.equal(cards(ctx)[0].status, 'closed');
 });
 
