@@ -117,3 +117,10 @@ test('the Cloudflare Git connection route finds a Worker that builds from the re
   assert.equal((await probe(ctx, 'cloudflare.git_connection', 'a1/ultrastable/workers')).status, 'present');
   assert.equal((await probe(ctx, 'cloudflare.git_connection', 'a1/ultrastable/other')).status, 'missing');
 });
+
+test('a workflow that has succeeded proves its own deploy path; one that never has proves nothing', async () => {
+  const ok = mk({ '/repos/o/r/actions/workflows/deploy.yml/runs?status=success&per_page=1': { status: 200, body: { workflow_runs: [{ id: 9, updated_at: '2026-11-17T13:30:33Z' }] } } });
+  assert.equal((await probe(ok, 'github.workflow_ran_ok', 'o/r:deploy.yml')).status, 'present');
+  const never = mk({ '/repos/o/r/actions/workflows/deploy.yml/runs?status=success&per_page=1': { status: 200, body: { workflow_runs: [] } } });
+  assert.equal((await probe(never, 'github.workflow_ran_ok', 'o/r:deploy.yml')).status, 'unknown');
+});

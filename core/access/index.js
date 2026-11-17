@@ -80,6 +80,18 @@ export const CAPABILITIES = {
       return p[level || 'push'] ? present(`${level || 'push'} granted on ${repo} via ${r.token}`) : absent(`${level || 'push'} not granted on ${repo}`);
     } },
   ] },
+  // subject: '<owner>/<repo>:<workflow file>'. Proof by the capability's own use: the workflow has succeeded. A workflow that never
+  // succeeded proves nothing about the cause, so that is unknown, never absent.
+  'github.workflow_ran_ok': { describe: 'a workflow has run to success', routes: [
+    { id: 'last_success', run: async (ctx, subject) => {
+      const [repo, wf] = subject.split(':');
+      const r = await api(ctx, 'github', `/repos/${repo}/actions/workflows/${wf}/runs?status=success&per_page=1`);
+      if (r.none) return unknown('no GitHub token in the environment');
+      if (r.failed) return unknown(`workflow runs not readable: ${r.failed.join(' ')}`);
+      const run = r.body?.workflow_runs?.[0];
+      return run ? present(`${wf} succeeded at ${run.updated_at} (run ${run.id})`) : unknown(`${wf} has no successful run yet`);
+    } },
+  ] },
   // subject: account id
   'cloudflare.account_access': { describe: 'the Cloudflare credentials reach an account', routes: [
     { id: 'accounts_list', run: async (ctx, subject) => {
