@@ -9,7 +9,7 @@ import { moments } from './dist.js';
 import { score } from './model.js';
 import { GRADES } from './conversions.js';
 
-const PRIOR_WEIGHT = { A: 1, B: 0.7, C: 0.4, D: 0.2 }; // a prior from weaker evidence yields sooner to new data
+export const PRIOR_WEIGHT = { A: 1, B: 0.7, C: 0.4, D: 0.2 }; // a prior from weaker evidence yields sooner to new data
 const GRADE_ORDER = ['D', 'C', 'B', 'A'];
 
 export function pool(node, ev) {
