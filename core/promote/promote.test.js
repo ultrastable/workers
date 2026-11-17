@@ -50,3 +50,13 @@ test('fetch is called unbound (a Worker throws Illegal invocation otherwise) and
   const a = await run(ctx, [e('a')]); assert.equal(a.failed.filter(x => x.ch === 'indexnow').length, 1);
   boom = false; const b = await run(ctx, [e('a')]); assert.equal(b.sent.filter(x => x.ch === 'indexnow').length, 1);
 });
+
+test('a 429 backs the channel off for a day', async () => {
+  const ctx = mk({ channels: { indexnow: {} } });
+  ctx.fetch = async () => ({ ok: false, status: 429 });
+  await run(ctx, [e('a')]);
+  ctx.fetch = async () => { throw new Error('must not be called'); };
+  const r = await run(ctx, [e('a')]); assert.ok(r.skipped.some(s => s.why === 'backoff after 429'));
+  ctx.now = () => Date.parse('2026-06-11T13:00:00Z'); ctx.fetch = async () => ({ ok: true, status: 200 });
+  assert.equal((await run(ctx, [e('a')])).sent.length, 1);
+});
