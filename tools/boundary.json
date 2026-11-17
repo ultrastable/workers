@@ -305,6 +305,10 @@
       "class": "core",
       "role": "Registry of known unknowns, red-team, inversion and pre-mortem passes, and a frontier of new questions; tenant-agnostic (IGN-1)"
     },
+    "core/ui": {
+      "class": "core",
+      "role": "Tenant-agnostic design system: tokens with checked contrast pairs, components, page shell and a static accessibility audit"
+    },
     "core/ownerlink": {
       "class": "core",
       "role": "Owner action page: every thing only the owner can do is one sign-in and one click (OAuth, atproto OAuth, review links), tenant-agnostic (OWNERLINK-1)"
