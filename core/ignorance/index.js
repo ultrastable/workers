@@ -159,6 +159,9 @@ export function estimateMiner({ subjects }) {
     if (e.low == null || e.high == null) out.push(mk('estimate_gap', s.id, 'no-interval', `The effect estimate for "${s.title}" has no uncertainty interval.`, { severity: 3, how: 'Record the interval from the source.' }));
     else if (e.low > 0 && e.high / e.low > 3) out.push(mk('estimate_gap', s.id, 'wide-interval', `The interval for "${s.title}" spans more than threefold (${e.low} to ${e.high} ${e.unit || ''}). A point estimate would mislead.`, { severity: 2, how: 'Carry the whole interval into any ranking.' }));
     if (!(b.higher_order || []).length) out.push(mk('estimate_gap', s.id, 'higher-order', `Higher-order effects of "${s.title}" are not estimated (multipliers, displacement, unintended consequences).`, { severity: 2, how: 'Estimate or bound each, or record that it was looked for and none was found.' }));
+    if (b.prob_net_positive != null && b.prob_net_positive < 0.9) out.push(mk('estimate_gap', s.id, 'net-benefit-uncertain', `The chance that "${s.title}" does net good is estimated at ${Math.round(b.prob_net_positive * 100)}%. What would settle the sign?`, { severity: 3, how: 'Find the input that decides the sign and measure it.' }));
+    if (b.weak_share != null && b.weak_share > 0.4) out.push(mk('estimate_gap', s.id, 'weak-share', `${Math.round(b.weak_share * 100)}% of the estimate for "${s.title}" rests on weakly evidenced inputs (assumptions or low-grade sources).`, { severity: 2, how: 'Replace the weakest, most influential input with graded evidence.' }));
+    if (b.top_driver) out.push(mk('estimate_gap', s.id, 'top-driver', `The estimate for "${s.title}" is most sensitive to "${b.top_driver}". A better measurement of it narrows the answer most.`, { severity: 1, how: 'Look for a direct measurement of that input.' }));
     if (!b.counterfactual) out.push(mk('estimate_gap', s.id, 'counterfactual', `What would have happened without "${s.title}" is not stated for the estimate.`, { severity: 2 }));
   }
   return out;
@@ -208,7 +211,7 @@ export async function redTeam(s, { model, author_family } = {}) {
   if (model) { try { found.push(...sanitizeModel(await model({ prompt: redTeamPrompt(s), subject: s }), { author_family })); } catch (e) { model_error = String(e.message || e); } }
   return { findings: found, model_error };
 }
-export const findingToGap = (subject, f) => mk(f.pass, subject, f.challenge, f.challenge, { severity: f.severity, q: f.q, falsifier: f.falsifier, source: f.source, auto: true, how: f.falsifier ? 'Look for: ' + f.falsifier : undefined });
+export const findingToGap = (subject, f) => mk(f.pass, subject, f.challenge, f.challenge, { severity: f.severity, q: f.q, falsifier: f.falsifier, source: f.source, auto: true });
 
 // ---- the frontier: gaps become questions, problem candidates and solution candidates (leads, never findings) -------------------
 export function frontier(gaps) {
