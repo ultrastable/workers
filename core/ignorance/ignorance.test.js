@@ -106,3 +106,10 @@ test('frontier orders by priority and turns unexplored domains into problem cand
   const f = frontier([{ id: 'a', kind: 'unexplored_domain', severity: 3, text: 'x', status: 'open' }, { id: 'b', kind: 'red_team', severity: 1, text: 'y', status: 'open' }, { id: 'c', kind: 'red_team', severity: 3, text: 'z', status: 'closed' }]);
   assert.deepEqual(f.map(q => q.type), ['problem_candidate', 'question']);
 });
+
+test('estimates are challenged on the sign, the weak share and the dominant input, and a red-team gap closes with an answer, not a restatement', async () => {
+  const g = estimateMiner({ subjects: [sol('a', { effect: { value: 1, low: 0.5, high: 2, unit: 'u' }, bca: { higher_order: ['m'], counterfactual: 'c', prob_net_positive: 0.7, weak_share: 0.6, top_driver: 'neutral point' } })] }).map(x => x.id.split(':')[2]);
+  for (const k of ['net-benefit-uncertain', 'weak-share', 'top-driver']) assert.ok(g.some(x => x.startsWith(k)), k);
+  const registry = reg(); await run({ registry, subjects: [sol('a')], now: () => T.v, budget: 1 });
+  const v = await publicView(registry, 'a'); assert.ok(v.open.filter(x => x.kind === 'red_team').every(x => /answer the challenge/.test(x.how)));
+});
