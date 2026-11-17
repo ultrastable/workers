@@ -36,6 +36,7 @@ import { createDownstreamGithub } from '../githubapp/downstream.js';
 import { sweep as codeloopSweep } from '../codeloop/index.js';
 import { handlePublicMetrics } from './public-metrics.js';
 import { buildoutSteps } from './buildout.js';
+import { askOwner } from '../access/index.js';
 
 export { MODULES, moduleList } from './modules.js';
 
@@ -92,12 +93,14 @@ export function createOrg({
 
   // A missing secret becomes one decision card per name, filed once (the id is stable), default in effect, closed by its probe.
   async function fileRunnerCards(names) {
+    // Every ask goes through the access preflight: a name that is available, or that no route could prove missing, files no card.
+    const e = await mergedEnv();
+    const actx = { db, now: clock, fetch: doFetch, env: e, settings: config, config: { vaultHas: async n => Boolean(e[n]) } };
     for (const name of names) {
       const probe = name.startsWith('config.') ? 'manual' : `env:${name}`;
-      await db.prepare(`INSERT OR IGNORE INTO gate_cards (id, what, why_gated, default_in_effect, prepared_by_fleet, closing_probe) VALUES (?,?,?,?,?,?)`)
-        .bind(`runner-needs-${name.replace(/[^A-Za-z0-9]+/g, '-')}`, `runner needs: ${name}`,
-          'The runner is enabled in the configuration but this setting is missing, so it cannot open pull requests.',
-          'the runner is skipped; every other loop keeps running', 'org', probe).run();
+      await askOwner(actx, { id: `runner-needs-${name.replace(/[^A-Za-z0-9]+/g, '-')}`, capability: name.startsWith('config.') ? 'config.setting' : 'secret.available', subject: name,
+        what: `runner needs: ${name}`, why_gated: 'The runner is enabled in the configuration but this setting is missing, so it cannot open pull requests.',
+        default_in_effect: 'the runner is skipped; every other loop keeps running', prepared_by_fleet: 'org', closing_probe: probe });
     }
   }
 
@@ -258,7 +261,7 @@ export function createOrg({
     if (on('console_l3') && typeof stepRuns === 'function') steps.push({ name: 'console_l3', run: async (_db, ctx) => { const f = await l3.sweepStepBudgets(await stepRuns()); ctx.notes.push(`console_l3: ${f.length} step-budget findings`); } });
     if (on('infra')) steps.push({ name: 'infra', run: async (_db, ctx) => { await heartbeat({ db, now: clock }, 'tick', config.infra.tick_every_minutes ?? null); ctx.notes.push('infra: tick heartbeat recorded'); } });
     // Spec build-out modules (issue #201): on by default, each off only by config.<name>.enabled === false.
-    steps.push(...buildoutSteps({ db, config, now: clock, fetch: doFetch, claims, ports: { readFile, metrics } }));
+    steps.push(...buildoutSteps({ db, config, now: clock, fetch: doFetch, claims, ports: { readFile, metrics, env: env_ } }));
     steps.push(...crit.after);
     return steps;
   }
