@@ -7,7 +7,7 @@
 const ISSUER = 'https://token.actions.githubusercontent.com';
 const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
-const KEEP = ['kv_namespace', 'plain_text', 'secret_text', 'service', 'd1', 'durable_object_namespace', 'send_email'];
+const KEEP = ['kv_namespace', 'plain_text', 'secret_text', 'service', 'd1', 'durable_object_namespace', 'send_email', 'ai'];
 
 export async function verifyToken(jwt, { audience, fetch, now, issuer = ISSUER }) {
   const [h, p, s] = String(jwt).split('.');
