@@ -29,7 +29,14 @@ export function applyEvidence(model, items, { at = null, seed = 1 } = {}) {
   const before = score(model, { seed }), next = structuredClone(model), log = [];
   next.evidence = [...(model.evidence || [])];
   for (const ev of items) {
-    const n = next.nodes.find(x => x.id === ev.node);
+    let n = next.nodes.find(x => x.id === ev.node);
+    if (n && ev.context) { // context-specific evidence pools into that context's own figure, starting from the base amount, and leaves the base alone
+      next.contexts = next.contexts || {}; const c = (next.contexts[ev.context] = next.contexts[ev.context] || {}); c.nodes = c.nodes || {};
+      const o = (c.nodes[n.id] = c.nodes[n.id] || { amount: n.amount, grade: n.grade }); n = { ...n, amount: o.amount, grade: o.grade, source: 'assumption' };
+      const was = o.amount; o.amount = pool(n, ev); o.grade = bestGrade(o.grade, ev.grade);
+      next.evidence.push({ node: ev.node, context: ev.context, source: ev.source, url: ev.url || null, grade: ev.grade, estimate: ev.estimate, at: ev.at || at });
+      log.push({ node: ev.node, context: ev.context, applied: true, source: ev.source, from: was, to: o.amount, grade: o.grade }); continue;
+    }
     if (!n || !GRADES[ev.grade] || !ev.estimate || !(ev.estimate.low <= ev.estimate.high) || !ev.source) { log.push({ node: ev.node, applied: false, why: 'malformed or unknown node' }); continue; }
     if (next.evidence.some(x => x.node === ev.node && x.source === ev.source)) { log.push({ node: ev.node, applied: false, why: 'already pooled' }); continue; }
     const was = n.amount; n.amount = pool(n, ev); n.grade = bestGrade(n.grade, ev.grade); if (n.source === 'assumption') n.source = ev.source;
