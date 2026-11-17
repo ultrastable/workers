@@ -35,6 +35,7 @@ import { guardSteps, seedBacklog } from '../runner/selfdoer.js';
 import { createDownstreamGithub } from '../githubapp/downstream.js';
 import { sweep as codeloopSweep } from '../codeloop/index.js';
 import { handlePublicMetrics } from './public-metrics.js';
+import { buildoutSteps } from './buildout.js';
 
 export { MODULES, moduleList } from './modules.js';
 
@@ -256,6 +257,8 @@ export function createOrg({
     } });
     if (on('console_l3') && typeof stepRuns === 'function') steps.push({ name: 'console_l3', run: async (_db, ctx) => { const f = await l3.sweepStepBudgets(await stepRuns()); ctx.notes.push(`console_l3: ${f.length} step-budget findings`); } });
     if (on('infra')) steps.push({ name: 'infra', run: async (_db, ctx) => { await heartbeat({ db, now: clock }, 'tick', config.infra.tick_every_minutes ?? null); ctx.notes.push('infra: tick heartbeat recorded'); } });
+    // Spec build-out modules (issue #201): on by default, each off only by config.<name>.enabled === false.
+    steps.push(...buildoutSteps({ db, config, now: clock, fetch: doFetch, claims, ports: { readFile, metrics } }));
     steps.push(...crit.after);
     return steps;
   }

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { makeDb } from '../_shared/testdb.js';
 import { OUT_DIR } from '../../tools/build_migrations.mjs';
 import { createOrg, presence, runnerNeeds } from './index.js';
+import { BUILDOUT_STEPS } from './buildout.js';
 import { fakeVcs, goodPatch, approve, seedItem, T0 } from '../runner/testkit.js';
 import { addClaims } from '../describe/index.js';
 import { loadManifest } from '../packs/index.js';
@@ -87,7 +88,7 @@ test('end to end: every loop runs on one tick, a run reaches a draft PR, nothing
   last = await tick();
 
   const names = org.extraSteps().map(s => s.name);
-  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs', 'criticality_specify', 'specloop', 'runner_needs_close', 'runner', 'codeloop_merge', 'criticality']);
+  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs', 'criticality_specify', 'specloop', 'runner_needs_close', 'runner', 'codeloop_merge', ...BUILDOUT_STEPS, 'criticality']);
 
   // L2 kernel step recorded its snapshot, every tick
   assert.ok(one(db, `SELECT COUNT(*) n FROM kernel_step_evidence WHERE step='risk_snapshot' AND ok=1`).n >= 3);
@@ -264,4 +265,18 @@ test('CRIT-5: with no codeloop configuration a reviewed green pull request merge
   for (let i = 0; i < 20 && !merges.length; i++) await tick();
   assert.equal(merges.length, 1);
   assert.equal(one(db, `SELECT status FROM items WHERE id='US-SPEC-11-1'`).status, 'done');
+});
+
+test('issue #201: every build-out step is in extraSteps, runs on by default, and an off switch removes its work', async () => {
+  const { db, org, tick } = boot({ env: {} });
+  const names = org.extraSteps().map(s => s.name);
+  for (const n of BUILDOUT_STEPS) assert.ok(names.includes(n), `${n} is wired`);
+  const r = await tick();
+  assert.equal(r.completed, r.total, 'no step failed: ' + JSON.stringify(r.errors));
+  assert.ok(String(one(db, `SELECT report FROM tick_runs ORDER BY id DESC LIMIT 1`).report).includes('plus:'), 'the plus step ran');
+  // a step turned off by its own switch records that it is off and does nothing else
+  const { org: off, tick: offTick } = boot({ env: {}, config: baseConfig({ fleet: { enabled: false } }) });
+  const o = await offTick();
+  assert.equal(o.completed, o.total, JSON.stringify(o.errors));
+  assert.ok(off.extraSteps().some(s => s.name === 'fleet'), 'the step is still listed; its switch is read when it runs');
 });

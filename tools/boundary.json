@@ -77,6 +77,14 @@
       "class": "core",
       "role": "code-host substrate cost control"
     },
+    "core/feed": {
+      "class": "core",
+      "role": "Changelog feed rendered as RSS and JSON Feed, tenant-agnostic"
+    },
+    "core/outreach": {
+      "class": "core",
+      "role": "Approval-gated, dry-run-by-default outreach outbox with sender identity, disclosure footer, suppression and caps"
+    },
     "core/tenantstore": {
       "class": "core",
       "role": "Sandboxed per-tenant store with hard read and write budgets, vector search and a spend probe (US-SPEC-25)"

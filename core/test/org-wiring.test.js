@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-Ultrastable-USL-1.0
 // Copyright (c) 2026 Rowan Brad Quni-Gudzinas. Non-commercial use free; commercial use requires a license. See LICENSE.
 // US-SPEC-03/08/11/14/16: the merged modules steward, waste, ownerwatch, agents, containers, infra, elicit and console-l3 are
-// started by core/org only when their config.<name>.enabled is true. The default step list is unchanged (opt-in, safe).
+// started by core/org only when their config.<name>.enabled is true. The default step list is the base loops plus the build-out steps (issue #201), which are on by default.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { makeDb } from '../_shared/testdb.js';
 import { OUT_DIR } from '../../tools/build_migrations.mjs';
 import { createOrg } from '../org/index.js';
+import { BUILDOUT_STEPS } from '../org/buildout.js';
 import { createContainers } from '../containers/index.js';
 
 const policy = JSON.parse(readFileSync(new URL('../../autonomy/policy.json', import.meta.url), 'utf8'));
@@ -28,7 +29,7 @@ const authed = { authorization: 'Bearer console-token-123', 'content-type': 'app
 
 test('default: nothing opt-in is started and the step list is unchanged', () => {
   const { org } = boot({});
-  assert.deepEqual(org.extraSteps().map(s => s.name), ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs']);
+  assert.deepEqual(org.extraSteps().map(s => s.name), ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'yield', 'packs', ...BUILDOUT_STEPS]);
   assert.equal(org.agents, null);
   assert.equal(org.elicit, null);
 });
@@ -38,7 +39,7 @@ test('enabled flags without their ports add only what can run; with ports every 
   assert.ok(!noPorts.includes('steward') && !noPorts.includes('containers') && !noPorts.includes('console_l3'));
   const sink = { name: 'mem', upsert: async () => ({ ref: 'r' }) };
   const names = boot(ALL_ON, { sinks: [sink], executors: [{ name: 'x', run: async () => ({ exit_code: 0 }) }], stepRuns: async () => [] }).org.extraSteps().map(s => s.name);
-  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'waste', 'packs', 'steward', 'ownerwatch', 'containers', 'agents', 'elicit', 'console_l3', 'infra']);
+  assert.deepEqual(names, ['l2', 'claims_reap', 'claims_release_terminal', 'describe', 'waste', 'packs', 'steward', 'ownerwatch', 'containers', 'agents', 'elicit', 'console_l3', 'infra', ...BUILDOUT_STEPS]);
 });
 
 test('one tick runs every wired loop and each leaves evidence', async () => {
@@ -55,7 +56,7 @@ test('one tick runs every wired loop and each leaves evidence', async () => {
   const submitted = await createContainers({ db, now: () => clock.t, config: {}, executors: [executor] }).submit({ command: 'echo hi' });
   assert.equal(submitted.ok, true, JSON.stringify(submitted));
   const rep = await tick();
-  assert.deepEqual(org.extraSteps().map(s => s.name).slice(-7), ['steward', 'ownerwatch', 'containers', 'agents', 'elicit', 'console_l3', 'infra']);
+  assert.deepEqual(org.extraSteps().map(s => s.name).slice(-7 - BUILDOUT_STEPS.length, -BUILDOUT_STEPS.length), ['steward', 'ownerwatch', 'containers', 'agents', 'elicit', 'console_l3', 'infra']);
   const run = one(db, 'SELECT steps_completed, steps_total, errors FROM tick_runs ORDER BY id DESC LIMIT 1');
   assert.equal(run.steps_completed, run.steps_total, 'every step completed: ' + run.errors + JSON.stringify(rep));
   assert.ok(mirrored.includes('W-1'));
