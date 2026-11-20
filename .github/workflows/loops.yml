@@ -3,8 +3,8 @@ name: loops
 # Closes the loops on this repository's own tracker (tools/loop_closer.py): probes close issues, epics file and tick
 # their own child issues, issues with no probe and no pull request are labelled. Daily, plus on demand and after each merge.
 on:
-  schedule:
-    - cron: "17 6 * * *"
+  # REPOS-1: this repository is retired (README points to ultrastable/ultrastable, folder workers/); its clock is removed so a retired copy
+  # never re-files work. The running system is the ultrastable-tick Worker on the Ultrastable Cloudflare account.
   workflow_dispatch:
   push:
     branches: [main]
