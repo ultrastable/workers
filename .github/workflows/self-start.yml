@@ -4,8 +4,8 @@ name: self-start
 # Dry run until the owner has set the repository secrets; after that the next run applies, deploys, puts the Worker's
 # secrets (values on stdin, never printed) and records org/started.json, which closes the gate issue by its probe.
 on:
-  schedule:
-    - cron: "37 */6 * * *"
+  # REPOS-1: this repository is retired (README points to ultrastable/ultrastable, folder workers/); its clock is removed so a retired copy
+  # never re-files work. The running system is the ultrastable-tick Worker on the Ultrastable Cloudflare account.
   workflow_dispatch:
 permissions:
   contents: write
